@@ -16,8 +16,9 @@ JOSM plugin for quickly applying address tags to buildings.
 - Automatically increments the house number after successfully applying tags, using the selected increment.
 - For house numbers containing letters (for example `12a`), the letter part is incremented (`12a` -> `12b`) instead of the numeric part.
 - If a letter-based house number is entered while `+2` or a negative increment is selected, the dialog automatically switches increment back to `+1`.
-- `SPACE` also increments the house number without clicking a building (for skipped/missing buildings).
-- `-` decreases the house number by one.
+- `+` and `-` follow the current house number mode:
+  - no suffix (for example `12`) -> numeric step (`12` -> `13`, `12` -> `11`)
+  - with suffix (for example `12a`) -> letter step (`12a` -> `12b`, `12b` -> `12a`)
 - `L` toggles a letter suffix on the house number (`12` <-> `12a`) for quick switching between numeric and lettered values.
 - `Ctrl` + left-click on a building reads `addr:street`, `addr:postcode`, and `addr:housenumber` into the dialog (building type is not imported by pickup).
 - `Ctrl` + left-click on a street (without a building hit) reads the nearby street `name` into the dialog street field and sets house number to `1`.
@@ -27,7 +28,7 @@ JOSM plugin for quickly applying address tags to buildings.
 
 The dialog shows this hint below the increment buttons:
 
-`Hint: SPACE increments, - decrements, L toggles the letter suffix (e.g. 12 <-> 12a).`
+`Hint: + / - follow current house number mode, L toggles suffix mode.`
 
 This makes the `SPACE` shortcut visible directly in the dialog.
 
@@ -38,10 +39,11 @@ This makes the `SPACE` shortcut visible directly in the dialog.
 3. Select increment (`-2`, `-1`, `+1`, `+2`).
 4. Optional: use `Ctrl` + left-click on a building to read its address data into the dialog, or `Ctrl` + left-click on a street to pick its name.
 5. Left-click buildings to apply tags.
-6. Optional: press `SPACE` to advance the house number without tagging a building.
-7. Optional: press `-` to reduce the current house number by one.
-8. Optional: press `L` to toggle a trailing `a` suffix on/off.
-9. Press `ESC` to pause/exit Street Mode (you can continue from the dialog).
+6. Optional: press `+` or `-` for manual steps:
+   - without suffix -> numeric up/down
+   - with suffix -> letter up/down
+7. Optional: press `L` to toggle a trailing `a` suffix on/off (switches keyboard stepping mode).
+8. Press `ESC` to pause/exit Street Mode (you can continue from the dialog).
 
 ## Build
 
