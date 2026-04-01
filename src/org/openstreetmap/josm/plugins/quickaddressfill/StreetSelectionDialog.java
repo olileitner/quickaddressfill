@@ -21,7 +21,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
-import javax.swing.Timer;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
@@ -44,7 +43,6 @@ final class StreetSelectionDialog {
     private JToggleButton plusTwoIncrementButton;
     private final JLabel modeStateLabel;
     private final JButton continueWorkingButton;
-    private final Timer modeStateRefreshTimer;
     private int houseNumberIncrementStep = 1;
     private String lastSelectedStreet;
     private String rememberedStreet;
@@ -121,6 +119,7 @@ final class StreetSelectionDialog {
         this.streetModeController.setHouseNumberUpdateListener(this::updateHouseNumberFromMode);
         this.streetModeController.setAddressValuesReadListener(this::updateAddressValuesFromMode);
         this.streetModeController.setBuildingTypeConsumedListener(this::consumeBuildingTypeFromMode);
+        this.streetModeController.setModeStateListener(this::refreshModeStateUi);
 
         JButton closeButton = new JButton(I18n.tr("Close"));
         closeButton.addActionListener(e -> closeDialog());
@@ -128,7 +127,6 @@ final class StreetSelectionDialog {
         this.modeStateLabel = new JLabel();
         this.continueWorkingButton = new JButton(I18n.tr("Continue working"));
         this.continueWorkingButton.addActionListener(e -> continueWorking());
-        this.modeStateRefreshTimer = new Timer(500, e -> refreshModeStateUi());
 
         JPanel modeStatePanel = new JPanel(new BorderLayout(8, 0));
         modeStatePanel.add(modeStateLabel, BorderLayout.WEST);
@@ -298,14 +296,11 @@ final class StreetSelectionDialog {
         updatingInputs = false;
 
         notifyAddressChanged();
-        refreshModeStateUi();
+        refreshModeStateUi(streetModeController.isActive());
 
         if (!dialog.isVisible()) {
             positionTopLeftInOwner(MainApplication.getMainFrame());
             dialog.setVisible(true);
-            if (!modeStateRefreshTimer.isRunning()) {
-                modeStateRefreshTimer.start();
-            }
         } else {
             dialog.toFront();
             dialog.requestFocus();
@@ -327,7 +322,6 @@ final class StreetSelectionDialog {
                     houseNumberField.getText(),
                     houseNumberIncrementStep
             );
-            refreshModeStateUi();
         }
     }
 
@@ -481,9 +475,6 @@ final class StreetSelectionDialog {
 
     private void closeDialog() {
         rememberCurrentValues();
-        if (modeStateRefreshTimer.isRunning()) {
-            modeStateRefreshTimer.stop();
-        }
         dialog.setVisible(false);
         streetModeController.deactivate();
     }
@@ -496,11 +487,9 @@ final class StreetSelectionDialog {
                 houseNumberField.getText(),
                 houseNumberIncrementStep
         );
-        refreshModeStateUi();
     }
 
-    private void refreshModeStateUi() {
-        boolean active = streetModeController.isActive();
+    private void refreshModeStateUi(boolean active) {
         if (active) {
             modeStateLabel.setText(I18n.tr("Active"));
             modeStateLabel.setForeground(new java.awt.Color(0, 140, 0));

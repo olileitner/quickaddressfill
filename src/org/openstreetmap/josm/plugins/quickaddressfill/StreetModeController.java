@@ -11,6 +11,7 @@ final class StreetModeController {
     private HouseNumberUpdateListener houseNumberUpdateListener;
     private AddressValuesReadListener addressValuesReadListener;
     private BuildingTypeConsumedListener buildingTypeConsumedListener;
+    private ModeStateListener modeStateListener;
 
     interface HouseNumberUpdateListener {
         void onHouseNumberUpdated(String houseNumber);
@@ -22,6 +23,10 @@ final class StreetModeController {
 
     interface BuildingTypeConsumedListener {
         void onBuildingTypeConsumed();
+    }
+
+    interface ModeStateListener {
+        void onModeStateChanged(boolean active);
     }
 
     boolean isActive() {
@@ -82,6 +87,19 @@ final class StreetModeController {
     void notifyBuildingTypeConsumed() {
         if (buildingTypeConsumedListener != null) {
             buildingTypeConsumedListener.onBuildingTypeConsumed();
+        }
+    }
+
+    void setModeStateListener(ModeStateListener listener) {
+        this.modeStateListener = listener;
+        if (modeStateListener != null) {
+            modeStateListener.onModeStateChanged(isActive());
+        }
+    }
+
+    void notifyModeStateChanged(boolean active) {
+        if (modeStateListener != null) {
+            modeStateListener.onModeStateChanged(active);
         }
     }
 

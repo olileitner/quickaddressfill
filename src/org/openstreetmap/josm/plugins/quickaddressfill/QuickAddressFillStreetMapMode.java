@@ -5,6 +5,8 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
+import java.awt.KeyEventDispatcher;
+import java.awt.KeyboardFocusManager;
 import java.awt.Point;
 import java.awt.Polygon;
 import java.awt.RenderingHints;
@@ -46,6 +48,7 @@ final class QuickAddressFillStreetMapMode extends MapMode {
 
     private final StreetModeController controller;
     private final KeyAdapter escListener;
+    private final KeyEventDispatcher ctrlKeyDispatcher;
     private String streetName;
     private String postcode;
     private String buildingType;
@@ -54,6 +57,7 @@ final class QuickAddressFillStreetMapMode extends MapMode {
     private String warningSuppressedStreet;
     private long lastHandledMouseWhen;
     private boolean controlPressed;
+    private boolean ctrlDispatcherRegistered;
 
     QuickAddressFillStreetMapMode(StreetModeController controller) {
         super(
@@ -63,6 +67,7 @@ final class QuickAddressFillStreetMapMode extends MapMode {
                 Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR)
         );
         this.controller = controller;
+        this.ctrlKeyDispatcher = this::handleGlobalKeyEvent;
         this.escListener = new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -126,6 +131,7 @@ final class QuickAddressFillStreetMapMode extends MapMode {
     @Override
     public void enterMode() {
         super.enterMode();
+        registerCtrlKeyDispatcher();
         MapFrame map = MainApplication.getMap();
         if (map != null && map.mapView != null) {
             map.mapView.addKeyListener(escListener);
@@ -133,11 +139,13 @@ final class QuickAddressFillStreetMapMode extends MapMode {
             map.mapView.requestFocusInWindow();
         }
         controlPressed = false;
+        controller.notifyModeStateChanged(true);
         refreshModePresentation(null);
     }
 
     @Override
     public void exitMode() {
+        unregisterCtrlKeyDispatcher();
         MapFrame map = MainApplication.getMap();
         if (map != null && map.mapView != null) {
             map.mapView.removeKeyListener(escListener);
@@ -148,7 +156,40 @@ final class QuickAddressFillStreetMapMode extends MapMode {
         if (map != null && map.statusLine != null) {
             map.statusLine.setHelpText(this, I18n.tr("QAF PAUSED"));
         }
+        controller.notifyModeStateChanged(false);
         super.exitMode();
+    }
+
+    private boolean handleGlobalKeyEvent(KeyEvent e) {
+        if (!isModeActiveOnMap(MainApplication.getMap())) {
+            return false;
+        }
+
+        int id = e.getID();
+        if (id == KeyEvent.KEY_PRESSED || id == KeyEvent.KEY_RELEASED) {
+            if (e.getKeyCode() == KeyEvent.VK_CONTROL) {
+                setControlPressed(id == KeyEvent.KEY_PRESSED);
+            } else {
+                setControlPressed(e.isControlDown());
+            }
+        }
+        return false;
+    }
+
+    private void registerCtrlKeyDispatcher() {
+        if (ctrlDispatcherRegistered) {
+            return;
+        }
+        KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(ctrlKeyDispatcher);
+        ctrlDispatcherRegistered = true;
+    }
+
+    private void unregisterCtrlKeyDispatcher() {
+        if (!ctrlDispatcherRegistered) {
+            return;
+        }
+        KeyboardFocusManager.getCurrentKeyboardFocusManager().removeKeyEventDispatcher(ctrlKeyDispatcher);
+        ctrlDispatcherRegistered = false;
     }
 
     @Override
