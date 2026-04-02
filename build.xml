@@ -18,6 +18,7 @@
     <property name="i18n.templates.dir" value="${i18n.po.dir}/templates"/>
     <property name="i18n.pot.file" value="${i18n.templates.dir}/${plugin.name}.pot"/>
     <property name="i18n.potfiles" value="${i18n.dir}/POTFILES.in"/>
+    <property name="i18n.pl" value="${i18n.dir}/i18n.pl"/>
 
     <target name="clean">
         <delete dir="${build.dir}"/>
@@ -67,6 +68,15 @@
         </exec>
     </target>
 
+    <target name="i18n-lang" depends="init" description="Generate JOSM .lang files from i18n/po/*.po using i18n.pl">
+        <exec executable="/bin/sh" failonerror="true">
+            <arg value="-c"/>
+            <arg value='set -e; found=0; for po in "${i18n.po.dir}"/*.po; do [ -e "$po" ] || continue; found=1; break; done; [ "$found" -eq 1 ] || exit 0; command -v perl >/dev/null 2&gt;&amp;1 || { echo "Missing prerequisite: perl. Install perl to generate .lang files." &gt;&amp;2; exit 2; }; [ -f "${i18n.pl}" ] || { echo "Missing conversion script: ${i18n.pl}. Provide JOSM i18n.pl via -Di18n.pl=/path/to/i18n.pl" &gt;&amp;2; exit 2; }; rm -f "${i18n.lang.dir}"/*.lang; for po in "${i18n.po.dir}"/*.po; do [ -e "$po" ] || continue; lang=$(basename "$po" .po); perl "${i18n.pl}" "$po" &gt; "${i18n.lang.dir}/$lang.lang"; done'/>
+        </exec>
+    </target>
+
+    <target name="i18n" depends="i18n-merge,i18n-lang" description="Run full i18n workflow: extract, merge, and generate lang files"/>
+
     <target name="fetch-josm" depends="init" description="Download JOSM tested jar if missing">
         <get src="https://josm.openstreetmap.de/download/josm-tested.jar"
              dest="${josm.jar}"
@@ -86,7 +96,7 @@
         </javac>
     </target>
 
-    <target name="dist" depends="compile" description="Build plugin JAR">
+    <target name="dist" depends="compile,i18n-lang" description="Build plugin JAR">
         <jar destfile="${dist.dir}/${plugin.name}.jar" basedir="${classes.dir}">
             <zipfileset dir="${i18n.lang.dir}" prefix="data/${plugin.name}/lang" erroronmissingdir="false"/>
             <manifest>

@@ -57,20 +57,44 @@ mkdir -p ~/.josm/plugins
 cp dist/QuickAddressFill.jar ~/.josm/plugins/
 ```
 
-## Translation Workflow (Preparation)
+## Translation Workflow
 
 - Extraction source list: `i18n/POTFILES.in`
 - Translation catalogs folder: `i18n/po/`
 - POT template output: `i18n/po/templates/QuickAddressFill.pot`
-- Future generated `.lang` files: `i18n/lang/`
+- Generated `.lang` files: `i18n/lang/`
 
-Run extraction and PO merge with:
+Create the first translation file (example):
+
+- copy `i18n/po/templates/QuickAddressFill.pot` to `i18n/po/de.po`
+- translate entries in `i18n/po/de.po`
+
+Run extraction:
 
 `ant i18n-extract`
 
+Merge existing `.po` files with updated template:
+
 `ant i18n-merge`
 
-When `.lang` files are present in `i18n/lang/`, `ant dist` packages them into `data/QuickAddressFill/lang/` in the plugin JAR.
+Generate JOSM `.lang` files from `.po` files:
+
+`ant i18n-lang`
+
+Run the full i18n workflow:
+
+`ant i18n`
+
+Build and package plugin (includes generated `.lang` files):
+
+`ant dist`
+
+`ant dist` packages files from `i18n/lang/` into `data/QuickAddressFill/lang/` inside the plugin JAR.
+
+Prerequisite for `.po -> .lang` conversion:
+
+- `perl` installed
+- JOSM conversion script `i18n.pl` available at `i18n/i18n.pl`, or passed via `-Di18n.pl=/path/to/i18n.pl`
 
 
 

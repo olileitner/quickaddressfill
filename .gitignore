@@ -1,9 +1,27 @@
-.idea/
+# Build / compiled
 build/
 dist/
+*.class
+*.jar
 lib/josm-tested.jar
+
+# IDE / editor
+.idea/
+.vscode/
+*.iml
+
+# i18n generated artifacts
 i18n/po/templates/*.pot
 !i18n/po/templates/.gitkeep
 i18n/lang/*.lang
 !i18n/lang/.gitkeep
+
+# OS / system
+.DS_Store
+Thumbs.db
+
+# Temporary / logs
+*.log
+*.tmp
+*.bak
 
