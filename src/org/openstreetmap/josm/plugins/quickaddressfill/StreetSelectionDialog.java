@@ -25,6 +25,7 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
 import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.tools.I18n;
 
 final class StreetSelectionDialog {
@@ -43,6 +44,8 @@ final class StreetSelectionDialog {
     private JToggleButton plusTwoIncrementButton;
     private final JLabel modeStateLabel;
     private final JButton continueWorkingButton;
+    private final JLabel buildingSplitterStatusLabel;
+    private final JButton splitBuildingButton;
     private int houseNumberIncrementStep = 1;
     private String lastSelectedStreet;
     private String rememberedStreet;
@@ -127,7 +130,6 @@ final class StreetSelectionDialog {
         this.continueWorkingButton = new JButton(I18n.tr("Continue working"));
         this.continueWorkingButton.addActionListener(e -> continueWorking());
         this.streetModeController.setModeStateListener(this::refreshModeStateUi);
-
         JPanel modeStatePanel = new JPanel(new BorderLayout(8, 0));
         modeStatePanel.add(modeStateLabel, BorderLayout.WEST);
         modeStatePanel.add(continueWorkingButton, BorderLayout.EAST);
@@ -235,6 +237,18 @@ final class StreetSelectionDialog {
         gbc.insets = new Insets(8, 0, 0, 0);
         formPanel.add(new JLabel(I18n.tr("Hint: + / - follow current house number mode, L toggles suffix mode.")), gbc);
 
+        JPanel buildingSplitterPanel = new JPanel(new BorderLayout(8, 0));
+        this.buildingSplitterStatusLabel = new JLabel();
+        this.splitBuildingButton = new JButton(I18n.tr("Split building"));
+        this.splitBuildingButton.setEnabled(false);
+        this.splitBuildingButton.addActionListener(e -> onSplitBuildingRequested());
+        buildingSplitterPanel.add(buildingSplitterStatusLabel, BorderLayout.WEST);
+        buildingSplitterPanel.add(splitBuildingButton, BorderLayout.EAST);
+
+        gbc.gridy = 6;
+        gbc.insets = new Insets(6, 0, 0, 0);
+        formPanel.add(buildingSplitterPanel, gbc);
+
         JPanel content = new JPanel(new BorderLayout(8, 8));
         content.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         content.add(modeStatePanel, BorderLayout.NORTH);
@@ -251,6 +265,7 @@ final class StreetSelectionDialog {
                 closeDialog();
             }
         });
+        refreshBuildingSplitterAvailability();
     }
 
     static void showNoDataSetMessage() {
@@ -297,6 +312,7 @@ final class StreetSelectionDialog {
 
         notifyAddressChanged();
         refreshModeStateUi(streetModeController.isActive());
+        refreshBuildingSplitterAvailability();
 
         if (!dialog.isVisible()) {
             positionTopLeftInOwner(MainApplication.getMainFrame());
@@ -502,6 +518,31 @@ final class StreetSelectionDialog {
             modeStateLabel.setForeground(new java.awt.Color(150, 60, 60));
             continueWorkingButton.setVisible(true);
         }
+    }
+
+    private void refreshBuildingSplitterAvailability() {
+        if (buildingSplitterStatusLabel == null || splitBuildingButton == null) {
+            return;
+        }
+        boolean buildingSplitterAvailable = BuildingSplitterDetector.isBuildingSplitterAvailable();
+        buildingSplitterStatusLabel.setText(
+                buildingSplitterAvailable
+                        ? I18n.tr("Building Splitter: available")
+                        : I18n.tr("Building Splitter: not found")
+        );
+        splitBuildingButton.setVisible(buildingSplitterAvailable);
+        splitBuildingButton.setEnabled(buildingSplitterAvailable);
+    }
+
+    private void onSplitBuildingRequested() {
+        if (BuildingSplitterBridge.activateBuildingSplitter()) {
+            refreshBuildingSplitterAvailability();
+            return;
+        }
+        refreshBuildingSplitterAvailability();
+        new Notification(I18n.tr("Could not activate Building Splitter."))
+                .setDuration(Notification.TIME_SHORT)
+                .show();
     }
 
     private void applyIncrementStep(int incrementStep) {
