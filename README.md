@@ -16,20 +16,20 @@ JOSM plugin for quickly applying address tags to buildings.
 - Automatically increments the house number after successfully applying tags, using the selected increment.
 - For house numbers containing letters (for example `12a`), the letter part is incremented (`12a` -> `12b`) instead of the numeric part.
 - If a letter-based house number is entered while `+2` or a negative increment is selected, the dialog automatically switches increment back to `+1`.
-- `+` increases and `-` decreases the active house-number part without clicking a building.
-- In suffix mode (`12a`, `12b`, ...), `+` and `-` change the suffix letter; otherwise they change the numeric part.
+- `SPACE` also increments the house number without clicking a building (for skipped/missing buildings).
+- `-` decreases the house number by one.
 - `L` toggles a letter suffix on the house number (`12` <-> `12a`) for quick switching between numeric and lettered values.
 - `Ctrl` + left-click on a building reads `addr:street`, `addr:postcode`, and `addr:housenumber` into the dialog (building type is not imported by pickup).
 - `Ctrl` + left-click on a street (without a building hit) reads the nearby street `name` into the dialog street field and sets house number to `1`.
 - Status line displays active values and updates continuously (street, postcode, house number, increment), including `QAF PAUSED` when mode is inactive.
-- Detects whether `buildingsplitter` is loaded and shows `Building Splitter: available` or `Building Splitter: not found`.
-- Provides a `Split building` button that attempts to activate Building Splitter when available.
 
 ## Dialog Hint
 
 The dialog shows this hint below the increment buttons:
 
-`Hint: + / - follow current house number mode, L toggles suffix mode.`
+`Hint: SPACE increments, - decrements, L toggles the letter suffix (e.g. 12 <-> 12a).`
+
+This makes the `SPACE` shortcut visible directly in the dialog.
 
 ## Usage
 
@@ -38,9 +38,9 @@ The dialog shows this hint below the increment buttons:
 3. Select increment (`-2`, `-1`, `+1`, `+2`).
 4. Optional: use `Ctrl` + left-click on a building to read its address data into the dialog, or `Ctrl` + left-click on a street to pick its name.
 5. Left-click buildings to apply tags.
-6. Optional: use `+` / `-` to advance or reduce the current house number part without tagging a building.
-7. Optional: press `L` to toggle a trailing `a` suffix on/off.
-8. Optional: if `Building Splitter: available` is shown, click `Split building` to switch to that tool.
+6. Optional: press `SPACE` to advance the house number without tagging a building.
+7. Optional: press `-` to reduce the current house number by one.
+8. Optional: press `L` to toggle a trailing `a` suffix on/off.
 9. Press `ESC` to pause/exit Street Mode (you can continue from the dialog).
 
 ## Build
@@ -56,6 +56,21 @@ ant dist
 mkdir -p ~/.josm/plugins
 cp dist/QuickAddressFill.jar ~/.josm/plugins/
 ```
+
+## Translation Workflow (Preparation)
+
+- Extraction source list: `i18n/POTFILES.in`
+- Translation catalogs folder: `i18n/po/`
+- POT template output: `i18n/po/templates/QuickAddressFill.pot`
+- Future generated `.lang` files: `i18n/lang/`
+
+Run extraction and PO merge with:
+
+`ant i18n-extract`
+
+`ant i18n-merge`
+
+When `.lang` files are present in `i18n/lang/`, `ant dist` packages them into `data/QuickAddressFill/lang/` in the plugin JAR.
 
 
 

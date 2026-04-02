@@ -1,0 +1,13 @@
+# Java source files scanned by xgettext for JOSM plugin translations.
+# Keep this list deterministic to avoid extraction noise.
+src/org/openstreetmap/josm/plugins/quickaddressfill/BuildingSplitterBridge.java
+src/org/openstreetmap/josm/plugins/quickaddressfill/BuildingSplitterDetector.java
+src/org/openstreetmap/josm/plugins/quickaddressfill/BuildingTagApplier.java
+src/org/openstreetmap/josm/plugins/quickaddressfill/PostcodeCollector.java
+src/org/openstreetmap/josm/plugins/quickaddressfill/QuickAddressFillAction.java
+src/org/openstreetmap/josm/plugins/quickaddressfill/QuickAddressFillPlugin.java
+src/org/openstreetmap/josm/plugins/quickaddressfill/QuickAddressFillStreetMapMode.java
+src/org/openstreetmap/josm/plugins/quickaddressfill/StreetModeController.java
+src/org/openstreetmap/josm/plugins/quickaddressfill/StreetNameCollector.java
+src/org/openstreetmap/josm/plugins/quickaddressfill/StreetSelectionDialog.java
+

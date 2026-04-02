@@ -114,7 +114,7 @@ final class StreetSelectionDialog {
         });
 
         this.streetCombo = new JComboBox<>();
-        this.streetCombo.setPrototypeDisplayValue("Example Street with Longer Name");
+        this.streetCombo.setPrototypeDisplayValue(I18n.tr("Example Street with Longer Name"));
         this.streetCombo.addActionListener(e -> onStreetSelectionChanged());
 
         this.buildingTypeCombo = createBuildingTypeCombo();
@@ -235,7 +235,17 @@ final class StreetSelectionDialog {
         gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(8, 0, 0, 0);
-        formPanel.add(new JLabel(I18n.tr("Hint: + / - follow current house number mode, L toggles suffix mode.")), gbc);
+        formPanel.add(new JLabel(I18n.tr("Click: apply address")), gbc);
+
+        gbc.gridy = 6;
+        gbc.insets = new Insets(2, 0, 0, 0);
+        formPanel.add(new JLabel(I18n.tr("Ctrl+Click: read address")), gbc);
+
+        gbc.gridy = 7;
+        formPanel.add(new JLabel(I18n.tr("+ / -: change number or letter")), gbc);
+
+        gbc.gridy = 8;
+        formPanel.add(new JLabel(I18n.tr("L: toggle letter suffix")), gbc);
 
         JPanel buildingSplitterPanel = new JPanel(new BorderLayout(8, 0));
         this.buildingSplitterStatusLabel = new JLabel();
@@ -245,7 +255,7 @@ final class StreetSelectionDialog {
         buildingSplitterPanel.add(buildingSplitterStatusLabel, BorderLayout.WEST);
         buildingSplitterPanel.add(splitBuildingButton, BorderLayout.EAST);
 
-        gbc.gridy = 6;
+        gbc.gridy = 9;
         gbc.insets = new Insets(6, 0, 0, 0);
         formPanel.add(buildingSplitterPanel, gbc);
 
@@ -525,11 +535,8 @@ final class StreetSelectionDialog {
             return;
         }
         boolean buildingSplitterAvailable = BuildingSplitterDetector.isBuildingSplitterAvailable();
-        buildingSplitterStatusLabel.setText(
-                buildingSplitterAvailable
-                        ? I18n.tr("Building Splitter: available")
-                        : I18n.tr("Building Splitter: not found")
-        );
+        buildingSplitterStatusLabel.setText(buildingSplitterAvailable ? "" : I18n.tr("Building Splitter: not found"));
+        buildingSplitterStatusLabel.setVisible(!buildingSplitterAvailable);
         splitBuildingButton.setVisible(buildingSplitterAvailable);
         splitBuildingButton.setEnabled(buildingSplitterAvailable);
     }

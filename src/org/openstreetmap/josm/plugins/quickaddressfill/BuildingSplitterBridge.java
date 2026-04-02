@@ -8,6 +8,7 @@ import org.openstreetmap.josm.actions.mapmode.MapMode;
 import org.openstreetmap.josm.gui.IconToggleButton;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
+import org.openstreetmap.josm.tools.Logging;
 
 final class BuildingSplitterBridge {
 
@@ -20,6 +21,7 @@ final class BuildingSplitterBridge {
     static boolean activateBuildingSplitter() {
         try {
             if (!BuildingSplitterDetector.isBuildingSplitterAvailable()) {
+                Logging.debug("QuickAddressFill: BuildingSplitter activation skipped because plugin is not available.");
                 return false;
             }
 
@@ -43,10 +45,13 @@ final class BuildingSplitterBridge {
                 }
 
                 if (map.selectMapMode(mapMode)) {
+                    Logging.debug("QuickAddressFill: BuildingSplitter map mode detected and activated.");
                     return true;
                 }
             }
+            Logging.debug("QuickAddressFill: BuildingSplitter activation failed after scanning map modes.");
         } catch (RuntimeException ex) {
+            Logging.debug("QuickAddressFill: BuildingSplitter activation failed due to runtime error: {0}", ex.getMessage());
             return false;
         }
 
@@ -58,8 +63,14 @@ final class BuildingSplitterBridge {
             return false;
         }
 
-        String className = normalize(mapMode.getClass().getName());
-        if (containsBuildingSplitter(className)) {
+        // Prioritize user-facing labels first to reduce accidental matches.
+        String modeName = normalize((String) mapMode.getValue(Action.NAME));
+        if (containsBuildingSplitter(modeName)) {
+            return true;
+        }
+
+        String normalizedActionName = normalize(actionName);
+        if (containsBuildingSplitter(normalizedActionName)) {
             return true;
         }
 
@@ -68,27 +79,34 @@ final class BuildingSplitterBridge {
             return true;
         }
 
-        String modeName = normalize((String) mapMode.getValue(Action.NAME));
-        if (containsBuildingSplitter(modeName)) {
-            return true;
-        }
-
-        String normalizedActionName = normalize(actionName);
-        return containsBuildingSplitter(normalizedActionName);
+        String className = normalize(mapMode.getClass().getName());
+        return containsBuildingSplitter(className);
     }
 
     private static boolean containsBuildingSplitter(String value) {
         if (value.isEmpty()) {
             return false;
         }
-        if (value.contains(TARGET_PLUGIN_NAME)) {
+
+        String collapsed = collapseSeparators(value);
+
+        if (isStrongBuildingSplitterMatch(value, collapsed)) {
             return true;
         }
-        String collapsed = value.replace("-", "").replace("_", "").replace(" ", "");
-        if (collapsed.contains(TARGET_PLUGIN_NAME)) {
-            return true;
-        }
+
+        // Fallback only after stronger checks fail.
         return value.contains("building") && value.contains("split");
+    }
+
+    private static boolean isStrongBuildingSplitterMatch(String normalizedValue, String collapsedValue) {
+        return TARGET_PLUGIN_NAME.equals(normalizedValue)
+                || TARGET_PLUGIN_NAME.equals(collapsedValue)
+                || normalizedValue.contains(TARGET_PLUGIN_NAME)
+                || collapsedValue.contains(TARGET_PLUGIN_NAME);
+    }
+
+    private static String collapseSeparators(String value) {
+        return value.replace("-", "").replace("_", "").replace(" ", "");
     }
 
     private static String normalize(String value) {

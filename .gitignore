@@ -2,4 +2,8 @@
 build/
 dist/
 lib/josm-tested.jar
+i18n/po/templates/*.pot
+!i18n/po/templates/.gitkeep
+i18n/lang/*.lang
+!i18n/lang/.gitkeep
 

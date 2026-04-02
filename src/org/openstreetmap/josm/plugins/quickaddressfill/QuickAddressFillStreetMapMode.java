@@ -624,7 +624,7 @@ final class QuickAddressFillStreetMapMode extends MapMode {
     }
 
     private String displayValue(String value) {
-        return value == null || value.isBlank() ? "(empty)" : value;
+        return value == null || value.isBlank() ? I18n.tr("(empty)") : value;
     }
 
     private void refreshModePresentation(String actionMessage) {

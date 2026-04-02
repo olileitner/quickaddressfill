@@ -12,6 +12,12 @@
     <property name="dist.dir" value="dist"/>
     <property name="lib.dir" value="lib"/>
     <property name="josm.jar" value="${lib.dir}/josm-tested.jar"/>
+    <property name="i18n.dir" value="i18n"/>
+    <property name="i18n.po.dir" value="${i18n.dir}/po"/>
+    <property name="i18n.lang.dir" value="${i18n.dir}/lang"/>
+    <property name="i18n.templates.dir" value="${i18n.po.dir}/templates"/>
+    <property name="i18n.pot.file" value="${i18n.templates.dir}/${plugin.name}.pot"/>
+    <property name="i18n.potfiles" value="${i18n.dir}/POTFILES.in"/>
 
     <target name="clean">
         <delete dir="${build.dir}"/>
@@ -22,6 +28,43 @@
         <mkdir dir="${classes.dir}"/>
         <mkdir dir="${dist.dir}"/>
         <mkdir dir="${lib.dir}"/>
+        <mkdir dir="${i18n.po.dir}"/>
+        <mkdir dir="${i18n.lang.dir}"/>
+        <mkdir dir="${i18n.templates.dir}"/>
+    </target>
+
+    <target name="i18n-extract" depends="init" description="Extract translatable strings into POT template">
+        <available file="${i18n.potfiles}" property="i18n.potfiles.exists"/>
+        <fail unless="i18n.potfiles.exists" message="Missing ${i18n.potfiles}."/>
+
+        <exec executable="xgettext" failonerror="true">
+            <arg value="--language=Java"/>
+            <arg value="--from-code=UTF-8"/>
+            <arg value="--sort-output"/>
+            <arg value="--package-name=${plugin.name}"/>
+            <arg value="--package-version=${plugin.version}"/>
+            <arg value="--copyright-holder=QuickAddressFill contributors"/>
+            <arg value="--msgid-bugs-address=https://github.com/olileitner/quickaddressfill/issues"/>
+            <arg value="--keyword=tr"/>
+            <arg value="--keyword=I18n.tr"/>
+            <arg value="--keyword=trn:1,2"/>
+            <arg value="--keyword=I18n.trn:1,2"/>
+            <arg value="--keyword=trc:1c,2"/>
+            <arg value="--keyword=I18n.trc:1c,2"/>
+            <arg value="--keyword=trnc:1c,2,3"/>
+            <arg value="--keyword=I18n.trnc:1c,2,3"/>
+            <arg value="--keyword=marktr:1"/>
+            <arg value="--keyword=I18n.marktr:1"/>
+            <arg value="--output=${i18n.pot.file}"/>
+            <arg value="--files-from=${i18n.potfiles}"/>
+        </exec>
+    </target>
+
+    <target name="i18n-merge" depends="i18n-extract" description="Merge existing PO files with latest POT template">
+        <exec executable="/bin/sh" failonerror="true">
+            <arg value="-c"/>
+            <arg line='for po in "${i18n.po.dir}"/*.po; do [ -e "$po" ] || exit 0; msgmerge --update --backup=none "$po" "${i18n.pot.file}"; done'/>
+        </exec>
     </target>
 
     <target name="fetch-josm" depends="init" description="Download JOSM tested jar if missing">
@@ -45,6 +88,7 @@
 
     <target name="dist" depends="compile" description="Build plugin JAR">
         <jar destfile="${dist.dir}/${plugin.name}.jar" basedir="${classes.dir}">
+            <zipfileset dir="${i18n.lang.dir}" prefix="data/${plugin.name}/lang" erroronmissingdir="false"/>
             <manifest>
                 <attribute name="Manifest-Version" value="1.0"/>
                 <attribute name="Plugin-Class" value="${plugin.class}"/>
