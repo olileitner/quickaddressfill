@@ -56,7 +56,7 @@ final class StreetSelectionDialog {
     private boolean updatingInputs;
 
     private static final int DIALOG_WIDTH = 360;
-    private static final int DIALOG_HEIGHT = 290;
+    private static final int DIALOG_HEIGHT = 390;
     private static final int DIALOG_OFFSET_X = 66;
     private static final int DIALOG_OFFSET_Y = 80;
     private static final List<String> COMMON_BUILDING_TYPES = Arrays.asList(
