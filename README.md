@@ -28,7 +28,7 @@ A simple mouse click is all it takes.
 
 ## BuildingSplitter Integration
 
-- QuickAddressFill can optionally work with the `BuildingSplitter` plugin.
+- QuickAddressFill can optionally work with the [`BuildingSplitter` plugin](https://github.com/olileitner/buildingsplitter).
 - If available, the dialog shows a `Split building` button.
 - If not loaded, the dialog shows `Building Splitter: not found`.
 - After starting split mode, QuickAddressFill returns automatically to the address tool when splitting mode is left.
