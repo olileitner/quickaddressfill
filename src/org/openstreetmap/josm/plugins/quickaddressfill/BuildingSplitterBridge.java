@@ -8,12 +8,13 @@ import org.openstreetmap.josm.actions.mapmode.MapMode;
 import org.openstreetmap.josm.gui.IconToggleButton;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
-import org.openstreetmap.josm.plugins.buildingsplitter.AddressContextBridge;
 import org.openstreetmap.josm.tools.Logging;
 
 final class BuildingSplitterBridge {
 
     private static final String TARGET_PLUGIN_NAME = "buildingsplitter";
+    private static final String ADDRESS_CONTEXT_BRIDGE_CLASS =
+        "org.openstreetmap.josm.plugins.buildingsplitter.AddressContextBridge";
     private BuildingSplitterBridge() {
         // Utility class
     }
@@ -67,8 +68,18 @@ final class BuildingSplitterBridge {
     private static void publishAddressContext(String street, String postcode) {
         String normalizedStreet = normalizeHandoffValue(street);
         String normalizedPostcode = normalizeHandoffValue(postcode);
-        AddressContextBridge.setAddressContext(normalizedStreet, normalizedPostcode);
-        Logging.debug("QuickAddressFill: Address context handed off to BuildingSplitter.");
+        try {
+            Class<?> bridgeClass = Class.forName(ADDRESS_CONTEXT_BRIDGE_CLASS);
+            bridgeClass
+                .getMethod("setAddressContext", String.class, String.class)
+                .invoke(null, normalizedStreet, normalizedPostcode);
+            Logging.debug("QuickAddressFill: Address context handed off to BuildingSplitter.");
+        } catch (ClassNotFoundException | NoClassDefFoundError ex) {
+            Logging.debug("QuickAddressFill: Address context handoff unavailable; continuing without context.");
+        } catch (ReflectiveOperationException | LinkageError ex) {
+            Logging.warn("QuickAddressFill: Address context handoff failed; continuing without context.");
+            Logging.debug(ex);
+        }
     }
 
     private static boolean isBuildingSplitterMapMode(MapMode mapMode, String actionName) {
