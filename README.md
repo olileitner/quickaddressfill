@@ -91,6 +91,11 @@ mkdir -p ~/.josm/plugins
 cp dist/QuickAddressFill.jar ~/.josm/plugins/
 ```
 
+## License
+
+This project is licensed under the GNU General Public License, version 2.
+See `LICENSE` for the full license text.
+
 ## Translation Workflow
 
 - Extraction source list: `i18n/POTFILES.in`
