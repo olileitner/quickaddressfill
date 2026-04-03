@@ -38,6 +38,7 @@ import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.tools.I18n;
+import org.openstreetmap.josm.tools.Logging;
 
 final class QuickAddressFillStreetMapMode extends MapMode {
 
@@ -45,6 +46,10 @@ final class QuickAddressFillStreetMapMode extends MapMode {
     private static final Pattern NUMERIC_WITH_LETTER_SUFFIX_PATTERN = Pattern.compile("^(\\d+)([A-Za-z]+)$");
     private static final Pattern LETTER_HOUSE_NUMBER_PATTERN = Pattern.compile("^([A-Za-z]+)$");
     private static final Pattern HOUSE_NUMBER_WITH_OPTIONAL_SUFFIX_PATTERN = Pattern.compile("^(\\d+)([A-Za-z]+)?$");
+    private static final long DUPLICATE_CLICK_WINDOW_MILLIS = 120L;
+    private static final int MAX_RELATION_SCAN_CANDIDATES = 3000;
+    private static final int MAX_WAY_SCAN_CANDIDATES = 5000;
+    private static final long SLOW_CLICK_LOG_THRESHOLD_MILLIS = 40L;
 
     private final StreetModeController controller;
     private final KeyAdapter escListener;
@@ -55,9 +60,13 @@ final class QuickAddressFillStreetMapMode extends MapMode {
     private String houseNumber;
     private int houseNumberIncrementStep = 1;
     private String warningSuppressedStreet;
-    private long lastHandledMouseWhen;
     private boolean controlPressed;
     private boolean ctrlDispatcherRegistered;
+    private long lastClickWhen;
+    private int lastClickX = Integer.MIN_VALUE;
+    private int lastClickY = Integer.MIN_VALUE;
+    private int lastClickModifiers;
+    private int lastClickButton;
 
     QuickAddressFillStreetMapMode(StreetModeController controller) {
         super(
@@ -225,12 +234,35 @@ final class QuickAddressFillStreetMapMode extends MapMode {
 
     @Override
     public void mouseReleased(MouseEvent e) {
-        if (SwingUtilities.isLeftMouseButton(e)) {
+        if (!SwingUtilities.isLeftMouseButton(e)) {
+            return;
+        }
+
+        if (isDuplicateReleaseEvent(e)) {
+            Logging.debug("QuickAddressFill QuickAddressFillStreetMapMode.mouseReleased: duplicate release suppressed at {0},{1}",
+                    e.getX(), e.getY());
+            return;
+        }
+
+        long startedAtNanos = System.nanoTime();
+        try {
             if (e.isControlDown()) {
                 handleSecondaryClick(e);
             } else {
                 handlePrimaryClick(e);
             }
+        } catch (RuntimeException ex) {
+            Logging.warn(
+                    "QuickAddressFill QuickAddressFillStreetMapMode.mouseReleased: failure while processing click, control={0}, street={1}, postcode={2}, houseNumber={3}",
+                    e.isControlDown(),
+                    displayValue(streetName),
+                    displayValue(postcode),
+                    displayValue(houseNumber)
+            );
+            Logging.debug(ex);
+            updateStatusLine(I18n.tr("Address click failed. See log for details."));
+        } finally {
+            logSlowClickIfNeeded(startedAtNanos, e);
         }
     }
 
@@ -244,10 +276,6 @@ final class QuickAddressFillStreetMapMode extends MapMode {
             updateStatusLine(I18n.tr("No street selected."));
             return;
         }
-        if (e.getWhen() == lastHandledMouseWhen) {
-            return;
-        }
-        lastHandledMouseWhen = e.getWhen();
 
         MapFrame map = MainApplication.getMap();
         if (map == null || map.mapView == null) {
@@ -291,11 +319,6 @@ final class QuickAddressFillStreetMapMode extends MapMode {
     }
 
     private void handleSecondaryClick(MouseEvent e) {
-        if (e.getWhen() == lastHandledMouseWhen) {
-            return;
-        }
-        lastHandledMouseWhen = e.getWhen();
-
         MapFrame map = MainApplication.getMap();
         if (map == null || map.mapView == null) {
             return;
@@ -378,13 +401,26 @@ final class QuickAddressFillStreetMapMode extends MapMode {
             return null;
         }
 
+        LatLon clickLatLon = map.mapView.getLatLon(e.getX(), e.getY());
+        if (clickLatLon == null) {
+            return null;
+        }
+
+        int scanned = 0;
         for (Relation relation : dataSet.searchRelations(map.mapView.getRealBounds().toBBox())) {
+            scanned++;
+            if (scanned > MAX_RELATION_SCAN_CANDIDATES) {
+                Logging.debug("QuickAddressFill QuickAddressFillStreetMapMode.findRelationContainingClick: aborted after {0} candidates.",
+                        MAX_RELATION_SCAN_CANDIDATES);
+                return null;
+            }
             if (!isBuildingCandidate(relation)) {
                 continue;
             }
             for (RelationMember member : relation.getMembers()) {
                 String role = member.getRole();
-                if (member.isWay() && (role == null || role.isEmpty() || "outer".equals(role)) && containsPoint(member.getWay(), map, e)) {
+                if (member.isWay() && (role == null || role.isEmpty() || "outer".equals(role))
+                        && containsPoint(member.getWay(), map, e.getPoint(), clickLatLon)) {
                     return relation;
                 }
             }
@@ -397,13 +433,25 @@ final class QuickAddressFillStreetMapMode extends MapMode {
             return null;
         }
 
+        LatLon clickLatLon = map.mapView.getLatLon(e.getX(), e.getY());
+        if (clickLatLon == null) {
+            return null;
+        }
+
         Way best = null;
         double bestArea = Double.MAX_VALUE;
+        int scanned = 0;
         for (Way way : dataSet.searchWays(map.mapView.getRealBounds().toBBox())) {
+            scanned++;
+            if (scanned > MAX_WAY_SCAN_CANDIDATES) {
+                Logging.debug("QuickAddressFill QuickAddressFillStreetMapMode.findWayContainingClick: aborted after {0} candidates.",
+                        MAX_WAY_SCAN_CANDIDATES);
+                return best;
+            }
             if (!isBuildingOrBuildingOutlineCandidate(way)) {
                 continue;
             }
-            if (!containsPoint(way, map, e)) {
+            if (!containsPoint(way, map, e.getPoint(), clickLatLon)) {
                 continue;
             }
 
@@ -416,12 +464,11 @@ final class QuickAddressFillStreetMapMode extends MapMode {
         return best;
     }
 
-    private boolean containsPoint(Way way, MapFrame map, MouseEvent e) {
+    private boolean containsPoint(Way way, MapFrame map, Point clickPoint, LatLon clickLatLon) {
         if (way == null || map == null || map.mapView == null || !way.isClosed() || way.getNodesCount() < 4) {
             return false;
         }
 
-        LatLon clickLatLon = map.mapView.getLatLon(e.getX(), e.getY());
         if (clickLatLon == null || !way.getBBox().bounds(clickLatLon)) {
             return false;
         }
@@ -437,7 +484,7 @@ final class QuickAddressFillStreetMapMode extends MapMode {
             }
             polygon.addPoint(point.x, point.y);
         }
-        return polygon.contains(e.getPoint());
+        return polygon.contains(clickPoint);
     }
 
     private boolean isBuildingCandidate(OsmPrimitive primitive) {
@@ -721,6 +768,7 @@ final class QuickAddressFillStreetMapMode extends MapMode {
 
             return Toolkit.getDefaultToolkit().createCustomCursor(image, new Point(centerX, tipY), "qaf-house-number-cursor");
         } catch (RuntimeException ex) {
+            Logging.debug(ex);
             return Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR);
         }
     }
@@ -746,8 +794,41 @@ final class QuickAddressFillStreetMapMode extends MapMode {
 
             return Toolkit.getDefaultToolkit().createCustomCursor(image, new Point(10, 10), "qaf-magnifier-cursor");
         } catch (RuntimeException ex) {
+            Logging.debug(ex);
             return Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR);
         }
+    }
+
+    private boolean isDuplicateReleaseEvent(MouseEvent e) {
+        long eventWhen = e.getWhen();
+        boolean closeInTime = lastClickWhen > 0 && (eventWhen - lastClickWhen) >= 0
+                && (eventWhen - lastClickWhen) <= DUPLICATE_CLICK_WINDOW_MILLIS;
+        boolean samePosition = e.getX() == lastClickX && e.getY() == lastClickY;
+        boolean sameModifiers = e.getModifiersEx() == lastClickModifiers;
+        boolean sameButton = e.getButton() == lastClickButton;
+        boolean duplicate = closeInTime && samePosition && sameModifiers && sameButton;
+
+        lastClickWhen = eventWhen;
+        lastClickX = e.getX();
+        lastClickY = e.getY();
+        lastClickModifiers = e.getModifiersEx();
+        lastClickButton = e.getButton();
+
+        return duplicate;
+    }
+
+    private void logSlowClickIfNeeded(long startedAtNanos, MouseEvent e) {
+        long elapsedMillis = (System.nanoTime() - startedAtNanos) / 1_000_000L;
+        if (elapsedMillis < SLOW_CLICK_LOG_THRESHOLD_MILLIS) {
+            return;
+        }
+        Logging.debug(
+                "QuickAddressFill QuickAddressFillStreetMapMode.mouseReleased: slow click handling ({0} ms), control={1}, x={2}, y={3}",
+                elapsedMillis,
+                e.isControlDown(),
+                e.getX(),
+                e.getY()
+        );
     }
 
     private boolean incrementHouseNumberAfterSuccessfulApply() {

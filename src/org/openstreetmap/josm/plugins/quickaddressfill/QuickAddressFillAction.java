@@ -29,6 +29,6 @@ public class QuickAddressFillAction extends JosmAction {
 
         List<String> streetNames = StreetNameCollector.collectStreetNames(dataSet);
         String suggestedPostcode = PostcodeCollector.detectUniformVisiblePostcode(dataSet);
-        streetSelectionDialog.showDialog(streetNames, suggestedPostcode);
+        streetSelectionDialog.showDialog(dataSet, streetNames, suggestedPostcode);
     }
 }

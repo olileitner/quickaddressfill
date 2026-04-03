@@ -5,6 +5,7 @@ import java.util.Locale;
 
 import org.openstreetmap.josm.plugins.PluginHandler;
 import org.openstreetmap.josm.plugins.PluginInformation;
+import org.openstreetmap.josm.tools.Logging;
 
 final class BuildingSplitterDetector {
 
@@ -17,6 +18,8 @@ final class BuildingSplitterDetector {
     static boolean isBuildingSplitterAvailable() {
         try {
             List<PluginInformation> plugins = PluginHandler.getPlugins();
+            Logging.debug("QuickAddressFill BuildingSplitterDetector.isBuildingSplitterAvailable: plugin count={0}",
+                    plugins == null ? 0 : plugins.size());
             if (plugins != null && !plugins.isEmpty()) {
                 for (PluginInformation plugin : plugins) {
                     String pluginName = normalizePluginName(plugin);
@@ -33,6 +36,8 @@ final class BuildingSplitterDetector {
             // Fallback: check canonical id directly.
             return PluginHandler.getPlugin(TARGET_PLUGIN_NAME) != null;
         } catch (RuntimeException ex) {
+            Logging.warn("QuickAddressFill BuildingSplitterDetector.isBuildingSplitterAvailable: runtime failure while probing plugins.");
+            Logging.debug(ex);
             return false;
         }
     }

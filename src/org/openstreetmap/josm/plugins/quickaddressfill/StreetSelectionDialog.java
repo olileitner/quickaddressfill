@@ -24,6 +24,7 @@ import javax.swing.JToggleButton;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.tools.I18n;
@@ -54,6 +55,7 @@ final class StreetSelectionDialog {
     private String rememberedHouseNumber = DEFAULT_HOUSE_NUMBER;
     private int rememberedIncrementStep = 1;
     private boolean updatingInputs;
+    private DataSet rememberedDataSet;
 
     private static final int DIALOG_WIDTH = 360;
     private static final int DIALOG_HEIGHT = 390;
@@ -287,7 +289,7 @@ final class StreetSelectionDialog {
         );
     }
 
-    void showDialog(List<String> streetNames, String suggestedPostcode) {
+    void showDialog(DataSet activeDataSet, List<String> streetNames, String suggestedPostcode) {
         if (streetNames == null || streetNames.isEmpty()) {
             JOptionPane.showMessageDialog(
                     MainApplication.getMainFrame(),
@@ -298,6 +300,11 @@ final class StreetSelectionDialog {
             return;
         }
 
+        if (isDataSetChanged(activeDataSet)) {
+            resetRememberedValuesForDataSetChange();
+        }
+        rememberedDataSet = activeDataSet;
+
         String previousStreet = firstNonEmpty(getSelectedStreet(), rememberedStreet);
         updatingInputs = true;
 
@@ -306,7 +313,7 @@ final class StreetSelectionDialog {
             streetCombo.addItem(streetName);
         }
 
-        if (previousStreet != null) {
+        if (previousStreet != null && !normalize(previousStreet).isEmpty()) {
             streetCombo.setSelectedItem(previousStreet);
         }
         if (streetCombo.getSelectedItem() == null && streetCombo.getItemCount() > 0) {
@@ -341,13 +348,7 @@ final class StreetSelectionDialog {
         rememberCurrentValues();
         String selectedStreet = getSelectedStreet();
         if (selectedStreet != null) {
-            streetModeController.activate(
-                    selectedStreet,
-                    postcodeField.getText(),
-                    getSelectedBuildingType(),
-                    houseNumberField.getText(),
-                    houseNumberIncrementStep
-            );
+            streetModeController.activate(buildCurrentSelection());
         }
     }
 
@@ -506,13 +507,7 @@ final class StreetSelectionDialog {
     }
 
     private void continueWorking() {
-        streetModeController.activate(
-                getSelectedStreet(),
-                postcodeField.getText(),
-                getSelectedBuildingType(),
-                houseNumberField.getText(),
-                houseNumberIncrementStep
-        );
+        streetModeController.activate(buildCurrentSelection());
     }
 
     private void refreshModeStateUi(boolean active) {
@@ -542,7 +537,7 @@ final class StreetSelectionDialog {
     }
 
     private void onSplitBuildingRequested() {
-        if (streetModeController.activateBuildingSplitterWithAddress(getSelectedStreet(), postcodeField.getText())) {
+        if (streetModeController.activateBuildingSplitterWithAddress(resolveStreetForSplitter(), postcodeField.getText())) {
             refreshBuildingSplitterAvailability();
             return;
         }
@@ -550,6 +545,12 @@ final class StreetSelectionDialog {
         new Notification(I18n.tr("Could not activate Building Splitter."))
                 .setDuration(Notification.TIME_SHORT)
                 .show();
+    }
+
+    private String resolveStreetForSplitter() {
+        Object editorValue = streetCombo.getEditor() != null ? streetCombo.getEditor().getItem() : null;
+        String editorStreet = editorValue == null ? "" : normalize(editorValue.toString());
+        return firstNonEmpty(getSelectedStreet(), firstNonEmpty(editorStreet, rememberedStreet));
     }
 
     private void applyIncrementStep(int incrementStep) {
@@ -577,6 +578,29 @@ final class StreetSelectionDialog {
 
     private int normalizeIncrementStep(int step) {
         return step == -2 || step == -1 || step == 1 || step == 2 ? step : 1;
+    }
+
+    private StreetModeController.AddressSelection buildCurrentSelection() {
+        return new StreetModeController.AddressSelection(
+                getSelectedStreet(),
+                postcodeField.getText(),
+                getSelectedBuildingType(),
+                houseNumberField.getText(),
+                houseNumberIncrementStep
+        );
+    }
+
+    private boolean isDataSetChanged(DataSet activeDataSet) {
+        return rememberedDataSet != activeDataSet;
+    }
+
+    private void resetRememberedValuesForDataSetChange() {
+        rememberedStreet = null;
+        rememberedPostcode = null;
+        rememberedBuildingType = null;
+        rememberedHouseNumber = DEFAULT_HOUSE_NUMBER;
+        rememberedIncrementStep = 1;
+        lastSelectedStreet = null;
     }
 
     private String normalize(String value) {

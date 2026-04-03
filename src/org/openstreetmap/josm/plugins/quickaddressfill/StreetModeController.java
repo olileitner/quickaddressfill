@@ -4,8 +4,45 @@ import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.tools.I18n;
+import org.openstreetmap.josm.tools.Logging;
 
 final class StreetModeController {
+
+    static final class AddressSelection {
+        private final String streetName;
+        private final String postcode;
+        private final String buildingType;
+        private final String houseNumber;
+        private final int houseNumberIncrementStep;
+
+        AddressSelection(String streetName, String postcode, String buildingType, String houseNumber, int houseNumberIncrementStep) {
+            this.streetName = normalize(streetName);
+            this.postcode = normalize(postcode);
+            this.buildingType = normalize(buildingType);
+            this.houseNumber = normalize(houseNumber);
+            this.houseNumberIncrementStep = normalizeIncrementStep(houseNumberIncrementStep);
+        }
+
+        String getStreetName() {
+            return streetName;
+        }
+
+        String getPostcode() {
+            return postcode;
+        }
+
+        String getBuildingType() {
+            return buildingType;
+        }
+
+        String getHouseNumber() {
+            return houseNumber;
+        }
+
+        int getHouseNumberIncrementStep() {
+            return houseNumberIncrementStep;
+        }
+    }
 
     private QuickAddressFillStreetMapMode streetMapMode;
     private String currentStreet = "";
@@ -37,15 +74,26 @@ final class StreetModeController {
     }
 
     void activate(String streetName, String postcode, String buildingType, String houseNumber, int houseNumberIncrementStep) {
-        String normalizedStreet = streetName == null ? "" : streetName.trim();
-        currentStreet = normalizedStreet;
-        currentPostcode = postcode == null ? "" : postcode.trim();
-        if (normalizedStreet.isEmpty()) {
+        activate(new AddressSelection(streetName, postcode, buildingType, houseNumber, houseNumberIncrementStep));
+    }
+
+    void activate(AddressSelection selection) {
+        if (selection == null) {
+            Logging.warn("QuickAddressFill StreetModeController.activate: called with null selection.");
+            return;
+        }
+
+        currentStreet = selection.getStreetName();
+        currentPostcode = selection.getPostcode();
+        if (currentStreet.isEmpty()) {
+            Logging.debug("QuickAddressFill StreetModeController.activate: skipped because street is empty.");
             return;
         }
 
         MapFrame map = MainApplication.getMap();
         if (map == null || map.mapView == null) {
+            Logging.info("QuickAddressFill StreetModeController.activate: map/mapView unavailable, street={0}, postcode={1}",
+                    currentStreet, currentPostcode);
             return;
         }
 
@@ -53,6 +101,9 @@ final class StreetModeController {
             try {
                 streetMapMode = new QuickAddressFillStreetMapMode(this);
             } catch (RuntimeException ex) {
+                Logging.warn("QuickAddressFill StreetModeController.activate: failed to create map mode, street={0}, postcode={1}",
+                        currentStreet, currentPostcode);
+                Logging.debug(ex);
                 new Notification(I18n.tr("Street Mode could not be started."))
                         .setDuration(Notification.TIME_SHORT)
                         .show();
@@ -60,7 +111,13 @@ final class StreetModeController {
             }
         }
 
-        streetMapMode.setAddressValues(normalizedStreet, postcode, buildingType, houseNumber, houseNumberIncrementStep);
+        streetMapMode.setAddressValues(
+                selection.getStreetName(),
+                selection.getPostcode(),
+                selection.getBuildingType(),
+                selection.getHouseNumber(),
+                selection.getHouseNumberIncrementStep()
+        );
         map.selectMapMode(streetMapMode);
     }
 
@@ -71,7 +128,12 @@ final class StreetModeController {
     boolean activateBuildingSplitterWithAddress(String street, String postcode) {
         String normalizedStreet = street == null ? "" : street.trim();
         String normalizedPostcode = postcode == null ? "" : postcode.trim();
-        return BuildingSplitterBridge.activateBuildingSplitter(normalizedStreet, normalizedPostcode);
+        boolean activated = BuildingSplitterBridge.activateBuildingSplitter(normalizedStreet, normalizedPostcode);
+        if (!activated) {
+            Logging.info("QuickAddressFill StreetModeController.activateBuildingSplitterWithAddress: activation failed, street={0}, postcode={1}",
+                    normalizedStreet, normalizedPostcode);
+        }
+        return activated;
     }
 
     void setHouseNumberUpdateListener(HouseNumberUpdateListener listener) {
@@ -122,5 +184,13 @@ final class StreetModeController {
         if (map != null && streetMapMode != null && map.mapMode == streetMapMode) {
             map.selectSelectTool(false);
         }
+    }
+
+    private static String normalize(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private static int normalizeIncrementStep(int step) {
+        return step == -2 || step == -1 || step == 1 || step == 2 ? step : 1;
     }
 }
