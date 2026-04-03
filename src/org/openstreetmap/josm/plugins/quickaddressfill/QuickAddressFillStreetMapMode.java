@@ -50,6 +50,7 @@ final class QuickAddressFillStreetMapMode extends MapMode {
     private final HouseNumberService houseNumberService;
     private final AddressReadbackService addressReadbackService;
     private final AddressConflictService addressConflictService;
+    private final ConflictDialogModelBuilder conflictDialogModelBuilder;
     private final KeyAdapter escListener;
     private final KeyEventDispatcher ctrlKeyDispatcher;
     private String streetName;
@@ -83,6 +84,7 @@ final class QuickAddressFillStreetMapMode extends MapMode {
         this.houseNumberService = new HouseNumberService();
         this.addressReadbackService = new AddressReadbackService();
         this.addressConflictService = new AddressConflictService();
+        this.conflictDialogModelBuilder = new ConflictDialogModelBuilder();
         this.ctrlKeyDispatcher = this::handleGlobalKeyEvent;
         this.escListener = new KeyAdapter() {
             @Override
@@ -243,7 +245,7 @@ final class QuickAddressFillStreetMapMode extends MapMode {
         }
 
         if (isDuplicateReleaseEvent(e)) {
-            Logging.debug("QuickAddressFill QuickAddressFillStreetMapMode.mouseReleased: duplicate release suppressed at {0},{1}",
+            Logging.debug("QuickAddressFill StreetMapMode.mouseReleased: duplicate release suppressed at {0},{1}",
                     e.getX(), e.getY());
             return;
         }
@@ -258,7 +260,7 @@ final class QuickAddressFillStreetMapMode extends MapMode {
             }
         } catch (RuntimeException ex) {
             Logging.warn(
-                    "QuickAddressFill QuickAddressFillStreetMapMode.mouseReleased: failure while processing click, control={0}, street={1}, postcode={2}, houseNumber={3}",
+                    "QuickAddressFill StreetMapMode.mouseReleased: failure while processing click, control={0}, street={1}, postcode={2}, houseNumber={3}",
                     e.isControlDown(),
                     displayValue(streetName),
                     displayValue(postcode),
@@ -385,7 +387,6 @@ final class QuickAddressFillStreetMapMode extends MapMode {
         e.consume();
     }
 
-
     private OsmPrimitive getSelectionTarget(OsmPrimitive building) {
         if (!(building instanceof Relation)) {
             return building;
@@ -407,17 +408,16 @@ final class QuickAddressFillStreetMapMode extends MapMode {
     }
 
     private boolean confirmOverwrite(AddressConflictService.ConflictAnalysis conflictAnalysis, String overwrittenStreet) {
-        List<Object[]> rows = new ArrayList<>();
-        for (AddressConflictService.ConflictField field : conflictAnalysis.getDifferingFields()) {
-            rows.add(new Object[] {
-                    field.getKey(),
-                    displayValue(field.getExistingValue()),
-                    displayValue(field.getProposedValue())
-            });
+        ConflictDialogModelBuilder.DialogModel dialogModel =
+                conflictDialogModelBuilder.build(conflictAnalysis, this::displayValue);
+
+        if (dialogModel.isEmpty()) {
+            return true;
         }
 
-        if (rows.isEmpty()) {
-            return true;
+        List<Object[]> rows = new ArrayList<>();
+        for (ConflictDialogModelBuilder.DialogRow row : dialogModel.getRows()) {
+            rows.add(new Object[] {row.getField(), row.getExisting(), row.getProposed()});
         }
 
         String[] columns = new String[] {
@@ -639,7 +639,7 @@ final class QuickAddressFillStreetMapMode extends MapMode {
 
         if (elapsedMillis >= SLOW_CLICK_LOG_THRESHOLD_MILLIS) {
             Logging.debug(
-                    "QuickAddressFill QuickAddressFillStreetMapMode.mouseReleased: slow click handling ({0} ms), source={1}, outcome={2}, x={3}, y={4}",
+                    "QuickAddressFill StreetMapMode.mouseReleased: slow click handling ({0} ms), source={1}, outcome={2}, x={3}, y={4}",
                     elapsedMillis,
                     stats.resolution.getSource(),
                     stats.outcome,

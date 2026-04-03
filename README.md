@@ -70,6 +70,20 @@ ant test
 
 Reproducible manual scenarios for UI- and integration-heavy paths are documented in `docs/stability-manual-tests.md`.
 
+## Advanced Preferences (for QA/Debug)
+
+- `quickaddressfill.streetmode.relationScanLimit` (default: `3000`)
+- `quickaddressfill.streetmode.wayScanLimit` (default: `5000`)
+- `quickaddressfill.buildingsplitter.forcePreferenceFallback` (default: `false`)
+
+BuildingSplitter handoff state is stored temporarily in:
+
+- `quickaddressfill.buildingsplitter.handoff.street`
+- `quickaddressfill.buildingsplitter.handoff.postcode`
+- `quickaddressfill.buildingsplitter.handoff.pending`
+- `quickaddressfill.buildingsplitter.handoff.timestamp`
+- `quickaddressfill.buildingsplitter.handoff.session`
+
 ## Local Installation
 
 ```bash

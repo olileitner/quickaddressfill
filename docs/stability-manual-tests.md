@@ -2,6 +2,44 @@
 
 These scenarios focus on the recent hardening changes (state reset, fallback cleanup, click handling).
 
+## Checkpoint Smoke Plan (short)
+
+### A) Normal Apply Flow
+- Preparation: load edit layer with building ways and visible named street.
+- Steps: open dialog, set street/postcode/house number, click building twice.
+- Expected: first click applies tags, second click uses incremented house number.
+- Relevant logs: `QuickAddressFill click-path: outcome=applied, source=...` (debug).
+
+### B) Ctrl+Click Readback/Pickup
+- Preparation: one building with `addr:*` tags, one nearby named highway without building under cursor.
+- Steps: Ctrl+click on tagged building; then Ctrl+click on named street area.
+- Expected: building readback loads `street/postcode/housenumber`; street pickup loads street and sets house number to `1`.
+- Relevant logs: `outcome=address-picked` or `outcome=street-picked` (debug).
+
+### C) Overwrite Dialog + Suppression
+- Preparation: existing building has different `addr:street` or `addr:postcode` than dialog.
+- Steps: click building, deny overwrite once; click again, accept with "Do not warn again".
+- Expected: first click cancels apply; second suppresses warning for that overwritten street.
+- Relevant logs: `outcome=overwrite-cancelled` on cancel (debug).
+
+### D) DataSet Switch
+- Preparation: set non-default values in DataSet A dialog.
+- Steps: close dialog, switch to DataSet B, reopen dialog.
+- Expected: remembered values from A are invalidated for B.
+- Relevant logs: optional activation logs if map state is unavailable.
+
+### E) BuildingSplitter Handoff
+- Preparation: BuildingSplitter present (or intentionally absent for negative check).
+- Steps: use `Split building` with populated street/postcode.
+- Expected: reflection handoff clears fallback on success; stale fallback is cleaned when pending is old.
+- Relevant logs: `Address context reflection handoff succeeded.` or `Clearing stale BuildingSplitter handoff fallback ...`.
+
+### F) Dense Area / Candidate Limits
+- Preparation: dense city area; debug logs enabled; optionally lower scan limits.
+- Steps: repeated clicks in dense area with default and low limits.
+- Expected: default stays responsive with fewer misses; low limits increase `source=no-hit` and `*LimitReached=true`.
+- Relevant logs: `QuickAddressFill click-path: ... relationLimitReached=..., wayLimitReached=..., durationMs=...`.
+
 ## 1) DataSet Switch Resets Remembered Dialog Context
 
 ### Preparation
@@ -76,7 +114,7 @@ These scenarios focus on the recent hardening changes (state reset, fallback cle
 
 ### Relevant Logs
 - Duplicate suppression:
-  - `QuickAddressFill QuickAddressFillStreetMapMode.mouseReleased: duplicate release suppressed at x,y`
+  - `QuickAddressFill StreetMapMode.mouseReleased: duplicate release suppressed at x,y`
 - Slow click diagnostics (only when threshold exceeded):
   - `...slow click handling (... ms)...`
 
@@ -107,7 +145,7 @@ Suggested test values:
 - Full click diagnostic (debug):
   - `QuickAddressFill click-path: outcome=..., source=..., nearestCandidates=..., relationChecked=.../..., wayChecked=.../..., relationLimitReached=..., wayLimitReached=..., ... durationMs=...`
 - Slow click diagnostic (debug):
-  - `QuickAddressFill QuickAddressFillStreetMapMode.mouseReleased: slow click handling (... ms), source=..., outcome=..., x=..., y=...`
+  - `QuickAddressFill StreetMapMode.mouseReleased: slow click handling (... ms), source=..., outcome=..., x=..., y=...`
 
 How to identify limits that are too low:
 - `relationLimitReached=true` or `wayLimitReached=true` appears frequently.

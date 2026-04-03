@@ -37,6 +37,8 @@ public final class QuickAddressFillRiskRegressionTests {
         run("AddressReadbackService candidate fallback order", QuickAddressFillRiskRegressionTests::testAddressReadbackCandidateOrderAndMissingTags);
         run("AddressConflictService detects street and postcode conflicts", QuickAddressFillRiskRegressionTests::testAddressConflictDetection);
         run("AddressConflictService handles missing tags and partial differences", QuickAddressFillRiskRegressionTests::testAddressConflictEdgeCases);
+        run("ConflictDialogModelBuilder keeps field order and value mapping", QuickAddressFillRiskRegressionTests::testConflictDialogModelBuilderMapping);
+        run("ConflictDialogModelBuilder handles empty analysis", QuickAddressFillRiskRegressionTests::testConflictDialogModelBuilderEmpty);
         run("DataSet transition detection is stable", QuickAddressFillRiskRegressionTests::testDataSetChangeDetection);
         run("BuildingSplitter stale fallback is discarded", QuickAddressFillRiskRegressionTests::testStaleFallbackIsCleared);
         run("BuildingSplitter fresh fallback is kept", QuickAddressFillRiskRegressionTests::testFreshFallbackIsKept);
@@ -165,6 +167,35 @@ public final class QuickAddressFillRiskRegressionTests {
         AddressConflictService.ConflictAnalysis identicalAnalysis = service.analyze(identical, "Same", "11111", "3");
         assertFalse(identicalAnalysis.hasConflict(), "identical values should not trigger conflict");
         assertEquals(0, identicalAnalysis.getDifferingFields().size(), "identical values should produce no differing fields");
+    }
+
+    private static void testConflictDialogModelBuilderMapping() {
+        AddressConflictService service = new AddressConflictService();
+        ConflictDialogModelBuilder builder = new ConflictDialogModelBuilder();
+
+        Way building = new Way();
+        building.put("addr:street", "Old Street");
+        building.put("addr:postcode", "12345");
+        building.put("addr:housenumber", "9");
+
+        AddressConflictService.ConflictAnalysis analysis = service.analyze(building, "New Street", "54321", "10");
+        ConflictDialogModelBuilder.DialogModel model = builder.build(analysis, value -> "[" + value + "]");
+
+        assertEquals(3, model.getRows().size(), "all differing fields should be present in dialog model");
+        assertEquals("addr:street", model.getRows().get(0).getField(), "street row should be first");
+        assertEquals("addr:postcode", model.getRows().get(1).getField(), "postcode row should be second");
+        assertEquals("addr:housenumber", model.getRows().get(2).getField(), "housenumber row should be third");
+        assertEquals("[Old Street]", model.getRows().get(0).getExisting(), "existing value should map to dialog row");
+        assertEquals("[New Street]", model.getRows().get(0).getProposed(), "proposed value should map to dialog row");
+    }
+
+    private static void testConflictDialogModelBuilderEmpty() {
+        ConflictDialogModelBuilder builder = new ConflictDialogModelBuilder();
+        AddressConflictService.ConflictAnalysis analysis = new AddressConflictService.ConflictAnalysis(false, "", List.of());
+
+        ConflictDialogModelBuilder.DialogModel model = builder.build(analysis, value -> value);
+        assertTrue(model.isEmpty(), "empty analysis should produce empty dialog model");
+        assertEquals(0, model.getRows().size(), "empty model should contain no rows");
     }
 
     private static void testAddressSelectionNormalization() {
