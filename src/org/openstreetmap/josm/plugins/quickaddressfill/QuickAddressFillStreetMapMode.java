@@ -62,7 +62,7 @@ final class QuickAddressFillStreetMapMode extends MapMode {
     QuickAddressFillStreetMapMode(StreetModeController controller) {
         super(
                 I18n.tr("Quick Address Fill Street Mode"),
-                "move/move",
+                "quickaddressfill",
                 I18n.tr("Click buildings to set addr:street"),
                 Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR)
         );

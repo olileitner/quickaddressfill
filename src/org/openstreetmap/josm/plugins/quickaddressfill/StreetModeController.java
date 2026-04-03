@@ -1,6 +1,5 @@
 package org.openstreetmap.josm.plugins.quickaddressfill;
 
-import org.openstreetmap.josm.actions.mapmode.MapMode;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.Notification;
@@ -13,9 +12,6 @@ final class StreetModeController {
     private AddressValuesReadListener addressValuesReadListener;
     private BuildingTypeConsumedListener buildingTypeConsumedListener;
     private ModeStateListener modeStateListener;
-    private boolean waitingForBuildingSplitterReturn;
-    private MapMode buildingSplitterMode;
-    private MapFrame.MapModeChangeListener buildingSplitterReturnListener;
 
     interface HouseNumberUpdateListener {
         void onHouseNumberUpdated(String houseNumber);
@@ -107,71 +103,7 @@ final class StreetModeController {
         }
     }
 
-    boolean activateBuildingSplitterAndReturn() {
-        if (!BuildingSplitterBridge.activateBuildingSplitter()) {
-            return false;
-        }
-        armReturnToQuickAddressFill();
-        return true;
-    }
-
-    private void armReturnToQuickAddressFill() {
-        MapFrame map = MainApplication.getMap();
-        if (map == null) {
-            return;
-        }
-
-        MapMode currentMode = map.mapMode;
-        if (currentMode == null || currentMode == streetMapMode) {
-            return;
-        }
-
-        waitingForBuildingSplitterReturn = true;
-        buildingSplitterMode = currentMode;
-        ensureBuildingSplitterReturnListenerRegistered();
-    }
-
-    private void ensureBuildingSplitterReturnListenerRegistered() {
-        if (buildingSplitterReturnListener != null) {
-            return;
-        }
-        buildingSplitterReturnListener = this::onMapModeChanged;
-        MapFrame.addMapModeChangeListener(buildingSplitterReturnListener);
-    }
-
-    private void onMapModeChanged(MapMode oldMode, MapMode newMode) {
-        if (!waitingForBuildingSplitterReturn) {
-            return;
-        }
-
-        if (newMode == buildingSplitterMode) {
-            return;
-        }
-
-        disarmReturnToQuickAddressFill();
-        MapFrame map = MainApplication.getMap();
-        if (map == null || streetMapMode == null) {
-            return;
-        }
-
-        try {
-            map.selectMapMode(streetMapMode);
-        } catch (RuntimeException ex) {
-            // Keep failure silent to avoid interrupting user workflow.
-        }
-    }
-
-    private void disarmReturnToQuickAddressFill() {
-        waitingForBuildingSplitterReturn = false;
-        buildingSplitterMode = null;
-        if (buildingSplitterReturnListener != null) {
-            MapFrame.removeMapModeChangeListener(buildingSplitterReturnListener);
-            buildingSplitterReturnListener = null;
-        }
-    }
-
     void deactivate() {
-        disarmReturnToQuickAddressFill();
         MapFrame map = MainApplication.getMap();
         if (map != null && streetMapMode != null && map.mapMode == streetMapMode) {
             map.selectSelectTool(false);

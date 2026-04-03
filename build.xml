@@ -7,6 +7,7 @@
     <property name="plugin.main.version" value="19481"/>
 
     <property name="src.dir" value="src"/>
+    <property name="images.dir" value="images"/>
     <property name="build.dir" value="build"/>
     <property name="classes.dir" value="${build.dir}/classes"/>
     <property name="dist.dir" value="dist"/>
@@ -98,6 +99,7 @@
 
     <target name="dist" depends="compile,i18n-lang" description="Build plugin JAR">
         <jar destfile="${dist.dir}/${plugin.name}.jar" basedir="${classes.dir}">
+            <zipfileset dir="${images.dir}" prefix="images" erroronmissingdir="false"/>
             <zipfileset dir="${i18n.lang.dir}" prefix="data/${plugin.name}/lang" erroronmissingdir="false"/>
             <manifest>
                 <attribute name="Manifest-Version" value="1.0"/>

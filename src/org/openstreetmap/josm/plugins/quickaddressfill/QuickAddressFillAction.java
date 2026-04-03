@@ -14,7 +14,7 @@ public class QuickAddressFillAction extends JosmAction {
     private final StreetSelectionDialog streetSelectionDialog;
 
     public QuickAddressFillAction() {
-        super(I18n.tr("Quick Address Fill"), null, I18n.tr("Open Quick Address Fill street dialog"), null, false);
+        super(I18n.tr("Quick Address Fill"), "quickaddressfill", I18n.tr("Open Quick Address Fill street dialog"), null, false);
         this.streetModeController = new StreetModeController();
         this.streetSelectionDialog = new StreetSelectionDialog(streetModeController);
     }

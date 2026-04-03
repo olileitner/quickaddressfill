@@ -1,36 +1,28 @@
 package org.openstreetmap.josm.plugins.quickaddressfill;
 
 import java.awt.BorderLayout;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.awt.KeyboardFocusManager;
-import java.awt.event.ActionEvent;
-import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.Arrays;
 import java.util.List;
 
-import javax.swing.AbstractAction;
 import javax.swing.JButton;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.JComboBox;
-import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
-import javax.swing.KeyStroke;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import javax.swing.text.JTextComponent;
 
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.Notification;
@@ -283,29 +275,7 @@ final class StreetSelectionDialog {
                 closeDialog();
             }
         });
-        registerSplitShortcut();
         refreshBuildingSplitterAvailability();
-    }
-
-    private void registerSplitShortcut() {
-        String actionKey = "qaf.splitBuildingShortcut";
-        dialog.getRootPane()
-                .getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
-                .put(KeyStroke.getKeyStroke(KeyEvent.VK_S, 0), actionKey);
-        dialog.getRootPane().getActionMap().put(actionKey, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                if (isTextInputFocused() || splitBuildingButton == null || !splitBuildingButton.isVisible() || !splitBuildingButton.isEnabled()) {
-                    return;
-                }
-                onSplitBuildingRequested();
-            }
-        });
-    }
-
-    private boolean isTextInputFocused() {
-        Component focusOwner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
-        return focusOwner instanceof JTextComponent;
     }
 
     static void showNoDataSetMessage() {
@@ -572,7 +542,7 @@ final class StreetSelectionDialog {
     }
 
     private void onSplitBuildingRequested() {
-        if (streetModeController.activateBuildingSplitterAndReturn()) {
+        if (BuildingSplitterBridge.activateBuildingSplitter()) {
             refreshBuildingSplitterAvailability();
             return;
         }
