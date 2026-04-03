@@ -16,8 +16,8 @@ public final class QuickAddressFillRiskRegressionTests {
     private static final String HANDOFF_TIMESTAMP_KEY = "quickaddressfill.buildingsplitter.handoff.timestamp";
     private static final String HANDOFF_SESSION_KEY = "quickaddressfill.buildingsplitter.handoff.session";
     private static final String FORCE_PREFERENCE_FALLBACK_KEY = "quickaddressfill.buildingsplitter.forcePreferenceFallback";
-    private static final String RELATION_SCAN_LIMIT_KEY = QuickAddressFillStreetMapMode.PREF_RELATION_SCAN_LIMIT;
-    private static final String WAY_SCAN_LIMIT_KEY = QuickAddressFillStreetMapMode.PREF_WAY_SCAN_LIMIT;
+    private static final String RELATION_SCAN_LIMIT_KEY = BuildingResolver.PREF_RELATION_SCAN_LIMIT;
+    private static final String WAY_SCAN_LIMIT_KEY = BuildingResolver.PREF_WAY_SCAN_LIMIT;
 
     private QuickAddressFillRiskRegressionTests() {
         // Utility class
@@ -113,12 +113,12 @@ public final class QuickAddressFillRiskRegressionTests {
 
         assertEquals(
                 QuickAddressFillStreetMapMode.DEFAULT_RELATION_SCAN_CANDIDATES,
-                QuickAddressFillStreetMapMode.getConfiguredRelationScanLimit(),
+                BuildingResolver.getConfiguredRelationScanLimit(),
                 "relation scan limit should use default when preference is missing"
         );
         assertEquals(
                 QuickAddressFillStreetMapMode.DEFAULT_WAY_SCAN_CANDIDATES,
-                QuickAddressFillStreetMapMode.getConfiguredWayScanLimit(),
+                BuildingResolver.getConfiguredWayScanLimit(),
                 "way scan limit should use default when preference is missing"
         );
     }
@@ -129,12 +129,12 @@ public final class QuickAddressFillRiskRegressionTests {
 
         assertEquals(
                 QuickAddressFillStreetMapMode.DEFAULT_RELATION_SCAN_CANDIDATES,
-                QuickAddressFillStreetMapMode.getConfiguredRelationScanLimit(),
+                BuildingResolver.getConfiguredRelationScanLimit(),
                 "invalid relation limit should fall back to default"
         );
         assertEquals(
                 QuickAddressFillStreetMapMode.DEFAULT_WAY_SCAN_CANDIDATES,
-                QuickAddressFillStreetMapMode.getConfiguredWayScanLimit(),
+                BuildingResolver.getConfiguredWayScanLimit(),
                 "invalid way limit should fall back to default"
         );
     }

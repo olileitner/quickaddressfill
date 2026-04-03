@@ -16,10 +16,8 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.swing.JCheckBox;
@@ -30,16 +28,13 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
 import org.openstreetmap.josm.actions.mapmode.MapMode;
-import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DataSet;
-import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
-import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.I18n;
 import org.openstreetmap.josm.tools.Logging;
 
@@ -50,16 +45,14 @@ final class QuickAddressFillStreetMapMode extends MapMode {
     private static final Pattern LETTER_HOUSE_NUMBER_PATTERN = Pattern.compile("^([A-Za-z]+)$");
     private static final Pattern HOUSE_NUMBER_WITH_OPTIONAL_SUFFIX_PATTERN = Pattern.compile("^(\\d+)([A-Za-z]+)?$");
     private static final long DUPLICATE_CLICK_WINDOW_MILLIS = 120L;
-    static final String PREF_RELATION_SCAN_LIMIT = "quickaddressfill.streetmode.relationScanLimit";
-    static final String PREF_WAY_SCAN_LIMIT = "quickaddressfill.streetmode.wayScanLimit";
-    static final int DEFAULT_RELATION_SCAN_CANDIDATES = 3000;
-    static final int DEFAULT_WAY_SCAN_CANDIDATES = 5000;
-    private static final int MIN_SCAN_CANDIDATES = 100;
-    private static final int MAX_SCAN_CANDIDATES = 100_000;
+    static final String PREF_RELATION_SCAN_LIMIT = BuildingResolver.PREF_RELATION_SCAN_LIMIT;
+    static final String PREF_WAY_SCAN_LIMIT = BuildingResolver.PREF_WAY_SCAN_LIMIT;
+    static final int DEFAULT_RELATION_SCAN_CANDIDATES = BuildingResolver.DEFAULT_RELATION_SCAN_CANDIDATES;
+    static final int DEFAULT_WAY_SCAN_CANDIDATES = BuildingResolver.DEFAULT_WAY_SCAN_CANDIDATES;
     private static final long SLOW_CLICK_LOG_THRESHOLD_MILLIS = 40L;
-    private static final Set<String> WARNED_INVALID_LIMIT_KEYS = new HashSet<>();
 
     private final StreetModeController controller;
+    private final BuildingResolver buildingResolver;
     private final KeyAdapter escListener;
     private final KeyEventDispatcher ctrlKeyDispatcher;
     private String streetName;
@@ -78,14 +71,7 @@ final class QuickAddressFillStreetMapMode extends MapMode {
 
     private static final class ClickResolutionStats {
         private String outcome = "unknown";
-        private String buildingSource = "not-evaluated";
-        private int nearestCandidates;
-        private int relationCandidatesChecked;
-        private int wayCandidatesChecked;
-        private int relationScanLimit;
-        private int wayScanLimit;
-        private boolean relationLimitReached;
-        private boolean wayLimitReached;
+        private BuildingResolver.BuildingResolutionResult resolution = BuildingResolver.BuildingResolutionResult.notEvaluated();
     }
 
     QuickAddressFillStreetMapMode(StreetModeController controller) {
@@ -96,6 +82,7 @@ final class QuickAddressFillStreetMapMode extends MapMode {
                 Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR)
         );
         this.controller = controller;
+        this.buildingResolver = new BuildingResolver();
         this.ctrlKeyDispatcher = this::handleGlobalKeyEvent;
         this.escListener = new KeyAdapter() {
             @Override
@@ -306,7 +293,9 @@ final class QuickAddressFillStreetMapMode extends MapMode {
             return;
         }
 
-        OsmPrimitive building = resolveBuildingAtClick(map, e, stats);
+        BuildingResolver.BuildingResolutionResult resolution = buildingResolver.resolveAtClick(map, e);
+        stats.resolution = resolution;
+        OsmPrimitive building = resolution.getBuilding();
         if (building == null) {
             stats.outcome = "no-building-hit";
             updateStatusLine(I18n.tr("No building detected"));
@@ -352,7 +341,9 @@ final class QuickAddressFillStreetMapMode extends MapMode {
             return;
         }
 
-        OsmPrimitive building = resolveBuildingAtClick(map, e, stats);
+        BuildingResolver.BuildingResolutionResult resolution = buildingResolver.resolveAtClick(map, e);
+        stats.resolution = resolution;
+        OsmPrimitive building = resolution.getBuilding();
         if (building == null) {
             String streetFromClick = resolveStreetNameAtClick(map, e);
             if (streetFromClick != null) {
@@ -404,210 +395,11 @@ final class QuickAddressFillStreetMapMode extends MapMode {
         return null;
     }
 
-    private OsmPrimitive resolveBuildingAtClick(MapFrame map, MouseEvent e, ClickResolutionStats stats) {
-        if (map == null || map.mapView == null) {
-            stats.buildingSource = "map-unavailable";
-            return null;
-        }
-        List<OsmPrimitive> nearby = map.mapView.getAllNearest(e.getPoint(), this::isBuildingOrBuildingOutlineCandidate);
-        stats.nearestCandidates = nearby == null ? 0 : nearby.size();
-        OsmPrimitive building = chooseBuilding(nearby);
-        if (building != null) {
-            stats.buildingSource = "nearest-hit";
-            return building;
-        }
-
-        DataSet dataSet = MainApplication.getLayerManager().getEditDataSet();
-        if (dataSet == null) {
-            stats.buildingSource = "no-dataset";
-            return null;
-        }
-
-        Relation relationBuilding = findRelationContainingClick(dataSet, map, e, stats);
-        if (relationBuilding != null) {
-            stats.buildingSource = "relation-fallback";
-            return relationBuilding;
-        }
-
-        Way wayBuilding = findWayContainingClick(dataSet, map, e, stats);
-        if (wayBuilding != null) {
-            stats.buildingSource = "way-fallback";
-            return wayBuilding;
-        }
-        stats.buildingSource = "no-hit";
-        return null;
-    }
-
-    private Relation findRelationContainingClick(DataSet dataSet, MapFrame map, MouseEvent e, ClickResolutionStats stats) {
-        if (dataSet == null || map == null || map.mapView == null || map.mapView.getRealBounds() == null) {
-            return null;
-        }
-        int relationScanLimit = getConfiguredRelationScanLimit();
-        stats.relationScanLimit = relationScanLimit;
-
-        LatLon clickLatLon = map.mapView.getLatLon(e.getX(), e.getY());
-        if (clickLatLon == null) {
-            return null;
-        }
-
-        int scanned = 0;
-        for (Relation relation : dataSet.searchRelations(map.mapView.getRealBounds().toBBox())) {
-            scanned++;
-            if (scanned > relationScanLimit) {
-                stats.relationLimitReached = true;
-                stats.relationCandidatesChecked = relationScanLimit;
-                return null;
-            }
-            if (!isBuildingCandidate(relation)) {
-                continue;
-            }
-            for (RelationMember member : relation.getMembers()) {
-                String role = member.getRole();
-                if (member.isWay() && (role == null || role.isEmpty() || "outer".equals(role))
-                        && containsPoint(member.getWay(), map, e.getPoint(), clickLatLon)) {
-                    return relation;
-                }
-            }
-        }
-        stats.relationCandidatesChecked = scanned;
-        return null;
-    }
-
-    private Way findWayContainingClick(DataSet dataSet, MapFrame map, MouseEvent e, ClickResolutionStats stats) {
-        if (dataSet == null || map == null || map.mapView == null || map.mapView.getRealBounds() == null) {
-            return null;
-        }
-        int wayScanLimit = getConfiguredWayScanLimit();
-        stats.wayScanLimit = wayScanLimit;
-
-        LatLon clickLatLon = map.mapView.getLatLon(e.getX(), e.getY());
-        if (clickLatLon == null) {
-            return null;
-        }
-
-        Way best = null;
-        double bestArea = Double.MAX_VALUE;
-        int scanned = 0;
-        for (Way way : dataSet.searchWays(map.mapView.getRealBounds().toBBox())) {
-            scanned++;
-            if (scanned > wayScanLimit) {
-                stats.wayLimitReached = true;
-                stats.wayCandidatesChecked = wayScanLimit;
-                return best;
-            }
-            if (!isBuildingOrBuildingOutlineCandidate(way)) {
-                continue;
-            }
-            if (!containsPoint(way, map, e.getPoint(), clickLatLon)) {
-                continue;
-            }
-
-            double area = way.getBBox().area();
-            if (area < bestArea) {
-                best = way;
-                bestArea = area;
-            }
-        }
-        stats.wayCandidatesChecked = scanned;
-        return best;
-    }
-
-    private boolean containsPoint(Way way, MapFrame map, Point clickPoint, LatLon clickLatLon) {
-        if (way == null || map == null || map.mapView == null || !way.isClosed() || way.getNodesCount() < 4) {
-            return false;
-        }
-
-        if (clickLatLon == null || !way.getBBox().bounds(clickLatLon)) {
-            return false;
-        }
-
-        Polygon polygon = new Polygon();
-        for (Node node : way.getNodes()) {
-            if (node == null || node.getCoor() == null) {
-                return false;
-            }
-            java.awt.Point point = map.mapView.getPoint(node);
-            if (point == null) {
-                return false;
-            }
-            polygon.addPoint(point.x, point.y);
-        }
-        return polygon.contains(clickPoint);
-    }
-
-    private boolean isBuildingCandidate(OsmPrimitive primitive) {
-        return primitive != null
-                && primitive.isUsable()
-                && primitive.hasTag("building")
-                && (primitive instanceof Way || primitive instanceof Relation);
-    }
-
-    private boolean isBuildingOrBuildingOutlineCandidate(OsmPrimitive primitive) {
-        if (isBuildingCandidate(primitive)) {
-            return true;
-        }
-        return primitive instanceof Way && isWayInBuildingRelation((Way) primitive);
-    }
-
     private boolean isNamedStreetCandidate(OsmPrimitive primitive) {
         return primitive instanceof Way
                 && primitive.isUsable()
                 && primitive.hasTag("highway")
                 && !normalize(primitive.get("name")).isEmpty();
-    }
-
-    private boolean isWayInBuildingRelation(Way way) {
-        if (way == null || !way.isUsable()) {
-            return false;
-        }
-        for (OsmPrimitive referrer : way.getReferrers()) {
-            if (referrer instanceof Relation && referrer.isUsable() && referrer.hasTag("building")) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private Relation getBuildingRelationForWay(Way way) {
-        if (way == null || !way.isUsable()) {
-            return null;
-        }
-        for (OsmPrimitive referrer : way.getReferrers()) {
-            if (referrer instanceof Relation && referrer.isUsable() && referrer.hasTag("building")) {
-                return (Relation) referrer;
-            }
-        }
-        return null;
-    }
-
-    private OsmPrimitive chooseBuilding(List<OsmPrimitive> nearby) {
-        if (nearby == null || nearby.isEmpty()) {
-            return null;
-        }
-
-        // Prefer way buildings so selection feedback is immediately visible on map.
-        for (OsmPrimitive primitive : nearby) {
-            if (primitive instanceof Way && primitive.hasTag("building")) {
-                return primitive;
-            }
-        }
-
-        // If only an untagged outer way is hit, resolve to its building relation.
-        for (OsmPrimitive primitive : nearby) {
-            if (primitive instanceof Way) {
-                Relation relation = getBuildingRelationForWay((Way) primitive);
-                if (relation != null) {
-                    return relation;
-                }
-            }
-        }
-
-        for (OsmPrimitive primitive : nearby) {
-            if (primitive instanceof Relation && primitive.hasTag("building")) {
-                return primitive;
-            }
-        }
-        return null;
     }
 
     private OsmPrimitive getSelectionTarget(OsmPrimitive building) {
@@ -871,14 +663,14 @@ final class QuickAddressFillStreetMapMode extends MapMode {
             Logging.debug(
                     "QuickAddressFill click-path: outcome={0}, source={1}, nearestCandidates={2}, relationChecked={3}/{4}, wayChecked={5}/{6}, relationLimitReached={7}, wayLimitReached={8}, control={9}, button={10}, modifiers={11}, x={12}, y={13}, durationMs={14}",
                     stats.outcome,
-                    stats.buildingSource,
-                    stats.nearestCandidates,
-                    stats.relationCandidatesChecked,
-                    stats.relationScanLimit,
-                    stats.wayCandidatesChecked,
-                    stats.wayScanLimit,
-                    stats.relationLimitReached,
-                    stats.wayLimitReached,
+                    stats.resolution.getSource(),
+                    stats.resolution.getNearestCandidates(),
+                    stats.resolution.getRelationCandidatesChecked(),
+                    stats.resolution.getRelationScanLimit(),
+                    stats.resolution.getWayCandidatesChecked(),
+                    stats.resolution.getWayScanLimit(),
+                    stats.resolution.isRelationLimitReached(),
+                    stats.resolution.isWayLimitReached(),
                     e.isControlDown(),
                     e.getButton(),
                     e.getModifiersEx(),
@@ -892,7 +684,7 @@ final class QuickAddressFillStreetMapMode extends MapMode {
             Logging.debug(
                     "QuickAddressFill QuickAddressFillStreetMapMode.mouseReleased: slow click handling ({0} ms), source={1}, outcome={2}, x={3}, y={4}",
                     elapsedMillis,
-                    stats.buildingSource,
+                    stats.resolution.getSource(),
                     stats.outcome,
                     e.getX(),
                     e.getY()
@@ -901,50 +693,11 @@ final class QuickAddressFillStreetMapMode extends MapMode {
     }
 
     static int getConfiguredRelationScanLimit() {
-        return readConfiguredScanLimit(PREF_RELATION_SCAN_LIMIT, DEFAULT_RELATION_SCAN_CANDIDATES);
+        return BuildingResolver.getConfiguredRelationScanLimit();
     }
 
     static int getConfiguredWayScanLimit() {
-        return readConfiguredScanLimit(PREF_WAY_SCAN_LIMIT, DEFAULT_WAY_SCAN_CANDIDATES);
-    }
-
-    private static int readConfiguredScanLimit(String key, int defaultValue) {
-        if (Config.getPref() == null) {
-            return defaultValue;
-        }
-
-        String rawValue = Config.getPref().get(key, "");
-        String normalized = rawValue == null ? "" : rawValue.trim();
-        if (normalized.isEmpty()) {
-            return defaultValue;
-        }
-
-        try {
-            int value = Integer.parseInt(normalized);
-            if (value < MIN_SCAN_CANDIDATES || value > MAX_SCAN_CANDIDATES) {
-                warnInvalidScanLimitOnce(key, normalized, defaultValue);
-                return defaultValue;
-            }
-            return value;
-        } catch (NumberFormatException ex) {
-            warnInvalidScanLimitOnce(key, normalized, defaultValue);
-            Logging.debug(ex);
-            return defaultValue;
-        }
-    }
-
-    private static void warnInvalidScanLimitOnce(String key, String value, int defaultValue) {
-        if (!WARNED_INVALID_LIMIT_KEYS.add(key)) {
-            return;
-        }
-        Logging.warn(
-                "QuickAddressFill QuickAddressFillStreetMapMode: invalid scan limit preference {0}={1}, falling back to default {2} (allowed range {3}-{4}).",
-                key,
-                value,
-                defaultValue,
-                MIN_SCAN_CANDIDATES,
-                MAX_SCAN_CANDIDATES
-        );
+        return BuildingResolver.getConfiguredWayScanLimit();
     }
 
     private boolean incrementHouseNumberAfterSuccessfulApply() {
