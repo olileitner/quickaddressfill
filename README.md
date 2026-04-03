@@ -45,6 +45,9 @@ A simple mouse click is all it takes.
 8. Optional: press `L` to toggle a trailing `a` suffix on/off.
 9. Press `ESC` to pause/exit Street Mode (you can continue from the dialog).
 
+
+![QuickAddressFill dialog](docs/images/qaf-dialog.png)
+
 ## Build
 
 ```bash
