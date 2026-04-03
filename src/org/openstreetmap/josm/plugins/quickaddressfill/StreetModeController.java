@@ -65,7 +65,13 @@ final class StreetModeController {
     }
 
     boolean activateBuildingSplitterWithCurrentAddress() {
-        return BuildingSplitterBridge.activateBuildingSplitter(currentStreet, currentPostcode);
+        return activateBuildingSplitterWithAddress(currentStreet, currentPostcode);
+    }
+
+    boolean activateBuildingSplitterWithAddress(String street, String postcode) {
+        String normalizedStreet = street == null ? "" : street.trim();
+        String normalizedPostcode = postcode == null ? "" : postcode.trim();
+        return BuildingSplitterBridge.activateBuildingSplitter(normalizedStreet, normalizedPostcode);
     }
 
     void setHouseNumberUpdateListener(HouseNumberUpdateListener listener) {
