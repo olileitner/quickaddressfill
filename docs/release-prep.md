@@ -1,5 +1,11 @@
 # HouseNumberClick Release Prep
 
+## Release v1.0.4 (Naming Correction)
+
+- Korrigiert sichtbare Release-Benennung auf `HouseNumberClick` (statt altem Pluginnamen).
+- Keine funktionale Verhaltensaenderung im Plugin-Workflow.
+- Folge-Release zu `v1.0.3`, damit Store/GitHub-Darstellung konsistent bleibt.
+
 ## A. Release Notes (Entwurf)
 
 ### Technischer Fokus dieses Release-Kandidaten
