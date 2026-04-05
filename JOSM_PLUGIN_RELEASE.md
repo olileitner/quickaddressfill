@@ -8,7 +8,7 @@ From `build.xml` in this repository:
 
 - Present metadata:
   - `plugin.class`
-  - `plugin.version` (now `1.1.1`)
+  - `plugin.version` (now `1.1.2`)
   - `plugin.main.version` (`19481`)
 - Present build targets:
   - `clean`, `compile`, `test`, `dist`, `i18n-*`
@@ -70,5 +70,5 @@ Official JOSM Plugin Manager release:
 
 ## 5) Recommended Next Step
 
-Use `RELEASE_STEPS.md` for GitHub release `v1.1.1`, then prepare migration/synchronization into the official JOSM plugin publication workflow to execute `ant publish` there.
+Use `RELEASE_STEPS.md` for GitHub release `v1.1.2`, then prepare migration/synchronization into the official JOSM plugin publication workflow to execute `ant publish` there.
 

@@ -15,6 +15,12 @@ JOSM plugin for fast house-number mapping on buildings.
 - Prevented shortcut actions while typing in text fields.
 - Checkbox interactions now return focus to the map when Street Mode is active.
 
+## What's New in 1.1.2
+
+- Corrected duplicate marker logic in house-number overview (`xN` now reflects exact repeated values only).
+- Duplicate overview entries now zoom to the full base-number group.
+- Street-count list now marks streets with exact duplicate house numbers as `N (dup)`.
+
 ## Demo
 ![HouseNumberClick demo](docs/images/housenumberclick-demo.gif)
 
