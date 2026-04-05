@@ -63,6 +63,7 @@ final class StreetModeController {
     private final HouseNumberOverlayCollector houseNumberOverlayCollector = new HouseNumberOverlayCollector();
     private final HouseNumberOverviewCollector houseNumberOverviewCollector = new HouseNumberOverviewCollector();
     private final StreetHouseNumberCountCollector streetHouseNumberCountCollector = new StreetHouseNumberCountCollector();
+    private AddressSelection lastSelection = new AddressSelection("", "", "", "", 1);
     private List<String> streetNavigationOrder = List.of();
     private String currentStreet = "";
     private String currentPostcode = "";
@@ -110,6 +111,7 @@ final class StreetModeController {
 
         currentStreet = selection.getStreetName();
         currentPostcode = selection.getPostcode();
+        lastSelection = selection;
         if (currentStreet.isEmpty()) {
             refreshOverlayLayer();
             refreshHouseNumberOverview();
@@ -322,10 +324,18 @@ final class StreetModeController {
 
         // Keep optional street-based overlays in sync with the row the user clicked.
         currentStreet = normalizedStreet;
+        lastSelection = new AddressSelection(
+                currentStreet,
+                lastSelection.getPostcode(),
+                lastSelection.getBuildingType(),
+                lastSelection.getHouseNumber(),
+                lastSelection.getHouseNumberIncrementStep()
+        );
         highlightCurrentStreetInStreetCountDialog();
         refreshOverlayLayer();
         refreshHouseNumberOverview();
         zoomToStreet(normalizedStreet);
+        continueWorkingFromTableInteraction();
     }
 
     private void highlightCurrentStreetInStreetCountDialog() {
@@ -340,6 +350,13 @@ final class StreetModeController {
         refreshOverlayLayer();
         refreshHouseNumberOverview();
         refreshStreetHouseNumberCounts();
+    }
+
+    void continueWorkingFromTableInteraction() {
+        if (lastSelection == null || lastSelection.getStreetName().isEmpty()) {
+            return;
+        }
+        activate(lastSelection);
     }
 
     private void refreshOverlayLayer() {
@@ -390,7 +407,7 @@ final class StreetModeController {
         }
 
         if (houseNumberOverviewDialog == null) {
-            houseNumberOverviewDialog = new HouseNumberOverviewDialog();
+            houseNumberOverviewDialog = new HouseNumberOverviewDialog(this::continueWorkingFromTableInteraction);
         }
 
         DataSet editDataSet = MainApplication.getLayerManager() != null

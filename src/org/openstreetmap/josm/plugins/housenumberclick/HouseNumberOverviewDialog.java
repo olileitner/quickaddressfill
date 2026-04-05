@@ -42,8 +42,10 @@ final class HouseNumberOverviewDialog {
     private final JLabel streetLabel;
     private final DefaultTableModel tableModel;
     private final List<HouseNumberOverviewRow> currentRows = new ArrayList<>();
+    private final Runnable rowClickListener;
 
-    HouseNumberOverviewDialog() {
+    HouseNumberOverviewDialog(Runnable rowClickListener) {
+        this.rowClickListener = rowClickListener;
         Frame owner = MainApplication.getMainFrame();
         this.dialog = new JDialog(owner, I18n.tr("House number overview"), false);
         this.dialog.setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);
@@ -164,6 +166,9 @@ final class HouseNumberOverviewDialog {
             zoomToPrimitive(target);
         }
         focusMapView();
+        if (rowClickListener != null) {
+            rowClickListener.run();
+        }
     }
 
     private void zoomToPrimitive(OsmPrimitive primitive) {

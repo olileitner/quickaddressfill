@@ -54,6 +54,7 @@ public final class HouseNumberClickRiskRegressionTests {
         run("Duplicate click detection keeps rapid distinct clicks", HouseNumberClickRiskRegressionTests::testRapidDistinctClicksAreKept);
         run("Main dialog close cleanup is safe", HouseNumberClickRiskRegressionTests::testMainDialogCloseCleanupIsSafe);
         run("Rescan refresh entrypoint is safe", HouseNumberClickRiskRegressionTests::testRescanRefreshEntrypointIsSafe);
+        run("Table click continue hook is safe", HouseNumberClickRiskRegressionTests::testTableClickContinueHookIsSafe);
         run("Street navigation order matches street-count sorting", HouseNumberClickRiskRegressionTests::testStreetNavigationOrderMatchesStreetCountsSorting);
         run("Street zoom fallback collects only usable named highway ways", HouseNumberClickRiskRegressionTests::testStreetZoomFallbackWayMatching);
         System.out.println("All HouseNumberClick risk regression tests passed.");
@@ -437,6 +438,12 @@ public final class HouseNumberClickRiskRegressionTests {
         StreetModeController controller = new StreetModeController();
         controller.rescanPluginData();
         assertTrue(true, "rescan refresh entrypoint should complete without exceptions");
+    }
+
+    private static void testTableClickContinueHookIsSafe() {
+        StreetModeController controller = new StreetModeController();
+        controller.continueWorkingFromTableInteraction();
+        assertTrue(true, "table click continue hook should complete without exceptions");
     }
 
     private static void testStreetNavigationOrderMatchesStreetCountsSorting() {
