@@ -9,7 +9,6 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.BBox;
@@ -21,25 +20,23 @@ import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.projection.Projection;
 import org.openstreetmap.josm.data.projection.ProjectionRegistry;
-import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.tools.Geometry;
 
 final class HouseNumberOverlayCollector {
 
     private static final Pattern HOUSE_NUMBER_PATTERN = Pattern.compile("^\\s*(\\d+)\\s*([^\\d].*)?$");
 
-    List<HouseNumberOverlayEntry> collect(DataSet dataSet, MapView mapView, String selectedStreet) {
+    List<HouseNumberOverlayEntry> collect(DataSet dataSet, String selectedStreet) {
         String normalizedStreet = normalize(selectedStreet);
-        if (dataSet == null || mapView == null || normalizedStreet.isEmpty()) {
+        if (dataSet == null || normalizedStreet.isEmpty()) {
             return new ArrayList<>();
         }
 
-        Bounds visibleBounds = mapView.getRealBounds();
         List<HouseNumberOverlayEntry> entries = new ArrayList<>();
         int stableIndex = 0;
 
         for (Way way : dataSet.getWays()) {
-            HouseNumberOverlayEntry entry = buildEntry(way, normalizedStreet, visibleBounds, stableIndex);
+            HouseNumberOverlayEntry entry = buildEntry(way, normalizedStreet, stableIndex);
             if (entry != null) {
                 entries.add(entry);
                 stableIndex++;
@@ -47,7 +44,7 @@ final class HouseNumberOverlayCollector {
         }
 
         for (Relation relation : dataSet.getRelations()) {
-            HouseNumberOverlayEntry entry = buildEntry(relation, normalizedStreet, visibleBounds, stableIndex);
+            HouseNumberOverlayEntry entry = buildEntry(relation, normalizedStreet, stableIndex);
             if (entry != null) {
                 entries.add(entry);
                 stableIndex++;
@@ -66,12 +63,8 @@ final class HouseNumberOverlayCollector {
                 .thenComparingInt(HouseNumberOverlayEntry::getStableIndex);
     }
 
-    private HouseNumberOverlayEntry buildEntry(OsmPrimitive primitive, String selectedStreet, Bounds visibleBounds, int stableIndex) {
+    private HouseNumberOverlayEntry buildEntry(OsmPrimitive primitive, String selectedStreet, int stableIndex) {
         if (!isMatchingAddressedBuilding(primitive, selectedStreet)) {
-            return null;
-        }
-
-        if (!isVisibleInCurrentView(primitive, visibleBounds)) {
             return null;
         }
 
@@ -118,18 +111,6 @@ final class HouseNumberOverlayCollector {
         return !houseNumber.isEmpty() && selectedStreet.equals(street);
     }
 
-    private boolean isVisibleInCurrentView(OsmPrimitive primitive, Bounds visibleBounds) {
-        if (visibleBounds == null) {
-            return true;
-        }
-
-        BBox bbox = primitive.getBBox();
-        if (bbox == null || !bbox.isValid()) {
-            return false;
-        }
-        BBox visibleBBox = visibleBounds.toBBox();
-        return visibleBBox != null && bbox.intersects(visibleBBox);
-    }
 
     private EastNorth resolveLabelPoint(OsmPrimitive primitive) {
         Area area = Geometry.getAreaEastNorth(primitive);

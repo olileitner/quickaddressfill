@@ -32,6 +32,12 @@ final class HouseNumberOverlayLayer extends Layer {
     private static final Font TEXT_FONT = new Font(Font.SANS_SERIF, Font.BOLD, 16);
     private static final Color BUBBLE_FILL_COLOR = new Color(255, 255, 220, 225);
     private static final Color BUBBLE_BORDER_COLOR = new Color(45, 45, 45, 210);
+    private static final Color ODD_BUBBLE_FILL_COLOR = new Color(255, 236, 208, 230);
+    private static final Color ODD_BUBBLE_BORDER_COLOR = new Color(182, 132, 74, 220);
+    private static final Color EVEN_BUBBLE_FILL_COLOR = new Color(220, 234, 255, 230);
+    private static final Color EVEN_BUBBLE_BORDER_COLOR = new Color(92, 126, 170, 220);
+    private static final Color ODD_LINE_COLOR = new Color(193, 146, 88, 190);
+    private static final Color EVEN_LINE_COLOR = new Color(98, 134, 179, 190);
     private static final Color DUPLICATE_BUBBLE_FILL_COLOR = new Color(255, 175, 175, 235);
     private static final Color DUPLICATE_BUBBLE_BORDER_COLOR = new Color(195, 20, 20, 235);
     private static final Color TEXT_COLOR = new Color(10, 10, 10, 230);
@@ -64,7 +70,7 @@ final class HouseNumberOverlayLayer extends Layer {
             return;
         }
 
-        List<HouseNumberOverlayEntry> entries = collector.collect(dataSet, mapView, selectedStreet);
+        List<HouseNumberOverlayEntry> entries = collector.collect(dataSet, selectedStreet);
         if (entries.isEmpty()) {
             return;
         }
@@ -83,15 +89,17 @@ final class HouseNumberOverlayLayer extends Layer {
     }
 
     private void drawConnectionLines(Graphics2D g, MapView mapView, List<HouseNumberOverlayEntry> entries) {
-        g.setColor(BUBBLE_FILL_COLOR);
         g.setStroke(new BasicStroke(3.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 
         if (!separateEvenOddConnectionLinesEnabled) {
+            g.setColor(BUBBLE_FILL_COLOR);
             drawConnectionLinePath(g, mapView, entries, null);
             return;
         }
 
+        g.setColor(EVEN_LINE_COLOR);
         drawConnectionLinePath(g, mapView, entries, 0);
+        g.setColor(ODD_LINE_COLOR);
         drawConnectionLinePath(g, mapView, entries, 1);
     }
 
@@ -107,6 +115,7 @@ final class HouseNumberOverlayLayer extends Layer {
 
             Point current = mapView.getPoint(entry.getLabelPoint());
             if (!isOnScreen(current, mapView)) {
+                previous = null;
                 continue;
             }
             if (previous != null) {
@@ -134,6 +143,7 @@ final class HouseNumberOverlayLayer extends Layer {
             int bubbleHeight = Math.max(24, textHeight + 10);
             int x = point.x - bubbleWidth / 2;
             int y = point.y - bubbleHeight / 2;
+            int numberPart = entry.getNumberPart();
             boolean duplicateHouseNumber = duplicateNumbers.contains(normalizeHouseNumberKey(label));
 
             if (duplicateHouseNumber) {
@@ -152,9 +162,9 @@ final class HouseNumberOverlayLayer extends Layer {
                 g.drawOval(outerX, outerY, outerWidth, outerHeight);
             }
 
-            g.setColor(duplicateHouseNumber ? DUPLICATE_BUBBLE_FILL_COLOR : BUBBLE_FILL_COLOR);
+            g.setColor(resolveBubbleFillColor(duplicateHouseNumber, numberPart));
             g.fillOval(x, y, bubbleWidth, bubbleHeight);
-            g.setColor(duplicateHouseNumber ? DUPLICATE_BUBBLE_BORDER_COLOR : BUBBLE_BORDER_COLOR);
+            g.setColor(resolveBubbleBorderColor(duplicateHouseNumber, numberPart));
             g.setStroke(new BasicStroke(duplicateHouseNumber ? 3.2f : 1.6f));
             g.drawOval(x, y, bubbleWidth, bubbleHeight);
 
@@ -183,6 +193,26 @@ final class HouseNumberOverlayLayer extends Layer {
             }
         }
         return duplicateNumbers;
+    }
+
+    private Color resolveBubbleFillColor(boolean duplicateHouseNumber, int numberPart) {
+        if (duplicateHouseNumber) {
+            return DUPLICATE_BUBBLE_FILL_COLOR;
+        }
+        if (numberPart == Integer.MAX_VALUE) {
+            return BUBBLE_FILL_COLOR;
+        }
+        return Math.abs(numberPart % 2) == 0 ? EVEN_BUBBLE_FILL_COLOR : ODD_BUBBLE_FILL_COLOR;
+    }
+
+    private Color resolveBubbleBorderColor(boolean duplicateHouseNumber, int numberPart) {
+        if (duplicateHouseNumber) {
+            return DUPLICATE_BUBBLE_BORDER_COLOR;
+        }
+        if (numberPart == Integer.MAX_VALUE) {
+            return BUBBLE_BORDER_COLOR;
+        }
+        return Math.abs(numberPart % 2) == 0 ? EVEN_BUBBLE_BORDER_COLOR : ODD_BUBBLE_BORDER_COLOR;
     }
 
     private boolean isOnScreen(Point point, MapView mapView) {

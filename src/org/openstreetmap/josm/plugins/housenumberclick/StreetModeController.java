@@ -47,11 +47,14 @@ final class StreetModeController {
 
     private HouseNumberClickStreetMapMode streetMapMode;
     private HouseNumberOverlayLayer houseNumberOverlayLayer;
+    private HouseNumberOverviewDialog houseNumberOverviewDialog;
+    private final HouseNumberOverviewCollector houseNumberOverviewCollector = new HouseNumberOverviewCollector();
     private String currentStreet = "";
     private String currentPostcode = "";
     private boolean houseNumberOverlayEnabled;
     private boolean connectionLinesEnabled;
     private boolean separateEvenOddConnectionLinesEnabled;
+    private boolean houseNumberOverviewEnabled;
     private HouseNumberUpdateListener houseNumberUpdateListener;
     private AddressValuesReadListener addressValuesReadListener;
     private BuildingTypeConsumedListener buildingTypeConsumedListener;
@@ -92,6 +95,7 @@ final class StreetModeController {
         currentPostcode = selection.getPostcode();
         if (currentStreet.isEmpty()) {
             refreshOverlayLayer();
+            refreshHouseNumberOverview();
             Logging.debug("HouseNumberClick StreetModeController.activate: skipped because street is empty.");
             return;
         }
@@ -125,6 +129,7 @@ final class StreetModeController {
                 selection.getHouseNumberIncrementStep()
         );
         refreshOverlayLayer();
+        refreshHouseNumberOverview();
         map.selectMapMode(streetMapMode);
     }
 
@@ -193,6 +198,11 @@ final class StreetModeController {
         refreshOverlayLayer();
     }
 
+    void setHouseNumberOverviewEnabled(boolean enabled) {
+        houseNumberOverviewEnabled = enabled;
+        refreshHouseNumberOverview();
+    }
+
     private void refreshOverlayLayer() {
         if (!houseNumberOverlayEnabled || normalize(currentStreet).isEmpty()) {
             removeOverlayLayer();
@@ -227,6 +237,29 @@ final class StreetModeController {
             layerManager.removeLayer(houseNumberOverlayLayer);
         }
         houseNumberOverlayLayer = null;
+    }
+
+    private void refreshHouseNumberOverview() {
+        if (!houseNumberOverviewEnabled || normalize(currentStreet).isEmpty()) {
+            hideHouseNumberOverview();
+            return;
+        }
+
+        if (houseNumberOverviewDialog == null) {
+            houseNumberOverviewDialog = new HouseNumberOverviewDialog();
+        }
+
+        houseNumberOverviewDialog.updateData(
+                currentStreet,
+                houseNumberOverviewCollector.collectRows(MainApplication.getLayerManager().getEditDataSet(), currentStreet)
+        );
+        houseNumberOverviewDialog.showDialog();
+    }
+
+    private void hideHouseNumberOverview() {
+        if (houseNumberOverviewDialog != null) {
+            houseNumberOverviewDialog.hideDialog();
+        }
     }
 
     void deactivate() {
