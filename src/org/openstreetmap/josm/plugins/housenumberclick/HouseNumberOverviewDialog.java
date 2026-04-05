@@ -9,7 +9,9 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.swing.BorderFactory;
 import javax.swing.JDialog;
@@ -150,12 +152,17 @@ final class HouseNumberOverviewDialog {
         }
 
         HouseNumberOverviewRow overviewRow = currentRows.get(row);
-        OsmPrimitive target = column == 0 ? overviewRow.getOddPrimitive() : overviewRow.getEvenPrimitive();
-        if (target == null || !target.isUsable()) {
-            return;
+        boolean duplicate = column == 0 ? overviewRow.isOddDuplicate() : overviewRow.isEvenDuplicate();
+        List<OsmPrimitive> groupedTargets = column == 0 ? overviewRow.getOddPrimitives() : overviewRow.getEvenPrimitives();
+        if (duplicate && groupedTargets != null && !groupedTargets.isEmpty()) {
+            zoomToPrimitives(groupedTargets);
+        } else {
+            OsmPrimitive target = column == 0 ? overviewRow.getOddPrimitive() : overviewRow.getEvenPrimitive();
+            if (target == null || !target.isUsable()) {
+                return;
+            }
+            zoomToPrimitive(target);
         }
-
-        zoomToPrimitive(target);
         focusMapView();
     }
 
@@ -174,6 +181,35 @@ final class HouseNumberOverviewDialog {
                 : null;
         if (editDataSet != null && primitive.getDataSet() == editDataSet) {
             editDataSet.setSelected(Collections.singleton(primitive));
+        }
+    }
+
+    private void zoomToPrimitives(List<OsmPrimitive> primitives) {
+        MapFrame map = MainApplication.getMap();
+        if (map == null || map.mapView == null || primitives == null || primitives.isEmpty()) {
+            return;
+        }
+
+        BoundingXYVisitor visitor = new BoundingXYVisitor();
+        Set<OsmPrimitive> usableTargets = new LinkedHashSet<>();
+        for (OsmPrimitive primitive : primitives) {
+            if (primitive == null || !primitive.isUsable()) {
+                continue;
+            }
+            primitive.accept((OsmPrimitiveVisitor) visitor);
+            usableTargets.add(primitive);
+        }
+
+        if (!visitor.hasExtend()) {
+            return;
+        }
+        map.mapView.zoomTo(visitor);
+
+        DataSet editDataSet = MainApplication.getLayerManager() != null
+                ? MainApplication.getLayerManager().getEditDataSet()
+                : null;
+        if (editDataSet != null && !usableTargets.isEmpty()) {
+            editDataSet.setSelected(usableTargets);
         }
     }
 

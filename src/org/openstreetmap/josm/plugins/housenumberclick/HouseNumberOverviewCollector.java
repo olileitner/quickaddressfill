@@ -1,9 +1,12 @@
 package org.openstreetmap.josm.plugins.housenumberclick;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
@@ -55,7 +58,7 @@ final class HouseNumberOverviewCollector {
 
         Map<Integer, BaseNumberGroup> target = parsed.baseNumber % 2 == 0 ? evenGroups : oddGroups;
         BaseNumberGroup group = target.computeIfAbsent(parsed.baseNumber, BaseNumberGroup::new);
-        group.addOccurrence(parsed.suffix, primitive);
+        group.addOccurrence(parsed.suffix, primitive, primitive.get("addr:housenumber"));
     }
 
 
@@ -108,9 +111,14 @@ final class HouseNumberOverviewCollector {
         for (int baseNumber = minBaseNumber; baseNumber <= maxBaseNumber; baseNumber += 2) {
             BaseNumberGroup group = groups.get(baseNumber);
             if (group == null) {
-                values.add(new OverviewCellData(MISSING_NUMBER_PLACEHOLDER, null));
+                values.add(new OverviewCellData(MISSING_NUMBER_PLACEHOLDER, null, List.of(), false));
             } else {
-                values.add(new OverviewCellData(group.formatForOverview(), group.getRepresentativePrimitive()));
+                values.add(new OverviewCellData(
+                        group.formatForOverview(),
+                        group.getRepresentativePrimitive(),
+                        group.getGroupedPrimitives(),
+                        group.hasExactDuplicate()
+                ));
             }
         }
         return values;
@@ -122,7 +130,16 @@ final class HouseNumberOverviewCollector {
         for (int i = 0; i < rowCount; i++) {
             OverviewCellData odd = i < oddValues.size() ? oddValues.get(i) : OverviewCellData.empty();
             OverviewCellData even = i < evenValues.size() ? evenValues.get(i) : OverviewCellData.empty();
-            rows.add(new HouseNumberOverviewRow(odd.value, even.value, odd.primitive, even.primitive));
+            rows.add(new HouseNumberOverviewRow(
+                    odd.value,
+                    even.value,
+                    odd.primitive,
+                    even.primitive,
+                    odd.primitives,
+                    even.primitives,
+                    odd.duplicate,
+                    even.duplicate
+            ));
         }
         return rows;
     }
@@ -144,20 +161,30 @@ final class HouseNumberOverviewCollector {
     private static final class BaseNumberGroup {
         private final int baseNumber;
         private final TreeSet<String> suffixes = new TreeSet<>();
-        private int occurrenceCount;
+        private final Map<String, Integer> exactHouseNumberCounts = new HashMap<>();
+        private final Set<OsmPrimitive> groupedPrimitives = new LinkedHashSet<>();
         private OsmPrimitive representativePrimitive;
 
         BaseNumberGroup(int baseNumber) {
             this.baseNumber = baseNumber;
         }
 
-        void addOccurrence(String suffix, OsmPrimitive primitive) {
-            occurrenceCount++;
+        void addOccurrence(String suffix, OsmPrimitive primitive, String fullHouseNumber) {
             if (suffix != null && !suffix.isBlank()) {
                 suffixes.add(suffix);
             }
+            String normalizedFullHouseNumber = normalizeHouseNumberKey(fullHouseNumber);
+            if (!normalizedFullHouseNumber.isEmpty()) {
+                exactHouseNumberCounts.put(
+                        normalizedFullHouseNumber,
+                        exactHouseNumberCounts.getOrDefault(normalizedFullHouseNumber, 0) + 1
+                );
+            }
             if (representativePrimitive == null && primitive != null) {
                 representativePrimitive = primitive;
+            }
+            if (primitive != null) {
+                groupedPrimitives.add(primitive);
             }
         }
 
@@ -168,25 +195,52 @@ final class HouseNumberOverviewCollector {
             } else {
                 formatted = baseNumber + " (" + String.join(", ", suffixes) + ")";
             }
-            return occurrenceCount > 1 ? formatted + " x" + occurrenceCount : formatted;
+            int duplicateCount = findHighestDuplicateCount();
+            return duplicateCount > 1 ? formatted + " x" + duplicateCount : formatted;
+        }
+
+        private int findHighestDuplicateCount() {
+            int highest = 0;
+            for (Integer count : exactHouseNumberCounts.values()) {
+                if (count != null && count > highest) {
+                    highest = count;
+                }
+            }
+            return highest;
+        }
+
+        boolean hasExactDuplicate() {
+            return findHighestDuplicateCount() > 1;
+        }
+
+        private String normalizeHouseNumberKey(String value) {
+            return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
         }
 
         OsmPrimitive getRepresentativePrimitive() {
             return representativePrimitive;
+        }
+
+        List<OsmPrimitive> getGroupedPrimitives() {
+            return new ArrayList<>(groupedPrimitives);
         }
     }
 
     private static final class OverviewCellData {
         private final String value;
         private final OsmPrimitive primitive;
+        private final List<OsmPrimitive> primitives;
+        private final boolean duplicate;
 
-        private OverviewCellData(String value, OsmPrimitive primitive) {
+        private OverviewCellData(String value, OsmPrimitive primitive, List<OsmPrimitive> primitives, boolean duplicate) {
             this.value = value;
             this.primitive = primitive;
+            this.primitives = primitives == null ? List.of() : primitives;
+            this.duplicate = duplicate;
         }
 
         private static OverviewCellData empty() {
-            return new OverviewCellData("", null);
+            return new OverviewCellData("", null, List.of(), false);
         }
     }
 }

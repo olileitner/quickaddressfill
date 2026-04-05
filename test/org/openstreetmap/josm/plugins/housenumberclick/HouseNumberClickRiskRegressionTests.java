@@ -3,9 +3,11 @@ package org.openstreetmap.josm.plugins.housenumberclick;
 import java.awt.Component;
 import java.awt.event.MouseEvent;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.openstreetmap.josm.data.Preferences;
+import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.Way;
@@ -39,6 +41,9 @@ public final class HouseNumberClickRiskRegressionTests {
         run("AddressConflictService handles missing tags and partial differences", HouseNumberClickRiskRegressionTests::testAddressConflictEdgeCases);
         run("ConflictDialogModelBuilder keeps field order and value mapping", HouseNumberClickRiskRegressionTests::testConflictDialogModelBuilderMapping);
         run("ConflictDialogModelBuilder handles empty analysis", HouseNumberClickRiskRegressionTests::testConflictDialogModelBuilderEmpty);
+        run("HouseNumberOverview duplicate marker ignores mixed variants", HouseNumberClickRiskRegressionTests::testOverviewDuplicateMarkerIgnoresMixedVariants);
+        run("HouseNumberOverview duplicate marker tracks exact repeats", HouseNumberClickRiskRegressionTests::testOverviewDuplicateMarkerTracksExactRepeats);
+        run("HouseNumberOverview duplicate rows expose grouped primitives", HouseNumberClickRiskRegressionTests::testOverviewDuplicateRowCarriesGroupedPrimitives);
         run("DataSet transition detection is stable", HouseNumberClickRiskRegressionTests::testDataSetChangeDetection);
         run("BuildingSplitter stale fallback is discarded", HouseNumberClickRiskRegressionTests::testStaleFallbackIsCleared);
         run("BuildingSplitter fresh fallback is kept", HouseNumberClickRiskRegressionTests::testFreshFallbackIsKept);
@@ -198,6 +203,47 @@ public final class HouseNumberClickRiskRegressionTests {
         assertEquals(0, model.getRows().size(), "empty model should contain no rows");
     }
 
+    private static void testOverviewDuplicateMarkerIgnoresMixedVariants() {
+        DataSet dataSet = new DataSet();
+        dataSet.addPrimitiveRecursive(createClosedBuilding("Example Street", "1"));
+        dataSet.addPrimitiveRecursive(createClosedBuilding("Example Street", "1a"));
+        dataSet.addPrimitiveRecursive(createClosedBuilding("Example Street", "1b"));
+
+        HouseNumberOverviewCollector collector = new HouseNumberOverviewCollector();
+        List<HouseNumberOverviewRow> rows = collector.collectRows(dataSet, "Example Street");
+        String oddValue = firstNonEmptyOddValue(rows);
+        assertEquals("1 (a, b)", oddValue, "mixed variants without exact duplicates must not show xN marker");
+    }
+
+    private static void testOverviewDuplicateMarkerTracksExactRepeats() {
+        DataSet dataSet = new DataSet();
+        dataSet.addPrimitiveRecursive(createClosedBuilding("Example Street", "1"));
+        dataSet.addPrimitiveRecursive(createClosedBuilding("Example Street", "1"));
+        dataSet.addPrimitiveRecursive(createClosedBuilding("Example Street", "1a"));
+        dataSet.addPrimitiveRecursive(createClosedBuilding("Example Street", "1a"));
+
+        HouseNumberOverviewCollector collector = new HouseNumberOverviewCollector();
+        List<HouseNumberOverviewRow> rows = collector.collectRows(dataSet, "Example Street");
+        String oddValue = firstNonEmptyOddValue(rows);
+        assertEquals("1 (a) x2", oddValue, "exact duplicate values should show compact xN marker");
+    }
+
+    private static void testOverviewDuplicateRowCarriesGroupedPrimitives() {
+        DataSet dataSet = new DataSet();
+        dataSet.addPrimitiveRecursive(createClosedBuilding("Example Street", "2"));
+        dataSet.addPrimitiveRecursive(createClosedBuilding("Example Street", "2"));
+        dataSet.addPrimitiveRecursive(createClosedBuilding("Example Street", "2a"));
+        dataSet.addPrimitiveRecursive(createClosedBuilding("Example Street", "2a"));
+        dataSet.addPrimitiveRecursive(createClosedBuilding("Example Street", "2b"));
+
+        HouseNumberOverviewCollector collector = new HouseNumberOverviewCollector();
+        List<HouseNumberOverviewRow> rows = collector.collectRows(dataSet, "Example Street");
+        HouseNumberOverviewRow row = firstRowWithOddValuePrefix(rows, "2");
+        assertTrue(row != null, "expected overview row for base number 2");
+        assertTrue(row.isEvenDuplicate(), "even row for base 2 should be marked as duplicate");
+        assertEquals(5, row.getEvenPrimitives().size(), "duplicate row should include all base-number primitives for grouped zoom");
+    }
+
     private static void testAddressSelectionNormalization() {
         StreetModeController.AddressSelection selection =
                 new StreetModeController.AddressSelection("  Main Street  ", " 12345 ", " house ", " 12a ", 99);
@@ -207,6 +253,61 @@ public final class HouseNumberClickRiskRegressionTests {
         assertEquals("house", selection.getBuildingType(), "building type should be trimmed");
         assertEquals("12a", selection.getHouseNumber(), "house number should be trimmed");
         assertEquals(1, selection.getHouseNumberIncrementStep(), "invalid step should normalize to +1");
+    }
+
+    private static Way createClosedBuilding(String street, String houseNumber) {
+        Way way = new Way();
+        Node n1 = new Node(new LatLon(0.0, 0.0));
+        Node n2 = new Node(new LatLon(0.0, 0.0001));
+        Node n3 = new Node(new LatLon(0.0001, 0.0001));
+        Node n4 = new Node(new LatLon(0.0001, 0.0));
+        List<Node> nodes = new ArrayList<>();
+        nodes.add(n1);
+        nodes.add(n2);
+        nodes.add(n3);
+        nodes.add(n4);
+        nodes.add(n1);
+        way.setNodes(nodes);
+        way.put("building", "yes");
+        way.put("addr:street", street);
+        way.put("addr:housenumber", houseNumber);
+        return way;
+    }
+
+    private static String firstNonEmptyOddValue(List<HouseNumberOverviewRow> rows) {
+        if (rows == null) {
+            return "";
+        }
+        for (HouseNumberOverviewRow row : rows) {
+            if (row == null) {
+                continue;
+            }
+            String value = row.getOddValue();
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    private static HouseNumberOverviewRow firstRowWithOddValuePrefix(List<HouseNumberOverviewRow> rows, String prefix) {
+        if (rows == null) {
+            return null;
+        }
+        for (HouseNumberOverviewRow row : rows) {
+            if (row == null) {
+                continue;
+            }
+            String value = row.getOddValue();
+            if (value != null && value.startsWith(prefix)) {
+                return row;
+            }
+            value = row.getEvenValue();
+            if (value != null && value.startsWith(prefix)) {
+                return row;
+            }
+        }
+        return null;
     }
 
     private static void testDataSetChangeDetection() {
