@@ -2,6 +2,13 @@
 
 JOSM plugin for fast house-number mapping on buildings.
 
+## What's New in 1.1.0
+
+- New `Show street house number counts` window with per-street counts and click-to-zoom.
+- Sortable street-count table (default: count descending; header click toggles sorting).
+- Extended street workflow visuals: overlay, odd/even connection lines, duplicate highlighting, and overview-based zoom.
+- Input/shortcut behavior hardened so street navigation shortcuts do not interfere with text editing.
+
 ## Demo
 ![HouseNumberClick demo](docs/images/housenumberclick-demo.gif)
 
@@ -12,19 +19,23 @@ JOSM plugin for fast house-number mapping on buildings.
 - House number can auto-advance after successful apply, including letter suffix handling (`12a -> 12b`).
 - `Ctrl` + left-click reads existing address values from a building; if no building is hit, nearby street name can be picked.
 - Conflict warning protects overwriting existing address values (street/postcode).
+- Optional `Zoom to selected street` zooms to all mapped house numbers of the currently selected street.
 
 ## Map Mode Shortcuts
 
 - `+` / `-`: change current house number component.
 - `L`: toggle letter suffix (`12 <-> 12a`).
 - `Esc`: leave/pause Street Mode.
+- Left/right street navigation does not trigger while typing in text fields.
 
 ## Optional Visual Tools
 
 - `Show house number layer`: overlay of house numbers for the selected street.
-- `Show connection lines`: connect mapped numbers in sorted order (optionally split even/odd).
-- `Show house number overview`: odd/even table including gap markers; click a cell to zoom to the mapped object.
+- `Show connection lines`: connect mapped numbers in sorted order; `Separate even and odd connection lines` draws parity-specific paths.
+- Duplicate house numbers are highlighted in the overlay.
+- `Show house number overview`: odd/even table including gap markers (`•` for missing base numbers); click a cell to zoom to the mapped object.
 - `Show street house number counts`: list of streets with known house-number counts; click a row to zoom to that street.
+- Street-count table supports sorting by `Street` and `Count`.
 
 ## Optional Integration
 

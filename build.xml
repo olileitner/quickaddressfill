@@ -2,7 +2,7 @@
 <project name="housenumberclick" default="dist" basedir=".">
     <property name="plugin.name" value="HouseNumberClick"/>
     <property name="plugin.class" value="org.openstreetmap.josm.plugins.housenumberclick.HouseNumberClickPlugin"/>
-    <property name="plugin.description" value="Quickly opens the HouseNumberClick status dialog."/>
+    <property name="plugin.description" value="Fast building address tagging with street-focused overlays and overview tools."/>
     <property name="plugin.version" value="1.1.0"/>
     <property name="plugin.main.version" value="19481"/>
 
