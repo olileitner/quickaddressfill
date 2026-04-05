@@ -64,6 +64,7 @@ final class HouseNumberOverlayCollector {
     }
 
     private HouseNumberOverlayEntry buildEntry(OsmPrimitive primitive, String selectedStreet, int stableIndex) {
+        // Address/building eligibility is centralized to keep collector behavior aligned.
         if (!AddressedBuildingMatcher.isAddressedBuildingForStreet(primitive, selectedStreet)) {
             return null;
         }

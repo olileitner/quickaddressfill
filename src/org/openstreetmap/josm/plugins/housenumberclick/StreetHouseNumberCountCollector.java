@@ -34,6 +34,7 @@ final class StreetHouseNumberCountCollector {
     }
 
     private void collectPrimitive(OsmPrimitive primitive, Map<String, Integer> countsByStreet) {
+        // Count view uses the same addressed-building filter as overlay/overview collectors.
         if (!AddressedBuildingMatcher.isAddressedBuilding(primitive)) {
             return;
         }

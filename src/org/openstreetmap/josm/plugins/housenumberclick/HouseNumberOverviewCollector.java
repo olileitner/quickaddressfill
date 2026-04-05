@@ -43,6 +43,7 @@ final class HouseNumberOverviewCollector {
 
     private void collectPrimitive(OsmPrimitive primitive, String selectedStreet,
             Map<Integer, BaseNumberGroup> oddGroups, Map<Integer, BaseNumberGroup> evenGroups) {
+        // Shared matcher keeps street-specific building filtering consistent across collectors.
         if (!AddressedBuildingMatcher.isAddressedBuildingForStreet(primitive, selectedStreet)) {
             return;
         }

@@ -11,6 +11,7 @@ final class AddressedBuildingMatcher {
     }
 
     static boolean isAddressedBuilding(OsmPrimitive primitive) {
+        // Base filter shared by all collectors: usable addressed building geometry only.
         if (primitive == null || !primitive.isUsable() || !primitive.hasKey("building")) {
             return false;
         }
@@ -32,6 +33,7 @@ final class AddressedBuildingMatcher {
     }
 
     static boolean isAddressedBuildingForStreet(OsmPrimitive primitive, String streetName) {
+        // Street-scoped variant used when a collector operates on one selected street.
         if (!isAddressedBuilding(primitive)) {
             return false;
         }
