@@ -2,6 +2,7 @@ package org.openstreetmap.josm.plugins.housenumberclick;
 
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
+import org.openstreetmap.josm.gui.layer.LayerManager;
 import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.tools.I18n;
 import org.openstreetmap.josm.tools.Logging;
@@ -45,8 +46,11 @@ final class StreetModeController {
     }
 
     private HouseNumberClickStreetMapMode streetMapMode;
+    private HouseNumberOverlayLayer houseNumberOverlayLayer;
     private String currentStreet = "";
     private String currentPostcode = "";
+    private boolean houseNumberOverlayEnabled;
+    private boolean connectionLinesEnabled;
     private HouseNumberUpdateListener houseNumberUpdateListener;
     private AddressValuesReadListener addressValuesReadListener;
     private BuildingTypeConsumedListener buildingTypeConsumedListener;
@@ -86,6 +90,7 @@ final class StreetModeController {
         currentStreet = selection.getStreetName();
         currentPostcode = selection.getPostcode();
         if (currentStreet.isEmpty()) {
+            refreshOverlayLayer();
             Logging.debug("HouseNumberClick StreetModeController.activate: skipped because street is empty.");
             return;
         }
@@ -118,6 +123,7 @@ final class StreetModeController {
                 selection.getHouseNumber(),
                 selection.getHouseNumberIncrementStep()
         );
+        refreshOverlayLayer();
         map.selectMapMode(streetMapMode);
     }
 
@@ -177,6 +183,44 @@ final class StreetModeController {
         if (modeStateListener != null) {
             modeStateListener.onModeStateChanged(active);
         }
+    }
+
+    void updateOverlaySettings(boolean overlayEnabled, boolean connectionLinesEnabled) {
+        houseNumberOverlayEnabled = overlayEnabled;
+        this.connectionLinesEnabled = overlayEnabled && connectionLinesEnabled;
+        refreshOverlayLayer();
+    }
+
+    private void refreshOverlayLayer() {
+        if (!houseNumberOverlayEnabled || normalize(currentStreet).isEmpty()) {
+            removeOverlayLayer();
+            return;
+        }
+
+        LayerManager layerManager = MainApplication.getLayerManager();
+        MapFrame map = MainApplication.getMap();
+        if (layerManager == null || map == null || map.mapView == null) {
+            return;
+        }
+
+        if (houseNumberOverlayLayer == null || !layerManager.containsLayer(houseNumberOverlayLayer)) {
+            houseNumberOverlayLayer = new HouseNumberOverlayLayer();
+            layerManager.addLayer(houseNumberOverlayLayer, false);
+        }
+
+        houseNumberOverlayLayer.updateSettings(currentStreet, connectionLinesEnabled);
+        map.mapView.repaint();
+    }
+
+    private void removeOverlayLayer() {
+        LayerManager layerManager = MainApplication.getLayerManager();
+        if (houseNumberOverlayLayer == null || layerManager == null) {
+            return;
+        }
+        if (layerManager.containsLayer(houseNumberOverlayLayer)) {
+            layerManager.removeLayer(houseNumberOverlayLayer);
+        }
+        houseNumberOverlayLayer = null;
     }
 
     void deactivate() {

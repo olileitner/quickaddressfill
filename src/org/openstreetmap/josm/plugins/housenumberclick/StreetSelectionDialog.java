@@ -14,6 +14,7 @@ import java.util.List;
 import javax.swing.JButton;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
@@ -45,6 +46,8 @@ final class StreetSelectionDialog {
     private JToggleButton plusTwoIncrementButton;
     private final JLabel modeStateLabel;
     private final JButton continueWorkingButton;
+    private final JCheckBox showHouseNumberLayerCheckbox;
+    private final JCheckBox showConnectionLinesCheckbox;
     private final JLabel buildingSplitterStatusLabel;
     private final JButton splitBuildingButton;
     private int houseNumberIncrementStep = 1;
@@ -54,11 +57,14 @@ final class StreetSelectionDialog {
     private String rememberedBuildingType;
     private String rememberedHouseNumber = DEFAULT_HOUSE_NUMBER;
     private int rememberedIncrementStep = 1;
+    private boolean rememberedHouseNumberLayerEnabled;
+    private boolean rememberedConnectionLinesEnabled;
+    private boolean rememberedConnectionLinesPreference;
     private boolean updatingInputs;
     private DataSet rememberedDataSet;
 
-    private static final int DIALOG_WIDTH = 360;
-    private static final int DIALOG_HEIGHT = 390;
+    private static final int DIALOG_WIDTH = 390;
+    private static final int DIALOG_HEIGHT = 440;
     private static final int DIALOG_OFFSET_X = 66;
     private static final int DIALOG_OFFSET_Y = 80;
     private static final List<String> COMMON_BUILDING_TYPES = Arrays.asList(
@@ -132,6 +138,13 @@ final class StreetSelectionDialog {
         this.continueWorkingButton = new JButton(I18n.tr("Continue working"));
         this.continueWorkingButton.addActionListener(e -> continueWorking());
         this.streetModeController.setModeStateListener(this::refreshModeStateUi);
+
+        this.showHouseNumberLayerCheckbox = new JCheckBox(I18n.tr("Show house number layer"));
+        this.showConnectionLinesCheckbox = new JCheckBox(I18n.tr("Show connection lines"));
+        this.showHouseNumberLayerCheckbox.addActionListener(e -> onOverlayLayerSelectionChanged());
+        this.showConnectionLinesCheckbox.addActionListener(e -> onConnectionLinesSelectionChanged());
+        updateConnectionLinesEnablement(false);
+
         JPanel modeStatePanel = new JPanel(new BorderLayout(8, 0));
         modeStatePanel.add(modeStateLabel, BorderLayout.WEST);
         modeStatePanel.add(continueWorkingButton, BorderLayout.EAST);
@@ -249,6 +262,18 @@ final class StreetSelectionDialog {
         gbc.gridy = 8;
         formPanel.add(new JLabel(I18n.tr("L: toggle letter suffix")), gbc);
 
+        gbc.gridy = 9;
+        gbc.insets = new Insets(8, 0, 0, 0);
+        formPanel.add(new JLabel(I18n.tr("Display:")), gbc);
+
+        gbc.gridy = 10;
+        gbc.insets = new Insets(2, 12, 0, 0);
+        formPanel.add(showHouseNumberLayerCheckbox, gbc);
+
+        gbc.gridy = 11;
+        gbc.insets = new Insets(2, 12, 0, 0);
+        formPanel.add(showConnectionLinesCheckbox, gbc);
+
         JPanel buildingSplitterPanel = new JPanel(new BorderLayout(8, 0));
         this.buildingSplitterStatusLabel = new JLabel();
         this.splitBuildingButton = new JButton(I18n.tr("Split building"));
@@ -257,7 +282,7 @@ final class StreetSelectionDialog {
         buildingSplitterPanel.add(buildingSplitterStatusLabel, BorderLayout.WEST);
         buildingSplitterPanel.add(splitBuildingButton, BorderLayout.EAST);
 
-        gbc.gridy = 9;
+        gbc.gridy = 12;
         gbc.insets = new Insets(6, 0, 0, 0);
         formPanel.add(buildingSplitterPanel, gbc);
 
@@ -324,10 +349,12 @@ final class StreetSelectionDialog {
         buildingTypeCombo.getEditor().setItem(firstNonEmpty(rememberedBuildingType, ""));
         houseNumberField.setText(firstNonEmpty(rememberedHouseNumber, DEFAULT_HOUSE_NUMBER));
         applyIncrementStep(rememberedIncrementStep);
+        applyOverlaySettings(rememberedHouseNumberLayerEnabled, rememberedConnectionLinesEnabled);
         lastSelectedStreet = getSelectedStreet();
         updatingInputs = false;
 
         notifyAddressChanged();
+        notifyOverlaySettingsChanged();
         refreshModeStateUi(streetModeController.isActive());
         refreshBuildingSplitterAvailability();
 
@@ -470,6 +497,32 @@ final class StreetSelectionDialog {
         notifyAddressChanged();
     }
 
+    private void onOverlayLayerSelectionChanged() {
+        if (updatingInputs) {
+            return;
+        }
+
+        boolean overlayEnabled = showHouseNumberLayerCheckbox.isSelected();
+        if (!overlayEnabled) {
+            rememberedConnectionLinesPreference = showConnectionLinesCheckbox.isSelected();
+            applyConnectionLinesSelection(false);
+        } else {
+            applyConnectionLinesSelection(rememberedConnectionLinesPreference);
+        }
+        updateConnectionLinesEnablement(overlayEnabled);
+        rememberCurrentValues();
+        notifyOverlaySettingsChanged();
+    }
+
+    private void onConnectionLinesSelectionChanged() {
+        if (updatingInputs) {
+            return;
+        }
+        rememberedConnectionLinesPreference = showConnectionLinesCheckbox.isSelected();
+        rememberCurrentValues();
+        notifyOverlaySettingsChanged();
+    }
+
     private void setStreetSelection(String streetName) {
         String normalizedStreet = streetName == null ? "" : streetName.trim();
         if (normalizedStreet.isEmpty()) {
@@ -574,6 +627,39 @@ final class StreetSelectionDialog {
         rememberedBuildingType = normalize(getSelectedBuildingType());
         rememberedHouseNumber = normalize(houseNumberField.getText());
         rememberedIncrementStep = houseNumberIncrementStep;
+        rememberedHouseNumberLayerEnabled = showHouseNumberLayerCheckbox != null && showHouseNumberLayerCheckbox.isSelected();
+        rememberedConnectionLinesEnabled = showConnectionLinesCheckbox != null && showConnectionLinesCheckbox.isSelected();
+        if (rememberedHouseNumberLayerEnabled) {
+            rememberedConnectionLinesPreference = rememberedConnectionLinesEnabled;
+        }
+    }
+
+    private void applyOverlaySettings(boolean overlayEnabled, boolean connectionLinesEnabled) {
+        boolean normalizedConnections = overlayEnabled && connectionLinesEnabled;
+        boolean wasUpdatingInputs = updatingInputs;
+        updatingInputs = true;
+        showHouseNumberLayerCheckbox.setSelected(overlayEnabled);
+        showConnectionLinesCheckbox.setSelected(normalizedConnections);
+        updatingInputs = wasUpdatingInputs;
+        updateConnectionLinesEnablement(overlayEnabled);
+        rememberedConnectionLinesPreference = overlayEnabled ? normalizedConnections : rememberedConnectionLinesPreference;
+    }
+
+    private void applyConnectionLinesSelection(boolean selected) {
+        boolean wasUpdatingInputs = updatingInputs;
+        updatingInputs = true;
+        showConnectionLinesCheckbox.setSelected(selected);
+        updatingInputs = wasUpdatingInputs;
+    }
+
+    private void updateConnectionLinesEnablement(boolean overlayEnabled) {
+        showConnectionLinesCheckbox.setEnabled(overlayEnabled);
+    }
+
+    private void notifyOverlaySettingsChanged() {
+        boolean overlayEnabled = showHouseNumberLayerCheckbox.isSelected();
+        boolean connectionLinesEnabled = overlayEnabled && showConnectionLinesCheckbox.isSelected();
+        streetModeController.updateOverlaySettings(overlayEnabled, connectionLinesEnabled);
     }
 
     private int normalizeIncrementStep(int step) {
@@ -604,6 +690,9 @@ final class StreetSelectionDialog {
         rememberedBuildingType = null;
         rememberedHouseNumber = DEFAULT_HOUSE_NUMBER;
         rememberedIncrementStep = 1;
+        rememberedHouseNumberLayerEnabled = false;
+        rememberedConnectionLinesEnabled = false;
+        rememberedConnectionLinesPreference = false;
         lastSelectedStreet = null;
     }
 
