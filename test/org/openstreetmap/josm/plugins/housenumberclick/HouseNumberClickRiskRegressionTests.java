@@ -52,6 +52,7 @@ public final class HouseNumberClickRiskRegressionTests {
         run("Invalid scan limit preferences fall back to defaults", HouseNumberClickRiskRegressionTests::testInvalidScanLimitPreferencesFallBack);
         run("Duplicate click detection blocks true duplicates", HouseNumberClickRiskRegressionTests::testDuplicateClicksAreDetected);
         run("Duplicate click detection keeps rapid distinct clicks", HouseNumberClickRiskRegressionTests::testRapidDistinctClicksAreKept);
+        run("Main dialog close cleanup is safe", HouseNumberClickRiskRegressionTests::testMainDialogCloseCleanupIsSafe);
         run("Street navigation order matches street-count sorting", HouseNumberClickRiskRegressionTests::testStreetNavigationOrderMatchesStreetCountsSorting);
         run("Street zoom fallback collects only usable named highway ways", HouseNumberClickRiskRegressionTests::testStreetZoomFallbackWayMatching);
         System.out.println("All HouseNumberClick risk regression tests passed.");
@@ -214,7 +215,7 @@ public final class HouseNumberClickRiskRegressionTests {
         HouseNumberOverviewCollector collector = new HouseNumberOverviewCollector();
         List<HouseNumberOverviewRow> rows = collector.collectRows(dataSet, "Example Street");
         String oddValue = firstNonEmptyOddValue(rows);
-        assertEquals("1 (a, b)", oddValue, "mixed variants without exact duplicates must not show xN marker");
+        assertEquals("1", oddValue, "mixed variants without exact duplicates should show only the base number");
     }
 
     private static void testOverviewDuplicateMarkerTracksExactRepeats() {
@@ -227,7 +228,7 @@ public final class HouseNumberClickRiskRegressionTests {
         HouseNumberOverviewCollector collector = new HouseNumberOverviewCollector();
         List<HouseNumberOverviewRow> rows = collector.collectRows(dataSet, "Example Street");
         String oddValue = firstNonEmptyOddValue(rows);
-        assertEquals("1 (a) x2", oddValue, "exact duplicate values should show compact xN marker");
+        assertEquals("1 (dup)", oddValue, "exact duplicate values should show compact duplicate marker");
     }
 
     private static void testOverviewDuplicateRowCarriesGroupedPrimitives() {
@@ -425,20 +426,26 @@ public final class HouseNumberClickRiskRegressionTests {
         assertFalse(invokeDuplicateCheck(mode, differentModifiers), "different modifiers should not be duplicate");
     }
 
+    private static void testMainDialogCloseCleanupIsSafe() {
+        StreetModeController controller = new StreetModeController();
+        controller.onMainDialogClosed();
+        assertTrue(true, "main dialog close cleanup should complete without exceptions");
+    }
+
     private static void testStreetNavigationOrderMatchesStreetCountsSorting() {
         List<StreetHouseNumberCountRow> rows = List.of(
+                new StreetHouseNumberCountRow("Zulu Street", 99, false),
                 new StreetHouseNumberCountRow("Bravo Street", 5, false),
-                new StreetHouseNumberCountRow("alpha street", 7, false),
-                new StreetHouseNumberCountRow("  Charlie Street  ", 5, false),
-                new StreetHouseNumberCountRow("Delta Street", 5, false)
+                new StreetHouseNumberCountRow("alpha street", 1, false),
+                new StreetHouseNumberCountRow("  Charlie Street  ", 7, false)
         );
 
         List<String> ordered = StreetHouseNumberCountDialog.buildStreetNavigationOrder(rows);
         assertEquals(4, ordered.size(), "all rows should be included in navigation order");
-        assertEquals("alpha street", ordered.get(0), "highest count should appear first");
-        assertEquals("Bravo Street", ordered.get(1), "same-count rows should sort by street name");
+        assertEquals("alpha street", ordered.get(0), "street list should start alphabetically");
+        assertEquals("Bravo Street", ordered.get(1), "street names should remain alphabetic regardless of count");
         assertEquals("Charlie Street", ordered.get(2), "street names should be trimmed for navigation order");
-        assertEquals("Delta Street", ordered.get(3), "remaining same-count row should follow alphabetic order");
+        assertEquals("Zulu Street", ordered.get(3), "highest counts should not override alphabetical order");
     }
 
     private static void testStreetZoomFallbackWayMatching() {

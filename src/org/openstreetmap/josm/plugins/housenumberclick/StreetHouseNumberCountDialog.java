@@ -3,6 +3,7 @@ package org.openstreetmap.josm.plugins.housenumberclick;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Frame;
+import java.awt.Rectangle;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ import javax.swing.JDialog;
 import javax.swing.RowSorter;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.ListSelectionModel;
 import javax.swing.SortOrder;
 import javax.swing.SwingConstants;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -34,6 +36,7 @@ final class StreetHouseNumberCountDialog {
     private final JDialog dialog;
     private final DefaultTableModel tableModel;
     private final TableRowSorter<DefaultTableModel> tableRowSorter;
+    private final JTable table;
     private final List<StreetHouseNumberCountRow> currentRows = new ArrayList<>();
     private final Consumer<String> streetClickListener;
 
@@ -49,9 +52,9 @@ final class StreetHouseNumberCountDialog {
             }
         }
         sortedRows.sort(Comparator
-                .comparingInt(StreetHouseNumberCountRow::getCount).reversed()
-                .thenComparing(row -> normalizeStreetName(row.getStreetName()), String.CASE_INSENSITIVE_ORDER)
-                .thenComparing(row -> normalizeStreetName(row.getStreetName()), Comparator.naturalOrder()));
+                .comparing((StreetHouseNumberCountRow row) -> normalizeStreetName(row.getStreetName()), String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(row -> normalizeStreetName(row.getStreetName()), Comparator.naturalOrder())
+                .thenComparing(Comparator.comparingInt(StreetHouseNumberCountRow::getCount).reversed()));
         return sortedRows;
     }
 
@@ -92,10 +95,12 @@ final class StreetHouseNumberCountDialog {
             }
         };
 
-        JTable table = new JTable(tableModel);
+        this.table = new JTable(tableModel);
         this.tableRowSorter = new TableRowSorter<>(tableModel);
+        tableRowSorter.setComparator(0, String.CASE_INSENSITIVE_ORDER);
         table.setRowSorter(tableRowSorter);
         table.setFillsViewportHeight(true);
+        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.getTableHeader().setReorderingAllowed(false);
 
         DefaultTableCellRenderer centeredRenderer = new DefaultTableCellRenderer() {
@@ -142,10 +147,41 @@ final class StreetHouseNumberCountDialog {
         }
 
         tableRowSorter.setSortKeys(Arrays.asList(
-                new RowSorter.SortKey(1, SortOrder.DESCENDING),
-                new RowSorter.SortKey(0, SortOrder.ASCENDING)
+                new RowSorter.SortKey(0, SortOrder.ASCENDING),
+                new RowSorter.SortKey(1, SortOrder.DESCENDING)
         ));
         tableRowSorter.sort();
+    }
+
+    void highlightStreet(String streetName) {
+        String normalizedStreet = normalizeStreetName(streetName);
+        if (normalizedStreet.isEmpty() || currentRows.isEmpty()) {
+            table.clearSelection();
+            return;
+        }
+
+        for (int modelRow = 0; modelRow < currentRows.size(); modelRow++) {
+            StreetHouseNumberCountRow row = currentRows.get(modelRow);
+            if (row == null) {
+                continue;
+            }
+            if (!normalizeStreetName(row.getStreetName()).equalsIgnoreCase(normalizedStreet)) {
+                continue;
+            }
+
+            int viewRow = table.convertRowIndexToView(modelRow);
+            if (viewRow < 0) {
+                continue;
+            }
+            table.setRowSelectionInterval(viewRow, viewRow);
+            Rectangle rowBounds = table.getCellRect(viewRow, 0, true);
+            if (rowBounds != null) {
+                table.scrollRectToVisible(rowBounds);
+            }
+            return;
+        }
+
+        table.clearSelection();
     }
 
     private static String normalizeStreetName(String value) {

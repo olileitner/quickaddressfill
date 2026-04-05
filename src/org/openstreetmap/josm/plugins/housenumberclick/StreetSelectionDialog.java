@@ -701,7 +701,7 @@ final class StreetSelectionDialog {
         rememberCurrentValues();
         dialog.setVisible(false);
         unregisterStreetNavigationDispatcher();
-        streetModeController.deactivate();
+        streetModeController.onMainDialogClosed();
     }
 
     private void continueWorking() {

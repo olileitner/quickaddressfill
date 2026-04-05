@@ -189,14 +189,8 @@ final class HouseNumberOverviewCollector {
         }
 
         String formatForOverview() {
-            String formatted;
-            if (suffixes.isEmpty()) {
-                formatted = Integer.toString(baseNumber);
-            } else {
-                formatted = baseNumber + " (" + String.join(", ", suffixes) + ")";
-            }
-            int duplicateCount = findHighestDuplicateCount();
-            return duplicateCount > 1 ? formatted + " x" + duplicateCount : formatted;
+            String formatted = Integer.toString(baseNumber);
+            return hasExactDuplicate() ? formatted + " (dup)" : formatted;
         }
 
         private int findHighestDuplicateCount() {

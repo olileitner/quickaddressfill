@@ -322,9 +322,17 @@ final class StreetModeController {
 
         // Keep optional street-based overlays in sync with the row the user clicked.
         currentStreet = normalizedStreet;
+        highlightCurrentStreetInStreetCountDialog();
         refreshOverlayLayer();
         refreshHouseNumberOverview();
         zoomToStreet(normalizedStreet);
+    }
+
+    private void highlightCurrentStreetInStreetCountDialog() {
+        if (streetHouseNumberCountDialog == null) {
+            return;
+        }
+        streetHouseNumberCountDialog.highlightStreet(currentStreet);
     }
 
     private void refreshOverlayLayer() {
@@ -414,6 +422,7 @@ final class StreetModeController {
         );
         streetHouseNumberCountDialog.updateData(rows);
         streetHouseNumberCountDialog.showDialog();
+        highlightCurrentStreetInStreetCountDialog();
     }
 
     private void hideHouseNumberOverview() {
@@ -433,6 +442,14 @@ final class StreetModeController {
         if (map != null && streetMapMode != null && map.mapMode == streetMapMode) {
             map.selectSelectTool(false);
         }
+    }
+
+    void onMainDialogClosed() {
+        // Closing the main dialog should also close dependent views and clear visual overlays.
+        hideHouseNumberOverview();
+        hideStreetHouseNumberCounts();
+        removeOverlayLayer();
+        deactivate();
     }
 
     private static String normalize(String value) {
