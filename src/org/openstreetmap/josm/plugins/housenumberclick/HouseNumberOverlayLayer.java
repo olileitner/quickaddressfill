@@ -65,7 +65,9 @@ final class HouseNumberOverlayLayer extends Layer {
             return;
         }
 
-        DataSet dataSet = MainApplication.getLayerManager().getEditDataSet();
+        DataSet dataSet = MainApplication.getLayerManager() != null
+                ? MainApplication.getLayerManager().getEditDataSet()
+                : null;
         if (dataSet == null) {
             return;
         }
@@ -249,7 +251,9 @@ final class HouseNumberOverlayLayer extends Layer {
         if (visitor == null) {
             return;
         }
-        DataSet dataSet = MainApplication.getLayerManager().getEditDataSet();
+        DataSet dataSet = MainApplication.getLayerManager() != null
+                ? MainApplication.getLayerManager().getEditDataSet()
+                : null;
         if (dataSet != null) {
             visitor.visit(dataSet.getDataSourceBoundingBox());
         }

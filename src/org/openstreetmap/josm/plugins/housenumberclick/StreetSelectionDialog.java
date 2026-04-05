@@ -1,6 +1,7 @@
 package org.openstreetmap.josm.plugins.housenumberclick;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.GridBagConstraints;
@@ -27,6 +28,7 @@ import javax.swing.JTextField;
 import javax.swing.JToggleButton;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.text.JTextComponent;
 
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.gui.MainApplication;
@@ -883,6 +885,9 @@ final class StreetSelectionDialog {
         if (!dialog.isVisible() || !streetModeController.isActive()) {
             return false;
         }
+        if (isTextInputFocused()) {
+            return false;
+        }
         if (event.getModifiersEx() != 0) {
             return false;
         }
@@ -895,6 +900,22 @@ final class StreetSelectionDialog {
         navigateStreetByOffset(keyCode == KeyEvent.VK_LEFT ? -1 : 1);
         event.consume();
         return true;
+    }
+
+    private boolean isTextInputFocused() {
+        Component focusOwner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+        if (focusOwner == null) {
+            return false;
+        }
+        if (focusOwner instanceof JTextComponent) {
+            return true;
+        }
+        for (Component component = focusOwner; component != null; component = component.getParent()) {
+            if (component instanceof JComboBox && ((JComboBox<?>) component).isEditable()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void registerStreetNavigationDispatcher() {

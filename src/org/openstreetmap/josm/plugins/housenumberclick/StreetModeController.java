@@ -2,6 +2,7 @@ package org.openstreetmap.josm.plugins.housenumberclick;
 
 import java.util.List;
 
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
 import org.openstreetmap.josm.data.osm.visitor.OsmPrimitiveVisitor;
@@ -290,13 +291,21 @@ final class StreetModeController {
             return;
         }
 
+        if (MainApplication.getLayerManager() == null) {
+            hideHouseNumberOverview();
+            return;
+        }
+
         if (houseNumberOverviewDialog == null) {
             houseNumberOverviewDialog = new HouseNumberOverviewDialog();
         }
 
+        DataSet editDataSet = MainApplication.getLayerManager() != null
+                ? MainApplication.getLayerManager().getEditDataSet()
+                : null;
         houseNumberOverviewDialog.updateData(
                 currentStreet,
-                houseNumberOverviewCollector.collectRows(MainApplication.getLayerManager().getEditDataSet(), currentStreet)
+                houseNumberOverviewCollector.collectRows(editDataSet, currentStreet)
         );
         houseNumberOverviewDialog.showDialog();
     }
