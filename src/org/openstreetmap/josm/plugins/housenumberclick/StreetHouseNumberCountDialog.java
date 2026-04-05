@@ -22,6 +22,7 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
 
 import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.tools.I18n;
 
 final class StreetHouseNumberCountDialog {
@@ -153,6 +154,14 @@ final class StreetHouseNumberCountDialog {
             return;
         }
         streetClickListener.accept(streetName);
+        focusMapView();
+    }
+
+    private void focusMapView() {
+        MapFrame map = MainApplication.getMap();
+        if (map != null && map.mapView != null) {
+            map.mapView.requestFocusInWindow();
+        }
     }
 }
 

@@ -144,6 +144,7 @@ final class HouseNumberOverviewCollector {
     private static final class BaseNumberGroup {
         private final int baseNumber;
         private final TreeSet<String> suffixes = new TreeSet<>();
+        private int occurrenceCount;
         private OsmPrimitive representativePrimitive;
 
         BaseNumberGroup(int baseNumber) {
@@ -151,6 +152,7 @@ final class HouseNumberOverviewCollector {
         }
 
         void addOccurrence(String suffix, OsmPrimitive primitive) {
+            occurrenceCount++;
             if (suffix != null && !suffix.isBlank()) {
                 suffixes.add(suffix);
             }
@@ -160,10 +162,13 @@ final class HouseNumberOverviewCollector {
         }
 
         String formatForOverview() {
+            String formatted;
             if (suffixes.isEmpty()) {
-                return Integer.toString(baseNumber);
+                formatted = Integer.toString(baseNumber);
+            } else {
+                formatted = baseNumber + " (" + String.join(", ", suffixes) + ")";
             }
-            return baseNumber + " (" + String.join(", ", suffixes) + ")";
+            return occurrenceCount > 1 ? formatted + " x" + occurrenceCount : formatted;
         }
 
         OsmPrimitive getRepresentativePrimitive() {

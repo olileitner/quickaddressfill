@@ -156,6 +156,7 @@ final class HouseNumberOverviewDialog {
         }
 
         zoomToPrimitive(target);
+        focusMapView();
     }
 
     private void zoomToPrimitive(OsmPrimitive primitive) {
@@ -173,6 +174,13 @@ final class HouseNumberOverviewDialog {
                 : null;
         if (editDataSet != null && primitive.getDataSet() == editDataSet) {
             editDataSet.setSelected(Collections.singleton(primitive));
+        }
+    }
+
+    private void focusMapView() {
+        MapFrame map = MainApplication.getMap();
+        if (map != null && map.mapView != null) {
+            map.mapView.requestFocusInWindow();
         }
     }
 }
