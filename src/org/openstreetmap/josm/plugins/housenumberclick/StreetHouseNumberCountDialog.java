@@ -67,7 +67,21 @@ final class StreetHouseNumberCountDialog {
         table.setFillsViewportHeight(true);
         table.getTableHeader().setReorderingAllowed(false);
 
-        DefaultTableCellRenderer centeredRenderer = new DefaultTableCellRenderer();
+        DefaultTableCellRenderer centeredRenderer = new DefaultTableCellRenderer() {
+            @Override
+            public java.awt.Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+                    boolean hasFocus, int row, int column) {
+                java.awt.Component component = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                int modelRow = table.convertRowIndexToModel(row);
+                if (modelRow >= 0 && modelRow < currentRows.size()) {
+                    StreetHouseNumberCountRow countRow = currentRows.get(modelRow);
+                    if (countRow != null) {
+                        setText(countRow.getDisplayCount());
+                    }
+                }
+                return component;
+            }
+        };
         centeredRenderer.setHorizontalAlignment(SwingConstants.CENTER);
         table.getColumnModel().getColumn(1).setCellRenderer(centeredRenderer);
 
