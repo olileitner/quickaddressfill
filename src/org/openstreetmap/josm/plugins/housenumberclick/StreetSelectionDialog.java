@@ -12,17 +12,19 @@ import java.util.Arrays;
 import java.util.List;
 
 import javax.swing.JButton;
+import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
-import javax.swing.SwingUtilities;
+import javax.swing.KeyStroke;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
@@ -47,6 +49,8 @@ final class StreetSelectionDialog {
     private JToggleButton plusTwoIncrementButton;
     private final JLabel modeStateLabel;
     private final JButton continueWorkingButton;
+    private final JButton previousStreetButton;
+    private final JButton nextStreetButton;
     private final JCheckBox showHouseNumberLayerCheckbox;
     private final JCheckBox showConnectionLinesCheckbox;
     private final JCheckBox showSeparateEvenOddConnectionLinesCheckbox;
@@ -72,7 +76,7 @@ final class StreetSelectionDialog {
     private DataSet rememberedDataSet;
 
     private static final int DIALOG_WIDTH = 390;
-    private static final int DIALOG_HEIGHT = 515;
+    private static final int DIALOG_HEIGHT = 535;
     private static final int DIALOG_OFFSET_X = 66;
     private static final int DIALOG_OFFSET_Y = 80;
     private static final List<String> COMMON_BUILDING_TYPES = Arrays.asList(
@@ -141,6 +145,11 @@ final class StreetSelectionDialog {
 
         JButton closeButton = new JButton(I18n.tr("Close"));
         closeButton.addActionListener(e -> closeDialog());
+
+        this.previousStreetButton = new JButton(I18n.tr("<"));
+        this.nextStreetButton = new JButton(I18n.tr(">"));
+        this.previousStreetButton.addActionListener(e -> navigateStreetByOffset(-1));
+        this.nextStreetButton.addActionListener(e -> navigateStreetByOffset(1));
 
         this.modeStateLabel = new JLabel();
         this.continueWorkingButton = new JButton(I18n.tr("Continue working"));
@@ -316,9 +325,23 @@ final class StreetSelectionDialog {
         content.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         content.add(modeStatePanel, BorderLayout.NORTH);
         content.add(formPanel, BorderLayout.CENTER);
-        content.add(closeButton, BorderLayout.SOUTH);
+
+        JPanel navigationPanel = new JPanel(new BorderLayout(8, 0));
+        JPanel streetNavigationButtons = new JPanel(new GridBagLayout());
+        GridBagConstraints navGbc = new GridBagConstraints();
+        navGbc.gridx = 0;
+        navGbc.insets = new Insets(0, 0, 0, 4);
+        streetNavigationButtons.add(previousStreetButton, navGbc);
+        navGbc.gridx = 1;
+        navGbc.insets = new Insets(0, 0, 0, 0);
+        streetNavigationButtons.add(nextStreetButton, navGbc);
+
+        navigationPanel.add(streetNavigationButtons, BorderLayout.WEST);
+        navigationPanel.add(closeButton, BorderLayout.EAST);
+        content.add(navigationPanel, BorderLayout.SOUTH);
 
         this.dialog.getContentPane().add(content, BorderLayout.CENTER);
+        registerStreetNavigationShortcuts();
         this.dialog.setMinimumSize(new Dimension(DIALOG_WIDTH, DIALOG_HEIGHT));
         this.dialog.setSize(new Dimension(DIALOG_WIDTH, DIALOG_HEIGHT));
         positionTopLeftInOwner(owner);
@@ -384,6 +407,7 @@ final class StreetSelectionDialog {
         zoomToSelectedStreetCheckbox.setSelected(rememberedZoomToSelectedStreetEnabled);
         lastSelectedStreet = getSelectedStreet();
         updatingInputs = false;
+        updateStreetNavigationButtonState();
 
         notifyAddressChanged();
         notifyOverlaySettingsChanged();
@@ -432,7 +456,7 @@ final class StreetSelectionDialog {
         if (streetChanged && zoomToSelectedStreetCheckbox.isSelected()) {
             streetModeController.zoomToCurrentStreet();
         }
-        requestStreetComboFocusForKeyboardNavigation();
+        updateStreetNavigationButtonState();
     }
 
     private JComboBox<String> createBuildingTypeCombo() {
@@ -824,10 +848,49 @@ final class StreetSelectionDialog {
         return normalize(fallback);
     }
 
-    private void requestStreetComboFocusForKeyboardNavigation() {
-        SwingUtilities.invokeLater(() -> {
-            if (streetCombo != null) {
-                streetCombo.requestFocusInWindow();
+    private void navigateStreetByOffset(int offset) {
+        if (!canNavigateStreet(offset)) {
+            return;
+        }
+        int nextIndex = streetCombo.getSelectedIndex() + offset;
+        streetCombo.setSelectedIndex(nextIndex);
+    }
+
+    private boolean canNavigateStreet(int offset) {
+        if (streetCombo == null || streetCombo.getItemCount() == 0 || offset == 0) {
+            return false;
+        }
+        int nextIndex = streetCombo.getSelectedIndex() + offset;
+        return nextIndex >= 0 && nextIndex < streetCombo.getItemCount();
+    }
+
+    private void updateStreetNavigationButtonState() {
+        if (previousStreetButton == null || nextStreetButton == null) {
+            return;
+        }
+        previousStreetButton.setEnabled(canNavigateStreet(-1));
+        nextStreetButton.setEnabled(canNavigateStreet(1));
+    }
+
+    private void registerStreetNavigationShortcuts() {
+        if (dialog == null || dialog.getRootPane() == null) {
+            return;
+        }
+
+        JComponent root = dialog.getRootPane();
+        root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("LEFT"), "street-prev");
+        root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("RIGHT"), "street-next");
+
+        root.getActionMap().put("street-prev", new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                navigateStreetByOffset(-1);
+            }
+        });
+        root.getActionMap().put("street-next", new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                navigateStreetByOffset(1);
             }
         });
     }
