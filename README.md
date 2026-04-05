@@ -26,6 +26,10 @@ A simple mouse click is all it takes.
 - `Ctrl` + left-click on a building reads `addr:street`, `addr:postcode`, and `addr:housenumber` into the dialog (building type is not imported by pickup).
 - `Ctrl` + left-click on a street (without a building hit) reads the nearby street `name` into the dialog street field and sets house number to `1`.
 - Status line displays active values and updates continuously (street, postcode, house number, increment), including `HouseNumberClick PAUSED` when mode is inactive.
+- Optional house-number overlay layer in the dialog (`Show house number layer`) visualizes the current street house numbers directly on buildings.
+- Optional connection lines in the overlay (`Show connection lines`) connect house numbers in sorted order.
+- Optional split mode for connection lines (`Separate even and odd connection lines`) draws two separate paths (even/odd) based on the numeric part of the house number.
+- Duplicate house numbers are emphasized in the overlay with stronger contour markers (thicker border and additional outer ring).
 
 ## BuildingSplitter Integration
 
@@ -44,7 +48,9 @@ A simple mouse click is all it takes.
 6. Optional: press `+` to advance the current house number component by one.
 7. Optional: press `-` to reduce the current house number component by one.
 8. Optional: press `L` to toggle a trailing `a` suffix on/off.
-9. Press `ESC` to pause/exit Street Mode (you can continue from the dialog).
+9. Optional: enable `Show house number layer` in the dialog display section.
+10. Optional: enable `Show connection lines`; if needed, also enable `Separate even and odd connection lines` for split parity paths.
+11. Press `ESC` to pause/exit Street Mode (you can continue from the dialog).
 
 
 ![HouseNumberClick dialog](docs/images/housenumberclick-dialog.png)
