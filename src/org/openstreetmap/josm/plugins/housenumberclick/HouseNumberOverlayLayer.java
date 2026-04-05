@@ -7,7 +7,12 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.RenderingHints;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 import javax.swing.Action;
 import javax.swing.Icon;
@@ -25,9 +30,10 @@ import org.openstreetmap.josm.tools.ImageProvider;
 final class HouseNumberOverlayLayer extends Layer {
 
     private static final Font TEXT_FONT = new Font(Font.SANS_SERIF, Font.BOLD, 16);
-    private static final Color LINE_COLOR = new Color(35, 95, 165, 140);
     private static final Color BUBBLE_FILL_COLOR = new Color(255, 255, 220, 225);
     private static final Color BUBBLE_BORDER_COLOR = new Color(45, 45, 45, 210);
+    private static final Color DUPLICATE_BUBBLE_FILL_COLOR = new Color(255, 175, 175, 235);
+    private static final Color DUPLICATE_BUBBLE_BORDER_COLOR = new Color(195, 20, 20, 235);
     private static final Color TEXT_COLOR = new Color(10, 10, 10, 230);
 
     private final HouseNumberOverlayCollector collector;
@@ -69,13 +75,14 @@ final class HouseNumberOverlayLayer extends Layer {
         if (connectionLinesEnabled && entries.size() > 1) {
             drawConnectionLines(g, mapView, entries);
         }
-        drawBubblesAndLabels(g, mapView, entries);
+        Set<String> duplicateNumbers = collectDuplicateHouseNumbers(entries);
+        drawBubblesAndLabels(g, mapView, entries, duplicateNumbers);
         g.dispose();
     }
 
     private void drawConnectionLines(Graphics2D g, MapView mapView, List<HouseNumberOverlayEntry> entries) {
-        g.setColor(LINE_COLOR);
-        g.setStroke(new BasicStroke(2.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.setColor(BUBBLE_FILL_COLOR);
+        g.setStroke(new BasicStroke(3.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 
         Point previous = null;
         for (HouseNumberOverlayEntry entry : entries) {
@@ -90,7 +97,8 @@ final class HouseNumberOverlayLayer extends Layer {
         }
     }
 
-    private void drawBubblesAndLabels(Graphics2D g, MapView mapView, List<HouseNumberOverlayEntry> entries) {
+    private void drawBubblesAndLabels(Graphics2D g, MapView mapView, List<HouseNumberOverlayEntry> entries,
+            Set<String> duplicateNumbers) {
         FontMetrics metrics = g.getFontMetrics();
 
         for (HouseNumberOverlayEntry entry : entries) {
@@ -107,11 +115,28 @@ final class HouseNumberOverlayLayer extends Layer {
             int bubbleHeight = Math.max(24, textHeight + 10);
             int x = point.x - bubbleWidth / 2;
             int y = point.y - bubbleHeight / 2;
+            boolean duplicateHouseNumber = duplicateNumbers.contains(normalizeHouseNumberKey(label));
 
-            g.setColor(BUBBLE_FILL_COLOR);
+            if (duplicateHouseNumber) {
+                int ringPadding = 5;
+                int outerX = x - ringPadding;
+                int outerY = y - ringPadding;
+                int outerWidth = bubbleWidth + (ringPadding * 2);
+                int outerHeight = bubbleHeight + (ringPadding * 2);
+                g.setColor(new Color(
+                        DUPLICATE_BUBBLE_BORDER_COLOR.getRed(),
+                        DUPLICATE_BUBBLE_BORDER_COLOR.getGreen(),
+                        DUPLICATE_BUBBLE_BORDER_COLOR.getBlue(),
+                        175
+                ));
+                g.setStroke(new BasicStroke(2.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g.drawOval(outerX, outerY, outerWidth, outerHeight);
+            }
+
+            g.setColor(duplicateHouseNumber ? DUPLICATE_BUBBLE_FILL_COLOR : BUBBLE_FILL_COLOR);
             g.fillOval(x, y, bubbleWidth, bubbleHeight);
-            g.setColor(BUBBLE_BORDER_COLOR);
-            g.setStroke(new BasicStroke(1.6f));
+            g.setColor(duplicateHouseNumber ? DUPLICATE_BUBBLE_BORDER_COLOR : BUBBLE_BORDER_COLOR);
+            g.setStroke(new BasicStroke(duplicateHouseNumber ? 3.2f : 1.6f));
             g.drawOval(x, y, bubbleWidth, bubbleHeight);
 
             int textX = point.x - textWidth / 2;
@@ -119,6 +144,26 @@ final class HouseNumberOverlayLayer extends Layer {
             g.setColor(TEXT_COLOR);
             g.drawString(label, textX, textY);
         }
+    }
+
+    private Set<String> collectDuplicateHouseNumbers(List<HouseNumberOverlayEntry> entries) {
+        Map<String, Integer> houseNumberCounts = new HashMap<>();
+        for (HouseNumberOverlayEntry entry : entries) {
+            String key = normalize(entry.getHouseNumber());
+            key = normalizeHouseNumberKey(key);
+            if (key.isEmpty()) {
+                continue;
+            }
+            houseNumberCounts.put(key, houseNumberCounts.getOrDefault(key, 0) + 1);
+        }
+
+        Set<String> duplicateNumbers = new HashSet<>();
+        for (Map.Entry<String, Integer> countEntry : houseNumberCounts.entrySet()) {
+            if (countEntry.getValue() > 1) {
+                duplicateNumbers.add(countEntry.getKey());
+            }
+        }
+        return duplicateNumbers;
     }
 
     private boolean isOnScreen(Point point, MapView mapView) {
@@ -181,5 +226,14 @@ final class HouseNumberOverlayLayer extends Layer {
     private String normalize(String value) {
         return value == null ? "" : value.trim();
     }
+
+    private String normalizeHouseNumberKey(String value) {
+        return normalize(value).toLowerCase(Locale.ROOT);
+    }
 }
+
+
+
+
+
 
