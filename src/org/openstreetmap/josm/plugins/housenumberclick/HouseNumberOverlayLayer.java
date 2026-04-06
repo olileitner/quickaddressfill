@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.Collections;
 
 import javax.swing.Action;
 import javax.swing.Icon;
@@ -45,11 +46,18 @@ final class HouseNumberOverlayLayer extends Layer {
     private static final Color TEXT_COLOR = new Color(10, 10, 10, 230);
     private static final Color STREET_HIGHLIGHT_COLOR = new Color(135, 200, 255, 170);
     private static final float STREET_HIGHLIGHT_WIDTH = 14.0f;
+    private static final long CACHE_REFRESH_INTERVAL_NANOS = 500_000_000L;
 
     private final HouseNumberOverlayCollector collector;
     private String selectedStreet = "";
     private boolean connectionLinesEnabled;
     private boolean separateEvenOddConnectionLinesEnabled;
+    private DataSet cachedDataSet;
+    private String cachedStreet = "";
+    private List<HouseNumberOverlayEntry> cachedEntries = List.of();
+    private Set<String> cachedDuplicateNumbers = Set.of();
+    private long lastCacheRefreshNanos;
+    private boolean cacheDirty = true;
 
     HouseNumberOverlayLayer() {
         super(I18n.tr("House number overlay"));
@@ -57,7 +65,11 @@ final class HouseNumberOverlayLayer extends Layer {
     }
 
     void updateSettings(String selectedStreet, boolean connectionLinesEnabled, boolean separateEvenOddConnectionLinesEnabled) {
-        this.selectedStreet = normalize(selectedStreet);
+        String normalizedStreet = normalize(selectedStreet);
+        if (!normalizedStreet.equals(this.selectedStreet)) {
+            cacheDirty = true;
+        }
+        this.selectedStreet = normalizedStreet;
         this.connectionLinesEnabled = connectionLinesEnabled;
         this.separateEvenOddConnectionLinesEnabled = connectionLinesEnabled && separateEvenOddConnectionLinesEnabled;
         invalidate();
@@ -83,7 +95,8 @@ final class HouseNumberOverlayLayer extends Layer {
 
         drawSelectedStreetHighlight(g, mapView, dataSet);
 
-        List<HouseNumberOverlayEntry> entries = collector.collect(dataSet, selectedStreet);
+        refreshCacheIfNeeded(dataSet);
+        List<HouseNumberOverlayEntry> entries = cachedEntries;
         if (entries.isEmpty()) {
             g.dispose();
             return;
@@ -92,9 +105,27 @@ final class HouseNumberOverlayLayer extends Layer {
         if (connectionLinesEnabled && entries.size() > 1) {
             drawConnectionLines(g, mapView, entries);
         }
-        Set<String> duplicateNumbers = collectDuplicateHouseNumbers(entries);
-        drawBubblesAndLabels(g, mapView, entries, duplicateNumbers);
+        drawBubblesAndLabels(g, mapView, entries, cachedDuplicateNumbers);
         g.dispose();
+    }
+
+    private void refreshCacheIfNeeded(DataSet dataSet) {
+        long now = System.nanoTime();
+        boolean needsRefresh = cacheDirty
+                || dataSet != cachedDataSet
+                || !normalize(selectedStreet).equals(cachedStreet)
+                || now - lastCacheRefreshNanos >= CACHE_REFRESH_INTERVAL_NANOS;
+        if (!needsRefresh) {
+            return;
+        }
+
+        List<HouseNumberOverlayEntry> entries = collector.collect(dataSet, selectedStreet);
+        cachedEntries = Collections.unmodifiableList(entries);
+        cachedDuplicateNumbers = Collections.unmodifiableSet(collectDuplicateHouseNumbers(entries));
+        cachedDataSet = dataSet;
+        cachedStreet = normalize(selectedStreet);
+        lastCacheRefreshNanos = now;
+        cacheDirty = false;
     }
 
     private void drawSelectedStreetHighlight(Graphics2D g, MapView mapView, DataSet dataSet) {
