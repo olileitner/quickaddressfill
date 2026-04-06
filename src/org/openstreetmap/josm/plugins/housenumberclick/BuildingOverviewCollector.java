@@ -43,7 +43,37 @@ final class BuildingOverviewCollector {
         }
 
         boolean hasHouseNumber = !normalize(primitive.get("addr:housenumber")).isEmpty();
-        entries.add(new BuildingOverviewEntry(primitive, hasHouseNumber));
+        boolean hasMisplacedHouseNumber = !hasHouseNumber && hasMisplacedHouseNumber(primitive);
+        entries.add(new BuildingOverviewEntry(primitive, hasHouseNumber, hasMisplacedHouseNumber));
+    }
+
+    private boolean hasMisplacedHouseNumber(OsmPrimitive primitive) {
+        if (!(primitive instanceof Relation)) {
+            return false;
+        }
+        Relation relation = (Relation) primitive;
+        if (!relation.isUsable() || !relation.hasTag("type", "multipolygon") || !relation.hasTag("building")) {
+            return false;
+        }
+
+        for (RelationMember member : relation.getMembers()) {
+            if (member == null || !member.isWay()) {
+                continue;
+            }
+            String role = normalize(member.getRole());
+            if (!"outer".equals(role)) {
+                continue;
+            }
+
+            Way outerWay = member.getWay();
+            if (outerWay == null || !outerWay.isUsable()) {
+                continue;
+            }
+            if (!normalize(outerWay.get("addr:housenumber")).isEmpty()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private double computeArea(OsmPrimitive primitive) {
@@ -138,10 +168,12 @@ final class BuildingOverviewCollector {
     static final class BuildingOverviewEntry {
         private final OsmPrimitive primitive;
         private final boolean hasHouseNumber;
+        private final boolean hasMisplacedHouseNumber;
 
-        BuildingOverviewEntry(OsmPrimitive primitive, boolean hasHouseNumber) {
+        BuildingOverviewEntry(OsmPrimitive primitive, boolean hasHouseNumber, boolean hasMisplacedHouseNumber) {
             this.primitive = primitive;
             this.hasHouseNumber = hasHouseNumber;
+            this.hasMisplacedHouseNumber = hasMisplacedHouseNumber;
         }
 
         OsmPrimitive getPrimitive() {
@@ -150,6 +182,10 @@ final class BuildingOverviewCollector {
 
         boolean hasHouseNumber() {
             return hasHouseNumber;
+        }
+
+        boolean hasMisplacedHouseNumber() {
+            return hasMisplacedHouseNumber;
         }
     }
 }

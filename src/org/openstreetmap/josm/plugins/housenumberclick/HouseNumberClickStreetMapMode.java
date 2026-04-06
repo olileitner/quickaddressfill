@@ -357,7 +357,8 @@ final class HouseNumberClickStreetMapMode extends MapMode {
         String appliedStreet = normalize(streetName);
         String appliedHouseNumber = normalize(houseNumber);
         boolean buildingTypeWasUsed = !normalize(buildingType).isEmpty();
-        BuildingTagApplier.applyAddress(building, streetName, postcode, buildingType, houseNumber);
+        OsmPrimitive writeTarget = resolveWriteTargetForApply(building);
+        BuildingTagApplier.applyAddress(writeTarget, streetName, postcode, buildingType, houseNumber);
         DataSet dataSet = MainApplication.getLayerManager().getEditDataSet();
         if (dataSet != null) {
             dataSet.setSelected(Collections.singleton(getSelectionTarget(building)));
@@ -444,6 +445,27 @@ final class HouseNumberClickStreetMapMode extends MapMode {
 
         if (!outers.isEmpty()) {
             return outers.get(0);
+        }
+        return building;
+    }
+
+    private OsmPrimitive resolveWriteTargetForApply(OsmPrimitive building) {
+        if (!(building instanceof Way) || !building.isUsable()) {
+            return building;
+        }
+
+        Way way = (Way) building;
+        for (OsmPrimitive referrer : way.getReferrers()) {
+            if (!(referrer instanceof Relation)) {
+                continue;
+            }
+            Relation relation = (Relation) referrer;
+            if (!relation.isUsable()) {
+                continue;
+            }
+            if (relation.hasTag("type", "multipolygon") && relation.hasTag("building")) {
+                return relation;
+            }
         }
         return building;
     }

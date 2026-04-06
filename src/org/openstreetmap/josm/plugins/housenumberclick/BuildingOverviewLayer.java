@@ -29,6 +29,7 @@ final class BuildingOverviewLayer extends Layer {
 
     private static final Color ADDRESSED_FILL_COLOR = new Color(80, 132, 220, 155);
     private static final Color UNADDRESSED_FILL_COLOR = new Color(60, 60, 60, 155);
+    private static final Color MISPLACED_COLOR = new Color(180, 150, 60, 120);
     private static final Color OUTLINE_COLOR = new Color(20, 20, 20, 170);
 
     private final DataSet dataSet;
@@ -64,15 +65,16 @@ final class BuildingOverviewLayer extends Layer {
     private void drawPrimitive(Graphics2D g, MapView mapView, BuildingOverviewCollector.BuildingOverviewEntry entry) {
         OsmPrimitive primitive = entry.getPrimitive();
         if (primitive instanceof Way) {
-            drawWay(g, mapView, (Way) primitive, entry.hasHouseNumber());
+            drawWay(g, mapView, (Way) primitive, entry.hasHouseNumber(), entry.hasMisplacedHouseNumber());
             return;
         }
         if (primitive instanceof Relation) {
-            drawRelation(g, mapView, (Relation) primitive, entry.hasHouseNumber());
+            drawRelation(g, mapView, (Relation) primitive, entry.hasHouseNumber(), entry.hasMisplacedHouseNumber());
         }
     }
 
-    private void drawRelation(Graphics2D g, MapView mapView, Relation relation, boolean hasHouseNumber) {
+    private void drawRelation(Graphics2D g, MapView mapView, Relation relation, boolean hasHouseNumber,
+            boolean hasMisplacedHouseNumber) {
         if (relation == null || !relation.isUsable()) {
             return;
         }
@@ -85,20 +87,31 @@ final class BuildingOverviewLayer extends Layer {
             if (!role.isEmpty() && !"outer".equals(role)) {
                 continue;
             }
-            drawWay(g, mapView, member.getWay(), hasHouseNumber);
+            drawWay(g, mapView, member.getWay(), hasHouseNumber, hasMisplacedHouseNumber);
         }
     }
 
-    private void drawWay(Graphics2D g, MapView mapView, Way way, boolean hasHouseNumber) {
+    private void drawWay(Graphics2D g, MapView mapView, Way way, boolean hasHouseNumber,
+            boolean hasMisplacedHouseNumber) {
         Path2D polygon = buildScreenPolygon(mapView, way);
         if (polygon == null) {
             return;
         }
 
-        g.setColor(hasHouseNumber ? ADDRESSED_FILL_COLOR : UNADDRESSED_FILL_COLOR);
+        g.setColor(resolveFillColor(hasHouseNumber, hasMisplacedHouseNumber));
         g.fill(polygon);
         g.setColor(OUTLINE_COLOR);
         g.draw(polygon);
+    }
+
+    private Color resolveFillColor(boolean hasHouseNumber, boolean hasMisplacedHouseNumber) {
+        if (hasHouseNumber) {
+            return ADDRESSED_FILL_COLOR;
+        }
+        if (hasMisplacedHouseNumber) {
+            return MISPLACED_COLOR;
+        }
+        return UNADDRESSED_FILL_COLOR;
     }
 
     private Path2D buildScreenPolygon(MapView mapView, Way way) {
