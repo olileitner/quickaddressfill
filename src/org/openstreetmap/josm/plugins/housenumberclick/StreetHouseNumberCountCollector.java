@@ -24,12 +24,19 @@ final class StreetHouseNumberCountCollector {
         Map<String, Integer> countsByStreet = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         Map<String, Set<String>> seenHouseNumbersByStreet = new HashMap<>();
         Map<String, Boolean> hasDuplicateByStreet = new HashMap<>();
+        Set<String> allStreetNames = new HashSet<>();
 
         for (Way way : dataSet.getWays()) {
+            collectStreetName(way, allStreetNames);
             collectPrimitive(way, countsByStreet, seenHouseNumbersByStreet, hasDuplicateByStreet);
         }
         for (Relation relation : dataSet.getRelations()) {
             collectPrimitive(relation, countsByStreet, seenHouseNumbersByStreet, hasDuplicateByStreet);
+        }
+
+        // Ensure streets without addressed buildings are visible in the table as count 0.
+        for (String streetName : allStreetNames) {
+            countsByStreet.putIfAbsent(streetName, 0);
         }
 
         List<StreetHouseNumberCountRow> rows = new ArrayList<>();
@@ -57,6 +64,16 @@ final class StreetHouseNumberCountCollector {
         Set<String> seenHouseNumbers = seenHouseNumbersByStreet.computeIfAbsent(street, key -> new HashSet<>());
         if (!seenHouseNumbers.add(houseNumberKey)) {
             hasDuplicateByStreet.put(street, true);
+        }
+    }
+
+    private void collectStreetName(Way way, Set<String> allStreetNames) {
+        if (way == null || !way.isUsable() || !way.hasTag("highway")) {
+            return;
+        }
+        String street = normalize(way.get("name"));
+        if (!street.isEmpty()) {
+            allStreetNames.add(street);
         }
     }
 
