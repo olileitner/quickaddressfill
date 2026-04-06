@@ -454,12 +454,12 @@ final class StreetModeController {
         List<Layer> layers = layerManager.getLayers();
         int overlayIndex = layers.indexOf(houseNumberOverlayLayer);
         int overviewIndex = layers.indexOf(buildingOverviewLayer);
-        if (overlayIndex < 0 || overviewIndex < 0 || overlayIndex > overviewIndex) {
+        if (overlayIndex < 0 || overviewIndex < 0 || overlayIndex < overviewIndex) {
             return;
         }
 
-        // Keep ordering stable without destroying/recreating the overlay layer instance.
-        layerManager.moveLayer(houseNumberOverlayLayer, Math.min(overviewIndex + 1, layers.size() - 1));
+        // In JOSM layer index ordering, lower index means visually above.
+        layerManager.moveLayer(houseNumberOverlayLayer, Math.max(overviewIndex - 1, 0));
     }
 
     private void removeOverlayLayer() {
