@@ -3,11 +3,15 @@
 src/org/openstreetmap/josm/plugins/housenumberclick/BuildingSplitterBridge.java
 src/org/openstreetmap/josm/plugins/housenumberclick/BuildingSplitterDetector.java
 src/org/openstreetmap/josm/plugins/housenumberclick/BuildingTagApplier.java
+src/org/openstreetmap/josm/plugins/housenumberclick/BuildingOverviewLayer.java
 src/org/openstreetmap/josm/plugins/housenumberclick/PostcodeCollector.java
 src/org/openstreetmap/josm/plugins/housenumberclick/HouseNumberClickAction.java
 src/org/openstreetmap/josm/plugins/housenumberclick/HouseNumberClickPlugin.java
 src/org/openstreetmap/josm/plugins/housenumberclick/HouseNumberClickStreetMapMode.java
+src/org/openstreetmap/josm/plugins/housenumberclick/HouseNumberOverviewDialog.java
+src/org/openstreetmap/josm/plugins/housenumberclick/HouseNumberOverlayLayer.java
 src/org/openstreetmap/josm/plugins/housenumberclick/StreetModeController.java
+src/org/openstreetmap/josm/plugins/housenumberclick/StreetHouseNumberCountDialog.java
 src/org/openstreetmap/josm/plugins/housenumberclick/StreetNameCollector.java
 src/org/openstreetmap/josm/plugins/housenumberclick/StreetSelectionDialog.java
 

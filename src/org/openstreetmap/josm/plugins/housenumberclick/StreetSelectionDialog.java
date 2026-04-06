@@ -85,7 +85,7 @@ final class StreetSelectionDialog {
     private boolean streetNavigationDispatcherRegistered;
 
     private static final int DIALOG_WIDTH = 390;
-    private static final int DIALOG_HEIGHT = 750;
+    private static final int DIALOG_HEIGHT = 720;
     private static final int DIALOG_OFFSET_X = 66;
     private static final int DIALOG_OFFSET_Y = 80;
     private static final String SHOW_OVERVIEW_BUTTON_TEXT = I18n.tr("Show overview");
@@ -171,12 +171,12 @@ final class StreetSelectionDialog {
         this.streetModeController.setModeStateListener(this::refreshModeStateUi);
         this.modeStateLabel.setFont(this.modeStateLabel.getFont().deriveFont(Font.BOLD));
 
-        this.showHouseNumberLayerCheckbox = new JCheckBox(I18n.tr("Show house numbers"));
+        this.showHouseNumberLayerCheckbox = new JCheckBox(I18n.tr("Show house number labels"));
         this.showConnectionLinesCheckbox = new JCheckBox(I18n.tr("Show connections"));
         this.showSeparateEvenOddConnectionLinesCheckbox = new JCheckBox(I18n.tr("Separate even / odd"));
-        this.showHouseNumberOverviewCheckbox = new JCheckBox(I18n.tr("Show overview panel"));
-        this.showStreetHouseNumberCountsCheckbox = new JCheckBox(I18n.tr("Show street counts"));
-        this.zoomToSelectedStreetCheckbox = new JCheckBox(I18n.tr("Auto-zoom to street"));
+        this.showHouseNumberOverviewCheckbox = new JCheckBox(I18n.tr("Show overview panel (selected street)"));
+        this.showStreetHouseNumberCountsCheckbox = new JCheckBox(I18n.tr("Show all street counts"));
+        this.zoomToSelectedStreetCheckbox = new JCheckBox(I18n.tr("Auto-zoom to selected street"));
         this.showHouseNumberLayerCheckbox.addActionListener(e -> onOverlayLayerSelectionChanged());
         this.showConnectionLinesCheckbox.addActionListener(e -> onConnectionLinesSelectionChanged());
         this.showSeparateEvenOddConnectionLinesCheckbox.addActionListener(e -> onSeparateEvenOddConnectionLinesSelectionChanged());
@@ -735,6 +735,18 @@ final class StreetSelectionDialog {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Display")));
 
+        JPanel houseNumberSubOptionsPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints subGbc = new GridBagConstraints();
+        subGbc.gridx = 0;
+        subGbc.gridy = 0;
+        subGbc.anchor = GridBagConstraints.WEST;
+        subGbc.insets = new Insets(0, 0, 0, 12);
+        houseNumberSubOptionsPanel.add(showConnectionLinesCheckbox, subGbc);
+
+        subGbc.gridx = 1;
+        subGbc.insets = new Insets(0, 0, 0, 0);
+        houseNumberSubOptionsPanel.add(showSeparateEvenOddConnectionLinesCheckbox, subGbc);
+
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
         gbc.anchor = GridBagConstraints.WEST;
@@ -747,21 +759,17 @@ final class StreetSelectionDialog {
 
         gbc.gridy = 1;
         gbc.insets = new Insets(2, 16, 2, 0);
-        panel.add(showConnectionLinesCheckbox, gbc);
+        panel.add(houseNumberSubOptionsPanel, gbc);
 
         gbc.gridy = 2;
-        gbc.insets = new Insets(2, 32, 2, 0);
-        panel.add(showSeparateEvenOddConnectionLinesCheckbox, gbc);
-
-        gbc.gridy = 3;
         gbc.insets = new Insets(2, 0, 2, 0);
         panel.add(showHouseNumberOverviewCheckbox, gbc);
 
-        gbc.gridy = 4;
+        gbc.gridy = 3;
         gbc.insets = new Insets(2, 0, 2, 0);
         panel.add(showStreetHouseNumberCountsCheckbox, gbc);
 
-        gbc.gridy = 5;
+        gbc.gridy = 4;
         gbc.insets = new Insets(2, 0, 2, 0);
         panel.add(zoomToSelectedStreetCheckbox, gbc);
 
@@ -777,7 +785,7 @@ final class StreetSelectionDialog {
 
     private JPanel createStreetNavigationSection() {
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Street navigation")));
+        panel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Sellect street")));
 
         harmonizeNavigationButtonWidths();
 
@@ -792,20 +800,13 @@ final class StreetSelectionDialog {
         gbc.insets = new Insets(0, 0, 4, 0);
         panel.add(nextStreetButton, gbc);
 
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.gridwidth = 2;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(0, 0, 0, 0);
-        panel.add(new JLabel(I18n.tr("Jump to previous / next street")), gbc);
 
         return panel;
     }
 
     private JPanel createAdvancedToolsSection(JPanel buildingSplitterPanel) {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Advanced tools")));
+        panel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Extra tools")));
         panel.add(buildingSplitterPanel, BorderLayout.CENTER);
         return panel;
     }
