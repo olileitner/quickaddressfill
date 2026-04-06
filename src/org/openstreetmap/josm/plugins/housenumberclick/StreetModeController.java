@@ -383,6 +383,10 @@ final class StreetModeController {
             return;
         }
 
+        new Notification(I18n.tr("Please wait, this takes a moment."))
+                .setDuration(Notification.TIME_SHORT)
+                .show();
+
         removeBuildingOverviewLayer();
         buildingOverviewLayer = new BuildingOverviewLayer(editDataSet);
         layerManager.addLayer(buildingOverviewLayer, false);
@@ -392,6 +396,25 @@ final class StreetModeController {
         if (map != null && map.mapView != null) {
             map.mapView.repaint();
         }
+    }
+
+    void toggleBuildingOverviewLayer() {
+        if (isBuildingOverviewLayerVisible()) {
+            removeBuildingOverviewLayer();
+            MapFrame map = MainApplication.getMap();
+            if (map != null && map.mapView != null) {
+                map.mapView.repaint();
+            }
+            return;
+        }
+        createBuildingOverviewLayer();
+    }
+
+    boolean isBuildingOverviewLayerVisible() {
+        LayerManager layerManager = MainApplication.getLayerManager();
+        return layerManager != null
+                && buildingOverviewLayer != null
+                && layerManager.containsLayer(buildingOverviewLayer);
     }
 
     private void refreshOverlayLayer() {

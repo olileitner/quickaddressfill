@@ -87,6 +87,8 @@ final class StreetSelectionDialog {
     private static final int DIALOG_HEIGHT = 560;
     private static final int DIALOG_OFFSET_X = 66;
     private static final int DIALOG_OFFSET_Y = 80;
+    private static final String SHOW_OVERVIEW_BUTTON_TEXT = I18n.tr("Show Overview");
+    private static final String HIDE_OVERVIEW_BUTTON_TEXT = I18n.tr("Hide Overview");
     private static final List<String> COMMON_BUILDING_TYPES = Arrays.asList(
             "yes", "apartments", "residential", "house", "detached", "terrace", "garage", "garages",
             "retail", "commercial", "industrial", "warehouse", "office", "school", "hospital", "hotel",
@@ -163,7 +165,7 @@ final class StreetSelectionDialog {
         this.modeStateLabel = new JLabel();
         this.continueWorkingButton = new JButton(I18n.tr("Continue working"));
         this.continueWorkingButton.addActionListener(e -> continueWorking());
-        this.createOverviewButton = new JButton(I18n.tr("Create Overview"));
+        this.createOverviewButton = new JButton(SHOW_OVERVIEW_BUTTON_TEXT);
         this.createOverviewButton.addActionListener(e -> onCreateOverviewRequested());
         this.streetModeController.setModeStateListener(this::refreshModeStateUi);
 
@@ -437,6 +439,7 @@ final class StreetSelectionDialog {
         notifyZoomToSelectedStreetChanged();
         refreshModeStateUi(streetModeController.isActive());
         refreshBuildingSplitterAvailability();
+        refreshOverviewButtonLabel();
 
         if (!dialog.isVisible()) {
             positionTopLeftInOwner(MainApplication.getMainFrame());
@@ -588,7 +591,13 @@ final class StreetSelectionDialog {
             return;
         }
 
+        boolean wasOverlayEnabled = rememberedHouseNumberLayerEnabled;
         boolean overlayEnabled = showHouseNumberLayerCheckbox.isSelected();
+        if (!wasOverlayEnabled && overlayEnabled) {
+            new Notification(I18n.tr("Please wait, this takes a moment."))
+                    .setDuration(Notification.TIME_SHORT)
+                    .show();
+        }
         if (!overlayEnabled) {
             rememberedConnectionLinesPreference = showConnectionLinesCheckbox.isSelected();
             rememberedSeparateEvenOddLinesPreference = showSeparateEvenOddConnectionLinesCheckbox.isSelected();
@@ -753,8 +762,20 @@ final class StreetSelectionDialog {
     }
 
     private void onCreateOverviewRequested() {
-        streetModeController.createBuildingOverviewLayer();
+        streetModeController.toggleBuildingOverviewLayer();
+        refreshOverviewButtonLabel();
         focusMapViewIfStreetModeActive();
+    }
+
+    private void refreshOverviewButtonLabel() {
+        if (createOverviewButton == null) {
+            return;
+        }
+        createOverviewButton.setText(
+                streetModeController.isBuildingOverviewLayerVisible()
+                        ? HIDE_OVERVIEW_BUTTON_TEXT
+                        : SHOW_OVERVIEW_BUTTON_TEXT
+        );
     }
 
     private String resolveStreetForSplitter() {
