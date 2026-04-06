@@ -84,11 +84,11 @@ final class StreetSelectionDialog {
     private boolean streetNavigationDispatcherRegistered;
 
     private static final int DIALOG_WIDTH = 390;
-    private static final int DIALOG_HEIGHT = 560;
+    private static final int DIALOG_HEIGHT = 750;
     private static final int DIALOG_OFFSET_X = 66;
     private static final int DIALOG_OFFSET_Y = 80;
-    private static final String SHOW_OVERVIEW_BUTTON_TEXT = I18n.tr("Show Overview");
-    private static final String HIDE_OVERVIEW_BUTTON_TEXT = I18n.tr("Hide Overview");
+    private static final String SHOW_OVERVIEW_BUTTON_TEXT = I18n.tr("Show building overview");
+    private static final String HIDE_OVERVIEW_BUTTON_TEXT = I18n.tr("Hide building overview");
     private static final List<String> COMMON_BUILDING_TYPES = Arrays.asList(
             "yes", "apartments", "residential", "house", "detached", "terrace", "garage", "garages",
             "retail", "commercial", "industrial", "warehouse", "office", "school", "hospital", "hotel",
@@ -157,8 +157,8 @@ final class StreetSelectionDialog {
         JButton closeButton = new JButton(I18n.tr("Close"));
         closeButton.addActionListener(e -> closeDialog());
 
-        this.previousStreetButton = new JButton(I18n.tr("<"));
-        this.nextStreetButton = new JButton(I18n.tr(">"));
+        this.previousStreetButton = new JButton(I18n.tr("◀ Previous"));
+        this.nextStreetButton = new JButton(I18n.tr("Next ▶"));
         this.previousStreetButton.addActionListener(e -> navigateStreetByOffset(-1));
         this.nextStreetButton.addActionListener(e -> navigateStreetByOffset(1));
 
@@ -169,12 +169,12 @@ final class StreetSelectionDialog {
         this.createOverviewButton.addActionListener(e -> onCreateOverviewRequested());
         this.streetModeController.setModeStateListener(this::refreshModeStateUi);
 
-        this.showHouseNumberLayerCheckbox = new JCheckBox(I18n.tr("Show house number layer"));
-        this.showConnectionLinesCheckbox = new JCheckBox(I18n.tr("Show connection lines"));
-        this.showSeparateEvenOddConnectionLinesCheckbox = new JCheckBox(I18n.tr("Separate even and odd connection lines"));
-        this.showHouseNumberOverviewCheckbox = new JCheckBox(I18n.tr("Show house number overview"));
-        this.showStreetHouseNumberCountsCheckbox = new JCheckBox(I18n.tr("Show street house number counts"));
-        this.zoomToSelectedStreetCheckbox = new JCheckBox(I18n.tr("Zoom to selected street"));
+        this.showHouseNumberLayerCheckbox = new JCheckBox(I18n.tr("Show house numbers"));
+        this.showConnectionLinesCheckbox = new JCheckBox(I18n.tr("Show connections"));
+        this.showSeparateEvenOddConnectionLinesCheckbox = new JCheckBox(I18n.tr("Separate even / odd"));
+        this.showHouseNumberOverviewCheckbox = new JCheckBox(I18n.tr("Show overview panel"));
+        this.showStreetHouseNumberCountsCheckbox = new JCheckBox(I18n.tr("Show street counts"));
+        this.zoomToSelectedStreetCheckbox = new JCheckBox(I18n.tr("Auto-zoom to street"));
         this.showHouseNumberLayerCheckbox.addActionListener(e -> onOverlayLayerSelectionChanged());
         this.showConnectionLinesCheckbox.addActionListener(e -> onConnectionLinesSelectionChanged());
         this.showSeparateEvenOddConnectionLinesCheckbox.addActionListener(e -> onSeparateEvenOddConnectionLinesSelectionChanged());
@@ -182,72 +182,6 @@ final class StreetSelectionDialog {
         this.showStreetHouseNumberCountsCheckbox.addActionListener(e -> onStreetHouseNumberCountsSelectionChanged());
         this.zoomToSelectedStreetCheckbox.addActionListener(e -> onZoomToSelectedStreetSelectionChanged());
         updateOverlayOptionsEnablement(false, false);
-
-        JPanel modeStatePanel = new JPanel(new BorderLayout(8, 0));
-        modeStatePanel.add(modeStateLabel, BorderLayout.WEST);
-        modeStatePanel.add(continueWorkingButton, BorderLayout.EAST);
-
-        JPanel formPanel = new JPanel(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.weightx = 0.0;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.insets = new Insets(0, 0, 4, 8);
-        formPanel.add(new JLabel(I18n.tr("Postcode:")), gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(0, 0, 4, 0);
-        formPanel.add(postcodeField, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.weightx = 0.0;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.insets = new Insets(0, 0, 0, 8);
-        formPanel.add(new JLabel(I18n.tr("Street:")), gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(0, 0, 0, 0);
-        formPanel.add(streetCombo, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        gbc.weightx = 0.0;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.insets = new Insets(4, 0, 0, 8);
-        formPanel.add(new JLabel(I18n.tr("Building type:")), gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(4, 0, 0, 0);
-        formPanel.add(buildingTypeCombo, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 3;
-        gbc.weightx = 0.0;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.insets = new Insets(4, 0, 0, 8);
-        formPanel.add(new JLabel(I18n.tr("House number:")), gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(4, 0, 0, 0);
-        formPanel.add(houseNumberField, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 4;
-        gbc.weightx = 0.0;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.insets = new Insets(4, 0, 0, 8);
-        formPanel.add(new JLabel(I18n.tr("Increment:")), gbc);
 
         JPanel incrementButtonsPanel = new JPanel(new GridBagLayout());
         GridBagConstraints incGbc = new GridBagConstraints();
@@ -276,92 +210,64 @@ final class StreetSelectionDialog {
         incGbc.insets = new Insets(0, 0, 0, 0);
         incrementButtonsPanel.add(plusTwoIncrementButton, incGbc);
 
-        gbc.gridx = 1;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(4, 0, 0, 0);
-        formPanel.add(incrementButtonsPanel, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 5;
-        gbc.gridwidth = 2;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(8, 0, 0, 0);
-        formPanel.add(new JLabel(I18n.tr("Click: apply address")), gbc);
-
-        gbc.gridy = 6;
-        gbc.insets = new Insets(2, 0, 0, 0);
-        formPanel.add(new JLabel(I18n.tr("Ctrl+Click: read address")), gbc);
-
-        gbc.gridy = 7;
-        formPanel.add(new JLabel(I18n.tr("+ / -: change number or letter")), gbc);
-
-        gbc.gridy = 8;
-        formPanel.add(new JLabel(I18n.tr("L: toggle letter suffix")), gbc);
-
-        gbc.gridy = 9;
-        gbc.insets = new Insets(8, 0, 0, 0);
-        formPanel.add(new JLabel(I18n.tr("Display:")), gbc);
-
-        gbc.gridy = 10;
-        gbc.insets = new Insets(2, 12, 0, 0);
-        formPanel.add(showHouseNumberLayerCheckbox, gbc);
-
-        gbc.gridy = 11;
-        gbc.insets = new Insets(2, 12, 0, 0);
-        formPanel.add(showConnectionLinesCheckbox, gbc);
-
-        gbc.gridy = 12;
-        gbc.insets = new Insets(2, 12, 0, 0);
-        formPanel.add(showSeparateEvenOddConnectionLinesCheckbox, gbc);
-
-        gbc.gridy = 13;
-        gbc.insets = new Insets(2, 12, 0, 0);
-        formPanel.add(showHouseNumberOverviewCheckbox, gbc);
-
-        gbc.gridy = 14;
-        gbc.insets = new Insets(2, 12, 0, 0);
-        formPanel.add(showStreetHouseNumberCountsCheckbox, gbc);
-
-        gbc.gridy = 15;
-        gbc.insets = new Insets(2, 12, 0, 0);
-        formPanel.add(zoomToSelectedStreetCheckbox, gbc);
+        JPanel modeStatePanel = new JPanel(new BorderLayout(8, 0));
+        modeStatePanel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Status")));
+        modeStatePanel.add(modeStateLabel, BorderLayout.WEST);
+        modeStatePanel.add(continueWorkingButton, BorderLayout.EAST);
 
         JPanel buildingSplitterPanel = new JPanel(new BorderLayout(8, 0));
         this.buildingSplitterStatusLabel = new JLabel();
         this.splitBuildingButton = new JButton(I18n.tr("Split building"));
         this.splitBuildingButton.setEnabled(false);
         this.splitBuildingButton.addActionListener(e -> onSplitBuildingRequested());
-        buildingSplitterPanel.add(buildingSplitterStatusLabel, BorderLayout.WEST);
-        buildingSplitterPanel.add(splitBuildingButton, BorderLayout.EAST);
+        buildingSplitterPanel.add(splitBuildingButton, BorderLayout.WEST);
+        buildingSplitterPanel.add(buildingSplitterStatusLabel, BorderLayout.CENTER);
 
-        gbc.gridy = 16;
-        gbc.insets = new Insets(6, 0, 0, 0);
-        formPanel.add(buildingSplitterPanel, gbc);
+        JPanel sectionsPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints sectionGbc = new GridBagConstraints();
+        sectionGbc.gridx = 0;
+        sectionGbc.weightx = 1.0;
+        sectionGbc.fill = GridBagConstraints.HORIZONTAL;
+        sectionGbc.anchor = GridBagConstraints.NORTHWEST;
 
-        gbc.gridy = 17;
-        gbc.insets = new Insets(6, 0, 0, 0);
-        formPanel.add(createOverviewButton, gbc);
+        sectionGbc.gridy = 0;
+        sectionGbc.insets = new Insets(0, 0, 0, 0);
+        sectionsPanel.add(createAddressSection(incrementButtonsPanel), sectionGbc);
+
+        sectionGbc.gridy = 1;
+        sectionGbc.insets = new Insets(4, 0, 0, 0);
+        sectionsPanel.add(createDisplaySection(), sectionGbc);
+
+        sectionGbc.gridy = 2;
+        sectionGbc.insets = new Insets(8, 0, 0, 0);
+        sectionsPanel.add(createAnalysisSection(), sectionGbc);
+
+        sectionGbc.gridy = 3;
+        sectionGbc.insets = new Insets(8, 0, 0, 0);
+        sectionsPanel.add(createStreetNavigationSection(), sectionGbc);
+
+        sectionGbc.gridy = 4;
+        sectionGbc.insets = new Insets(8, 0, 0, 0);
+        sectionsPanel.add(createAdvancedToolsSection(buildingSplitterPanel), sectionGbc);
+
+        sectionGbc.gridy = 5;
+        sectionGbc.insets = new Insets(8, 0, 0, 0);
+        sectionsPanel.add(createHelpSection(), sectionGbc);
+
+        sectionGbc.gridy = 6;
+        sectionGbc.weighty = 1.0;
+        sectionGbc.fill = GridBagConstraints.BOTH;
+        sectionGbc.insets = new Insets(0, 0, 0, 0);
+        sectionsPanel.add(new JPanel(), sectionGbc);
 
         JPanel content = new JPanel(new BorderLayout(8, 8));
         content.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         content.add(modeStatePanel, BorderLayout.NORTH);
-        content.add(formPanel, BorderLayout.CENTER);
+        content.add(sectionsPanel, BorderLayout.CENTER);
 
-        JPanel navigationPanel = new JPanel(new BorderLayout(8, 0));
-        JPanel streetNavigationButtons = new JPanel(new GridBagLayout());
-        GridBagConstraints navGbc = new GridBagConstraints();
-        navGbc.gridx = 0;
-        navGbc.insets = new Insets(0, 0, 0, 4);
-        streetNavigationButtons.add(previousStreetButton, navGbc);
-        navGbc.gridx = 1;
-        navGbc.insets = new Insets(0, 0, 0, 0);
-        streetNavigationButtons.add(nextStreetButton, navGbc);
-
-        navigationPanel.add(streetNavigationButtons, BorderLayout.WEST);
-        navigationPanel.add(closeButton, BorderLayout.EAST);
-        content.add(navigationPanel, BorderLayout.SOUTH);
+        JPanel bottomPanel = new JPanel(new BorderLayout(8, 0));
+        bottomPanel.add(closeButton, BorderLayout.EAST);
+        content.add(bottomPanel, BorderLayout.SOUTH);
 
         this.dialog.getContentPane().add(content, BorderLayout.CENTER);
         this.dialog.setMinimumSize(new Dimension(DIALOG_WIDTH, DIALOG_HEIGHT));
@@ -744,10 +650,176 @@ final class StreetSelectionDialog {
             return;
         }
         boolean buildingSplitterAvailable = BuildingSplitterDetector.isBuildingSplitterAvailable();
-        buildingSplitterStatusLabel.setText(buildingSplitterAvailable ? "" : I18n.tr("Building Splitter: not found"));
+        buildingSplitterStatusLabel.setText(buildingSplitterAvailable ? "" : I18n.tr("Requires Building Splitter plugin"));
         buildingSplitterStatusLabel.setVisible(!buildingSplitterAvailable);
         splitBuildingButton.setVisible(buildingSplitterAvailable);
         splitBuildingButton.setEnabled(buildingSplitterAvailable);
+    }
+
+    private JPanel createAddressSection(JPanel incrementButtonsPanel) {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Address")));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.insets = new Insets(2, 0, 2, 8);
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        panel.add(new JLabel(I18n.tr("Postcode:")), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(2, 0, 2, 0);
+        panel.add(postcodeField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.weightx = 0.0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.insets = new Insets(2, 0, 2, 8);
+        panel.add(new JLabel(I18n.tr("Street:")), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(2, 0, 2, 0);
+        panel.add(streetCombo, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.weightx = 0.0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.insets = new Insets(2, 0, 2, 8);
+        panel.add(new JLabel(I18n.tr("Building type:")), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(2, 0, 2, 0);
+        panel.add(buildingTypeCombo, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        gbc.weightx = 0.0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.insets = new Insets(2, 0, 2, 8);
+        panel.add(new JLabel(I18n.tr("House number:")), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(2, 0, 2, 0);
+        panel.add(houseNumberField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        gbc.weightx = 0.0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.insets = new Insets(2, 0, 2, 8);
+        panel.add(new JLabel(I18n.tr("Increment:")), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(2, 0, 2, 0);
+        panel.add(incrementButtonsPanel, gbc);
+
+        return panel;
+    }
+
+    private JPanel createDisplaySection() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Display")));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+
+        gbc.gridy = 0;
+        gbc.insets = new Insets(2, 0, 2, 0);
+        panel.add(showHouseNumberLayerCheckbox, gbc);
+
+        gbc.gridy = 1;
+        gbc.insets = new Insets(2, 16, 2, 0);
+        panel.add(showConnectionLinesCheckbox, gbc);
+
+        gbc.gridy = 2;
+        gbc.insets = new Insets(2, 32, 2, 0);
+        panel.add(showSeparateEvenOddConnectionLinesCheckbox, gbc);
+
+        gbc.gridy = 3;
+        gbc.insets = new Insets(2, 0, 2, 0);
+        panel.add(showHouseNumberOverviewCheckbox, gbc);
+
+        gbc.gridy = 4;
+        gbc.insets = new Insets(2, 0, 2, 0);
+        panel.add(showStreetHouseNumberCountsCheckbox, gbc);
+
+        gbc.gridy = 5;
+        gbc.insets = new Insets(2, 0, 2, 0);
+        panel.add(zoomToSelectedStreetCheckbox, gbc);
+
+        return panel;
+    }
+
+    private JPanel createAnalysisSection() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Analysis")));
+        panel.add(createOverviewButton, BorderLayout.WEST);
+        return panel;
+    }
+
+    private JPanel createStreetNavigationSection() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Street navigation")));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.insets = new Insets(0, 0, 4, 4);
+        panel.add(previousStreetButton, gbc);
+
+        gbc.gridx = 1;
+        gbc.insets = new Insets(0, 0, 4, 0);
+        panel.add(nextStreetButton, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        panel.add(new JLabel(I18n.tr("Jump to previous / next street in current list")), gbc);
+
+        return panel;
+    }
+
+    private JPanel createAdvancedToolsSection(JPanel buildingSplitterPanel) {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Advanced tools")));
+        panel.add(buildingSplitterPanel, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createHelpSection() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Help")));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.anchor = GridBagConstraints.WEST;
+        panel.add(new JLabel(I18n.tr("Click: apply address    Ctrl+Click: read address")), gbc);
+
+        gbc.gridy = 1;
+        gbc.insets = new Insets(2, 0, 0, 0);
+        panel.add(new JLabel(I18n.tr("+ / -: change number or letter    L: toggle letter")), gbc);
+
+        return panel;
     }
 
     private void onSplitBuildingRequested() {
