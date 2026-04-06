@@ -386,6 +386,7 @@ final class StreetModeController {
         removeBuildingOverviewLayer();
         buildingOverviewLayer = new BuildingOverviewLayer(editDataSet);
         layerManager.addLayer(buildingOverviewLayer, false);
+        ensureOverlayLayerAboveBuildingOverview(layerManager);
 
         MapFrame map = MainApplication.getMap();
         if (map != null && map.mapView != null) {
@@ -415,7 +416,21 @@ final class StreetModeController {
                 connectionLinesEnabled,
                 separateEvenOddConnectionLinesEnabled
         );
+        ensureOverlayLayerAboveBuildingOverview(layerManager);
         map.mapView.repaint();
+    }
+
+    private void ensureOverlayLayerAboveBuildingOverview(LayerManager layerManager) {
+        if (layerManager == null || houseNumberOverlayLayer == null || buildingOverviewLayer == null) {
+            return;
+        }
+        if (!layerManager.containsLayer(houseNumberOverlayLayer) || !layerManager.containsLayer(buildingOverviewLayer)) {
+            return;
+        }
+
+        // Re-adding the overlay keeps it above the building overview among plugin-created layers.
+        layerManager.removeLayer(houseNumberOverlayLayer);
+        layerManager.addLayer(houseNumberOverlayLayer, false);
     }
 
     private void removeOverlayLayer() {
