@@ -519,6 +519,12 @@ final class StreetModeController {
         // Closing the main dialog should also close dependent views and clear visual overlays.
         hideHouseNumberOverview();
         hideStreetHouseNumberCounts();
+        if (houseNumberOverviewDialog != null) {
+            houseNumberOverviewDialog.resetSessionPositioningState();
+        }
+        if (streetHouseNumberCountDialog != null) {
+            streetHouseNumberCountDialog.resetSessionPositioningState();
+        }
         removeOverlayLayer();
         deactivate();
     }

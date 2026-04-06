@@ -43,6 +43,7 @@ final class HouseNumberOverviewDialog {
     private final DefaultTableModel tableModel;
     private final List<HouseNumberOverviewRow> currentRows = new ArrayList<>();
     private final Runnable rowClickListener;
+    private boolean positionInitializedForSession;
 
     HouseNumberOverviewDialog(Runnable rowClickListener) {
         this.rowClickListener = rowClickListener;
@@ -120,8 +121,11 @@ final class HouseNumberOverviewDialog {
     }
 
     void showDialog() {
-        positionTopRightInOwner(MainApplication.getMainFrame());
         if (!dialog.isVisible()) {
+            if (!positionInitializedForSession) {
+                positionTopRightInOwner(MainApplication.getMainFrame());
+                positionInitializedForSession = true;
+            }
             dialog.setVisible(true);
         } else {
             dialog.toFront();
@@ -131,6 +135,10 @@ final class HouseNumberOverviewDialog {
 
     void hideDialog() {
         dialog.setVisible(false);
+    }
+
+    void resetSessionPositioningState() {
+        positionInitializedForSession = false;
     }
 
     private String normalize(String value) {

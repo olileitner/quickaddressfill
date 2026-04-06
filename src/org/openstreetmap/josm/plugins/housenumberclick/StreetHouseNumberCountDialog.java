@@ -41,6 +41,7 @@ final class StreetHouseNumberCountDialog {
     private final List<StreetHouseNumberCountRow> currentRows = new ArrayList<>();
     private final Consumer<String> streetClickListener;
     private final Runnable rescanListener;
+    private boolean positionInitializedForSession;
 
     static List<StreetHouseNumberCountRow> sortRowsForDisplay(List<StreetHouseNumberCountRow> rows) {
         if (rows == null || rows.isEmpty()) {
@@ -199,8 +200,11 @@ final class StreetHouseNumberCountDialog {
     }
 
     void showDialog() {
-        positionBottomRightInOwner(MainApplication.getMainFrame());
         if (!dialog.isVisible()) {
+            if (!positionInitializedForSession) {
+                positionBottomRightInOwner(MainApplication.getMainFrame());
+                positionInitializedForSession = true;
+            }
             dialog.setVisible(true);
         } else {
             dialog.toFront();
@@ -210,6 +214,10 @@ final class StreetHouseNumberCountDialog {
 
     void hideDialog() {
         dialog.setVisible(false);
+    }
+
+    void resetSessionPositioningState() {
+        positionInitializedForSession = false;
     }
 
     private void positionBottomRightInOwner(Frame owner) {
