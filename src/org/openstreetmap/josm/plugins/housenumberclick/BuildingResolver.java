@@ -126,7 +126,9 @@ final class BuildingResolver {
 
         WayScanResult wayResult = findWayContainingClick(dataSet, map, e);
         if (wayResult.way != null) {
-            return new BuildingResolutionResult(wayResult.way, "way-fallback", nearestCandidates,
+            Relation multipolygonRelation = getPreferredMultipolygonBuildingRelationForWay(wayResult.way);
+            OsmPrimitive target = multipolygonRelation != null ? multipolygonRelation : wayResult.way;
+            return new BuildingResolutionResult(target, "way-fallback", nearestCandidates,
                     relationResult.checked, wayResult.checked, relationResult.scanLimit, wayResult.scanLimit,
                     relationResult.limitReached, wayResult.limitReached);
         }
@@ -205,6 +207,8 @@ final class BuildingResolver {
             }
             for (RelationMember member : relation.getMembers()) {
                 String role = member.getRole();
+                // NOTE: inner rings are intentionally ignored.
+                // For UX reasons, clicks inside courtyards still count as building hits.
                 if (member.isWay() && (role == null || role.isEmpty() || "outer".equals(role))
                         && containsPoint(member.getWay(), map, e.getPoint(), clickLatLon)) {
                     return new RelationScanResult(relation, scanned, false, relationScanLimit);
@@ -310,22 +314,64 @@ final class BuildingResolver {
         return null;
     }
 
+    private Relation getPreferredMultipolygonBuildingRelationForWay(Way way) {
+        if (way == null || !way.isUsable()) {
+            return null;
+        }
+        for (OsmPrimitive referrer : way.getReferrers()) {
+            if (!(referrer instanceof Relation)) {
+                continue;
+            }
+            Relation relation = (Relation) referrer;
+            if (isMultipolygonBuildingRelation(relation)) {
+                return relation;
+            }
+        }
+        return null;
+    }
+
+    private boolean isMultipolygonBuildingRelation(Relation relation) {
+        return relation != null
+                && relation.isUsable()
+                && relation.hasTag("building")
+                && relation.hasTag("type", "multipolygon");
+    }
+
     private OsmPrimitive chooseBuilding(List<OsmPrimitive> nearby) {
         if (nearby == null || nearby.isEmpty()) {
             return null;
         }
 
-        // Prefer way buildings so selection feedback is immediately visible on map.
+        // Prefer direct hits on building multipolygon relations.
         for (OsmPrimitive primitive : nearby) {
-            if (primitive instanceof Way && primitive.hasTag("building")) {
+            if (primitive instanceof Relation && isMultipolygonBuildingRelation((Relation) primitive)) {
                 return primitive;
+            }
+        }
+
+        // Prefer multipolygon relation target over way, otherwise keep way-first behavior.
+        for (OsmPrimitive primitive : nearby) {
+            if (!(primitive instanceof Way)) {
+                continue;
+            }
+            Way way = (Way) primitive;
+            Relation multipolygonRelation = getPreferredMultipolygonBuildingRelationForWay(way);
+            if (multipolygonRelation != null) {
+                return multipolygonRelation;
+            }
+            if (way.hasTag("building")) {
+                return way;
             }
         }
 
         // If only an untagged outer way is hit, resolve to its building relation.
         for (OsmPrimitive primitive : nearby) {
             if (primitive instanceof Way) {
-                Relation relation = getBuildingRelationForWay((Way) primitive);
+                Way way = (Way) primitive;
+                Relation relation = getPreferredMultipolygonBuildingRelationForWay(way);
+                if (relation == null) {
+                    relation = getBuildingRelationForWay(way);
+                }
                 if (relation != null) {
                     return relation;
                 }
