@@ -1,17 +1,16 @@
-# HouseNumberClick 1.1.3 Release Notes
+# HouseNumberClick 1.1.4 Release Notes
 
 HouseNumberClick is a JOSM plugin for fast address tagging on buildings with street-focused editing workflows.
 
-## Highlights Since 1.1.2
+## Highlights Since 1.1.3
 
-- Street-mode working dialog received UX refinements for clearer section structure and compact labels.
-- Building overview rendering now uses green for addressed buildings.
-- House-number overlay connection lines are now twice as thick for improved readability.
-- House-number overlay refresh is now triggered immediately after successful address assignment clicks.
+- Street dialog option wording was aligned for clearer and more consistent terminology.
+- README terminology was synchronized with current dialog labels.
+- Usage documentation now includes the plugin icon and a short auto-increment note for house numbers.
 
-## Stability and UX Improvements
+## Documentation and I18N Maintenance
 
-- Improved immediate visual feedback reliability in active mapping workflows.
+- Translation extraction source list (`i18n/POTFILES.in`) was updated to include all UI classes using translated strings.
 
 ## Build Artifact
 

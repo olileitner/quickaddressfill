@@ -2,31 +2,11 @@
 
 JOSM plugin for fast house-number mapping on buildings.
 
-## What's New in 1.1.0
+## What's New in 1.1.4
 
-- New `Show street house number counts` window with per-street counts and click-to-zoom.
-- Sortable street-count table (default: count descending; header click toggles sorting).
-- Extended street workflow visuals: overlay, odd/even connection lines, duplicate highlighting, and overview-based zoom.
-- Input/shortcut behavior hardened so street navigation shortcuts do not interfere with text editing.
-
-## What's New in 1.1.1
-
-- Improved `L`, `+`, and `-` shortcut reliability when dialogs are open.
-- Prevented shortcut actions while typing in text fields.
-- Checkbox interactions now return focus to the map when Street Mode is active.
-
-## What's New in 1.1.2
-
-- Corrected duplicate marker logic in house-number overview (`xN` now reflects exact repeated values only).
-- Duplicate overview entries now zoom to the full base-number group.
-- Street-count list now marks streets with exact duplicate house numbers as `N (dup)`.
-
-## What's New in 1.1.3
-
-- Street dialog UX polish with clearer labels and compact section spacing.
-- Building overview addressed color changed to green.
-- Overlay connection lines made thicker for better readability.
-- Overlay refresh now happens immediately after successful address assignment.
+- Street dialog wording is now more consistent and clearer across all display options.
+- Updated option names in the UI and docs (for example `Auto-zoom to selected street`, `Show house number labels`, `Show all street counts`).
+- Improved README usage guidance with the plugin icon and explicit house-number auto-increment note.
 
 ## Demo
 ![HouseNumberClick demo](docs/images/housenumberclick-demo.gif)
