@@ -971,10 +971,20 @@ final class StreetSelectionDialog {
     }
 
     private boolean handleGlobalStreetNavigationKeyEvent(KeyEvent event) {
-        if (event.getID() != KeyEvent.KEY_RELEASED) {
+        if (!dialog.isVisible() || !streetModeController.isActive()) {
             return false;
         }
-        if (!dialog.isVisible() || !streetModeController.isActive()) {
+
+        if (event.getKeyCode() == KeyEvent.VK_ESCAPE && event.getID() == KeyEvent.KEY_PRESSED) {
+            if (!isDialogFocused()) {
+                return false;
+            }
+            streetModeController.deactivate();
+            event.consume();
+            return true;
+        }
+
+        if (event.getID() != KeyEvent.KEY_RELEASED) {
             return false;
         }
         if (isTextInputFocused()) {
@@ -1004,6 +1014,16 @@ final class StreetSelectionDialog {
         }
         for (Component component = focusOwner; component != null; component = component.getParent()) {
             if (component instanceof JComboBox && ((JComboBox<?>) component).isEditable()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isDialogFocused() {
+        Component focusOwner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+        for (Component component = focusOwner; component != null; component = component.getParent()) {
+            if (component == dialog) {
                 return true;
             }
         }
