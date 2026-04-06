@@ -73,9 +73,6 @@ JOSM plugin for fast house-number mapping on buildings.
 
 ![HouseNumberClick dialog](docs/images/housenumberclick-dialog.png)
 
-![HouseNumberClick street list](docs/images/housenumberclick-list.png)
-
-![HouseNumberClick street counts](docs/images/housenumberclick-count.png)
 
 ## Build and Test
 
