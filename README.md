@@ -21,6 +21,13 @@ JOSM plugin for fast house-number mapping on buildings.
 - Duplicate overview entries now zoom to the full base-number group.
 - Street-count list now marks streets with exact duplicate house numbers as `N (dup)`.
 
+## What's New in 1.1.3
+
+- Street dialog UX polish with clearer labels and compact section spacing.
+- Building overview addressed color changed to green.
+- Overlay connection lines made thicker for better readability.
+- Overlay refresh now happens immediately after successful address assignment.
+
 ## Demo
 ![HouseNumberClick demo](docs/images/housenumberclick-demo.gif)
 
@@ -49,7 +56,7 @@ JOSM plugin for fast house-number mapping on buildings.
 - `Show street house number counts`: list of streets with known house-number counts; click a row to zoom to that street.
 - Street-count table supports sorting by `Street` and `Count`.
 - `Show Overview`: building-only overview layer with color coding:
-  - blue = building has `addr:housenumber` on the building object,
+  - green = building has `addr:housenumber` on the building object,
   - subtle yellow/ochre = multipolygon building relation has no `addr:housenumber`, but at least one `outer` way has one (misplaced tag warning),
   - dark gray = no house number found.
 

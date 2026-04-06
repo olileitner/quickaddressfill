@@ -1,19 +1,17 @@
-# HouseNumberClick 1.1.2 Release Notes
+# HouseNumberClick 1.1.3 Release Notes
 
 HouseNumberClick is a JOSM plugin for fast address tagging on buildings with street-focused editing workflows.
 
-## Highlights Since 1.1.1
+## Highlights Since 1.1.2
 
-- Improved duplicate marker logic in house-number overview entries:
-  - mixed variants like `1`, `1a`, `1b` are no longer treated as duplicates
-  - exact repeats like `1, 1, 1a` or `1, 1a, 1a` are marked correctly
-- Added duplicate marker in street-count overview (`N (dup)`) for streets containing at least one exact duplicate house number.
-- Improved overview table click behavior so duplicate entries zoom to the full base-number group instead of a single representative object.
-- Restored map focus after clicks in overview/count tables to keep map-mode shortcut flow uninterrupted.
+- Street-mode working dialog received UX refinements for clearer section structure and compact labels.
+- Building overview rendering now uses green for addressed buildings.
+- House-number overlay connection lines are now twice as thick for improved readability.
+- House-number overlay refresh is now triggered immediately after successful address assignment clicks.
 
 ## Stability and UX Improvements
 
-- Added regression coverage for duplicate marker and grouped overview zoom behavior.
+- Improved immediate visual feedback reliability in active mapping workflows.
 
 ## Build Artifact
 

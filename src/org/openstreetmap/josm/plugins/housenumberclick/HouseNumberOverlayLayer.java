@@ -75,6 +75,11 @@ final class HouseNumberOverlayLayer extends Layer {
         invalidate();
     }
 
+    void invalidateDataCache() {
+        cacheDirty = true;
+        invalidate();
+    }
+
     @Override
     public void paint(Graphics2D graphics, MapView mapView, Bounds bounds) {
         if (mapView == null || selectedStreet.isEmpty()) {
@@ -169,7 +174,7 @@ final class HouseNumberOverlayLayer extends Layer {
     }
 
     private void drawConnectionLines(Graphics2D g, MapView mapView, List<HouseNumberOverlayEntry> entries) {
-        g.setStroke(new BasicStroke(3.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.setStroke(new BasicStroke(6.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 
         if (!separateEvenOddConnectionLinesEnabled) {
             g.setColor(BUBBLE_FILL_COLOR);

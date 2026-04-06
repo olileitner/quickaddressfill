@@ -359,6 +359,7 @@ final class HouseNumberClickStreetMapMode extends MapMode {
         boolean buildingTypeWasUsed = !normalize(buildingType).isEmpty();
         OsmPrimitive writeTarget = resolveWriteTargetForApply(building);
         BuildingTagApplier.applyAddress(writeTarget, streetName, postcode, buildingType, houseNumber);
+        controller.onAddressApplied();
         DataSet dataSet = MainApplication.getLayerManager().getEditDataSet();
         if (dataSet != null) {
             dataSet.setSelected(Collections.singleton(getSelectionTarget(building)));

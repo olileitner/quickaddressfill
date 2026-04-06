@@ -367,6 +367,13 @@ final class StreetModeController {
         activate(lastSelection);
     }
 
+    void onAddressApplied() {
+        if (houseNumberOverlayLayer != null) {
+            houseNumberOverlayLayer.invalidateDataCache();
+        }
+        refreshOverlayLayer();
+    }
+
     void createBuildingOverviewLayer() {
         LayerManager layerManager = MainApplication.getLayerManager();
         if (layerManager == null) {

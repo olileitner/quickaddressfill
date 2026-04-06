@@ -27,7 +27,7 @@ import org.openstreetmap.josm.tools.ImageProvider;
 
 final class BuildingOverviewLayer extends Layer {
 
-    private static final Color ADDRESSED_FILL_COLOR = new Color(80, 132, 220, 155);
+    private static final Color ADDRESSED_FILL_COLOR = new Color(80, 170, 110, 155);
     private static final Color UNADDRESSED_FILL_COLOR = new Color(60, 60, 60, 155);
     private static final Color MISPLACED_COLOR = new Color(180, 150, 60, 120);
     private static final Color OUTLINE_COLOR = new Color(20, 20, 20, 170);
@@ -154,7 +154,7 @@ final class BuildingOverviewLayer extends Layer {
 
     @Override
     public String getToolTipText() {
-        return I18n.tr("Building-only overview (blue: with housenumber, gray: without housenumber)");
+        return I18n.tr("Building-only overview (green: with housenumber, gray: without housenumber)");
     }
 
     @Override
