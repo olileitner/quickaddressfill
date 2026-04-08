@@ -64,7 +64,7 @@ final class HouseNumberSplitMapMode extends MapMode {
         this.splitKeyListener = new KeyAdapter() {
             @Override
             public void keyReleased(KeyEvent e) {
-                if (interactionKind != InteractionKind.TERRACE_CLICK || e == null) {
+                if (HouseNumberSplitMapMode.this.interactionKind != InteractionKind.TERRACE_CLICK || e == null) {
                     return;
                 }
                 handleTerraceModeKey(e);
@@ -77,6 +77,7 @@ final class HouseNumberSplitMapMode extends MapMode {
         this.terraceParts = nextTerraceParts >= 2 ? nextTerraceParts : 2;
         dragStart = null;
         dragCurrent = null;
+        applyInteractionPresentation();
         repaintMapView();
     }
 
@@ -93,11 +94,7 @@ final class HouseNumberSplitMapMode extends MapMode {
             map.mapView.addMouseListener(this);
             map.mapView.addMouseMotionListener(this);
             map.mapView.addKeyListener(splitKeyListener);
-            dragOverlayAttached = interactionKind == InteractionKind.LINE_SPLIT
-                    && map.mapView.addTemporaryLayer(dragLineOverlay);
-            map.mapView.setCursor(interactionKind == InteractionKind.LINE_SPLIT
-                    ? createSplitCursor()
-                    : Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
+            applyInteractionPresentation();
             map.mapView.requestFocusInWindow();
         }
     }
@@ -242,6 +239,26 @@ final class HouseNumberSplitMapMode extends MapMode {
         }
     }
 
+    private void applyInteractionPresentation() {
+        MapFrame map = MainApplication.getMap();
+        if (map == null || map.mapView == null) {
+            return;
+        }
+
+        if (interactionKind == InteractionKind.LINE_SPLIT) {
+            if (!dragOverlayAttached) {
+                dragOverlayAttached = map.mapView.addTemporaryLayer(dragLineOverlay);
+            }
+            map.mapView.setCursor(createSplitCursor());
+        } else {
+            if (dragOverlayAttached) {
+                map.mapView.removeTemporaryLayer(dragLineOverlay);
+                dragOverlayAttached = false;
+            }
+            map.mapView.setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
+        }
+    }
+
     private Way resolveClickedBuilding(MouseEvent event) {
         MapFrame map = MainApplication.getMap();
         if (map == null || map.mapView == null || event == null || MainApplication.getLayerManager() == null) {
@@ -284,18 +301,26 @@ final class HouseNumberSplitMapMode extends MapMode {
             return;
         }
 
-        char keyChar = event.getKeyChar();
-        if (!Character.isDigit(keyChar)) {
+        int digit = keyCodeToDigit(keyCode);
+        if (digit < 0) {
             return;
         }
-        int digit = Character.digit(keyChar, 10);
-        if (digit < 2) {
-            terraceParts = 2;
-        } else {
-            terraceParts = digit;
-        }
+
+        // Number keys directly choose parts to avoid accidental multi-digit values (e.g. 2 -> 24).
+        terraceParts = Math.max(2, digit);
         event.consume();
     }
+
+    private int keyCodeToDigit(int keyCode) {
+        if (keyCode >= KeyEvent.VK_0 && keyCode <= KeyEvent.VK_9) {
+            return keyCode - KeyEvent.VK_0;
+        }
+        if (keyCode >= KeyEvent.VK_NUMPAD0 && keyCode <= KeyEvent.VK_NUMPAD9) {
+            return keyCode - KeyEvent.VK_NUMPAD0;
+        }
+        return -1;
+    }
+
 
     private boolean containsClickPoint(Way way, MapFrame map, Point clickPoint, LatLon clickLatLon) {
         if (way == null || map == null || map.mapView == null || clickPoint == null || clickLatLon == null) {

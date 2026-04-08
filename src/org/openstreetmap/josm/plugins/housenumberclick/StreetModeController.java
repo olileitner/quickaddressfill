@@ -650,22 +650,24 @@ final class StreetModeController {
     SingleSplitResult executeInternalSingleSplit(LatLon lineStart, LatLon lineEnd) {
         DataSet dataSet = getActiveEditDataSet();
         if (dataSet == null) {
-            return SingleSplitResult.failure("No editable dataset is available.");
+            return failSingleSplit("No editable dataset is available.");
         }
         dataSet.setSelected(Collections.emptyList());
 
-        List<Way> intersectedBuildings = findIntersectedClosedBuildingWays(dataSet, lineStart, lineEnd);
-        if (intersectedBuildings.isEmpty()) {
-            return SingleSplitResult.failure("Split line does not intersect a building.");
+        SplitTargetScan splitTargetScan = findSingleSplitTargetWay(dataSet, lineStart, lineEnd);
+        if (splitTargetScan.ambiguous) {
+            return failSingleSplit("Split line intersects multiple buildings. Draw a line through only one building.");
         }
-        if (intersectedBuildings.size() > 1) {
-            return SingleSplitResult.failure("Split line intersects multiple buildings. Draw a line through only one building.");
+        if (splitTargetScan.targetWay == null) {
+            return failSingleSplit(splitTargetScan.touchOnly
+                    ? "Split line only touches building edges. Draw the line through one building."
+                    : "Split line does not intersect a building.");
         }
 
         SplitContext splitContext = new SplitContext(currentStreet, currentPostcode);
         SingleSplitResult result = singleBuildingSplitService.splitBuilding(
                 dataSet,
-                intersectedBuildings.get(0),
+                splitTargetScan.targetWay,
                 lineStart,
                 lineEnd,
                 splitContext
@@ -682,6 +684,14 @@ final class StreetModeController {
             dataSet.setSelected(Collections.emptyList());
         }
         return result;
+    }
+
+    private SingleSplitResult failSingleSplit(String message) {
+        SingleSplitResult failure = SingleSplitResult.failure(message);
+        new Notification(I18n.tr(failure.getMessage()))
+                .setDuration(Notification.TIME_SHORT)
+                .show();
+        return failure;
     }
 
     TerraceSplitResult executeInternalTerraceSplitFromDialog(int parts) {
@@ -758,22 +768,54 @@ final class StreetModeController {
         }
     }
 
-    private List<Way> findIntersectedClosedBuildingWays(DataSet dataSet, LatLon lineStart, LatLon lineEnd) {
+    private SplitTargetScan findSingleSplitTargetWay(DataSet dataSet, LatLon lineStart, LatLon lineEnd) {
         if (dataSet == null || lineStart == null || lineEnd == null) {
-            return List.of();
+            return SplitTargetScan.none();
         }
 
-        List<Way> intersected = new ArrayList<>();
+        Way target = null;
+        boolean touchedOnly = false;
+        boolean ambiguous = false;
         for (Way way : dataSet.getWays()) {
             if (way == null || !way.isUsable() || !way.isClosed() || !way.hasKey("building")) {
                 continue;
             }
             IntersectionScanResult scanResult = cornerSnapService.findSplitIntersections(way, lineStart, lineEnd);
-            if (scanResult.isSuccess() && !scanResult.getIntersections().isEmpty()) {
-                intersected.add(way);
+            if (!scanResult.isSuccess()) {
+                if (scanResult.getMessage() != null && scanResult.getMessage().contains("overlaps building edge")) {
+                    touchedOnly = true;
+                }
+                continue;
+            }
+
+            int intersections = scanResult.getIntersections().size();
+            if (intersections >= 2) {
+                if (target != null) {
+                    ambiguous = true;
+                    break;
+                }
+                target = way;
+            } else if (intersections == 1) {
+                touchedOnly = true;
             }
         }
-        return intersected;
+        return new SplitTargetScan(target, touchedOnly, ambiguous);
+    }
+
+    private static final class SplitTargetScan {
+        private final Way targetWay;
+        private final boolean touchOnly;
+        private final boolean ambiguous;
+
+        private SplitTargetScan(Way targetWay, boolean touchOnly, boolean ambiguous) {
+            this.targetWay = targetWay;
+            this.touchOnly = touchOnly;
+            this.ambiguous = ambiguous;
+        }
+
+        private static SplitTargetScan none() {
+            return new SplitTargetScan(null, false, false);
+        }
     }
 
     void onInternalSplitFlowFinished(SplitFlowOutcome outcome) {

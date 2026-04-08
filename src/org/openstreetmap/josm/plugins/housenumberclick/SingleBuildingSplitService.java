@@ -30,6 +30,7 @@ final class SingleBuildingSplitService {
     }
 
     SingleSplitResult splitBuilding(DataSet dataSet, Way buildingWay, LatLon lineStart, LatLon lineEnd, SplitContext context) {
+        final int undoStartSize = UndoRedoHandler.getInstance().getUndoCommands().size();
         if (dataSet == null) {
             return SingleSplitResult.failure("No editable dataset is available.");
         }
@@ -79,20 +80,20 @@ final class SingleBuildingSplitService {
 
         RingPaths ringPaths = extractRingPaths(buildingWay, splitNodes.get(0), splitNodes.get(1));
         if (ringPaths == null) {
-            return SingleSplitResult.failure("Unable to compute split paths for selected building.");
+            return rollbackAndFailure(undoStartSize, "Unable to compute split paths for selected building.");
         }
 
         List<Node> polygonANodes = buildClosedPolygon(ringPaths.pathFromFirstToSecond);
         List<Node> polygonBNodes = buildClosedPolygon(ringPaths.pathFromSecondToFirst);
         if (!isValidClosedPolygon(polygonANodes) || !isValidClosedPolygon(polygonBNodes)) {
-            return SingleSplitResult.failure("Split points would create invalid polygons.");
+            return rollbackAndFailure(undoStartSize, "Split points would create invalid polygons.");
         }
 
         List<List<Node>> splitChunks = Arrays.asList(polygonANodes, polygonBNodes);
         List<OsmPrimitive> splitSelection = Arrays.asList(buildingWay, splitNodes.get(0), splitNodes.get(1));
         Optional<SplitWayCommand> splitCommandOptional = splitCommandBuilder.createSplitWayCommand(buildingWay, splitChunks, splitSelection);
         if (splitCommandOptional.isEmpty()) {
-            return SingleSplitResult.failure("Building split could not be executed.");
+            return rollbackAndFailure(undoStartSize, "Building split could not be executed.");
         }
 
         SplitWayCommand splitCommand = splitCommandOptional.get();
@@ -103,6 +104,18 @@ final class SingleBuildingSplitService {
         UndoRedoHandler.getInstance().add(splitCommandBuilder.buildSequenceCommand("Split building", commands));
 
         return SingleSplitResult.success("Building split completed.", orderedResultWays);
+    }
+
+    private SingleSplitResult rollbackAndFailure(int undoStartSize, String message) {
+        rollbackCommandsAddedSince(undoStartSize);
+        return SingleSplitResult.failure(message);
+    }
+
+    private void rollbackCommandsAddedSince(int undoStartSize) {
+        int undoCount = UndoRedoHandler.getInstance().getUndoCommands().size() - undoStartSize;
+        if (undoCount > 0) {
+            UndoRedoHandler.getInstance().undo(undoCount);
+        }
     }
 
     private RingPaths extractRingPaths(Way way, Node firstNode, Node secondNode) {
