@@ -80,6 +80,10 @@ final class HouseNumberSplitMapMode extends MapMode {
         repaintMapView();
     }
 
+    InteractionKind getInteractionKind() {
+        return interactionKind;
+    }
+
     @Override
     public void enterMode() {
         super.enterMode();
@@ -91,7 +95,9 @@ final class HouseNumberSplitMapMode extends MapMode {
             map.mapView.addKeyListener(splitKeyListener);
             dragOverlayAttached = interactionKind == InteractionKind.LINE_SPLIT
                     && map.mapView.addTemporaryLayer(dragLineOverlay);
-            map.mapView.setCursor(createSplitCursor());
+            map.mapView.setCursor(interactionKind == InteractionKind.LINE_SPLIT
+                    ? createSplitCursor()
+                    : Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
             map.mapView.requestFocusInWindow();
         }
     }
@@ -267,6 +273,11 @@ final class HouseNumberSplitMapMode extends MapMode {
 
     private void handleTerraceModeKey(KeyEvent event) {
         int keyCode = event.getKeyCode();
+        if (keyCode == KeyEvent.VK_ESCAPE) {
+            completeWithOutcome(StreetModeController.SplitFlowOutcome.CANCELLED);
+            event.consume();
+            return;
+        }
         if (keyCode == KeyEvent.VK_ENTER) {
             completeWithOutcome(StreetModeController.SplitFlowOutcome.CANCELLED);
             event.consume();

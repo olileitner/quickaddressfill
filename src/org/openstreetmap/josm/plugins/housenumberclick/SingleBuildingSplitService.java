@@ -100,9 +100,6 @@ final class SingleBuildingSplitService {
 
         List<Command> commands = new ArrayList<>();
         commands.add(splitCommand);
-        if (!orderedResultWays.isEmpty()) {
-            commands.add(splitCommandBuilder.buildSelectCommand(dataSet, orderedResultWays));
-        }
         UndoRedoHandler.getInstance().add(splitCommandBuilder.buildSequenceCommand("Split building", commands));
 
         return SingleSplitResult.success("Building split completed.", orderedResultWays);

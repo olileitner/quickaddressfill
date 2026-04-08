@@ -94,6 +94,8 @@ final class StreetSelectionDialog {
     private static final int DIALOG_OFFSET_Y = 80;
     private static final String SHOW_OVERVIEW_BUTTON_TEXT = I18n.tr("Show overview");
     private static final String HIDE_OVERVIEW_BUTTON_TEXT = I18n.tr("Hide overview");
+    private static final String SPLIT_BUILDING_BUTTON_TEXT = I18n.tr("Split building");
+    private static final String CREATE_ROW_HOUSES_BUTTON_TEXT = I18n.tr("Create row houses");
     private static final List<String> COMMON_BUILDING_TYPES = Arrays.asList(
             "yes", "apartments", "residential", "house", "detached", "terrace", "garage", "garages",
             "retail", "commercial", "industrial", "warehouse", "office", "school", "hospital", "hotel",
@@ -222,10 +224,10 @@ final class StreetSelectionDialog {
         modeStatePanel.add(continueWorkingButton, BorderLayout.EAST);
 
         JPanel splitToolsPanel = new JPanel(new GridBagLayout());
-        this.splitBuildingButton = new JButton(I18n.tr("Split building"));
+        this.splitBuildingButton = new JButton(SPLIT_BUILDING_BUTTON_TEXT);
         this.splitBuildingButton.addActionListener(e -> onSplitBuildingRequested());
         this.splitMakeRectangularCheckbox = new JCheckBox(I18n.tr("Make rectangular"));
-        this.createRowHousesButton = new JButton(I18n.tr("Create row houses"));
+        this.createRowHousesButton = new JButton(CREATE_ROW_HOUSES_BUTTON_TEXT);
         this.createRowHousesButton.addActionListener(e -> onCreateRowHousesRequested());
         this.rowHousePartsField = new JTextField("2", 4);
         harmonizePrimaryActionButtonWidths();
@@ -678,6 +680,22 @@ final class StreetSelectionDialog {
             modeStateLabel.setForeground(new java.awt.Color(150, 60, 60));
             continueWorkingButton.setVisible(true);
         }
+        refreshSplitToolButtonState();
+    }
+
+    private void refreshSplitToolButtonState() {
+        if (splitBuildingButton == null || createRowHousesButton == null) {
+            return;
+        }
+        boolean lineSplitActive = streetModeController.isLineSplitModeActive();
+        boolean terraceSplitActive = streetModeController.isTerraceSplitModeActive();
+
+        splitBuildingButton.setText(lineSplitActive
+                ? I18n.tr("{0} (ON)", SPLIT_BUILDING_BUTTON_TEXT)
+                : SPLIT_BUILDING_BUTTON_TEXT);
+        createRowHousesButton.setText(terraceSplitActive
+                ? I18n.tr("{0} (ON)", CREATE_ROW_HOUSES_BUTTON_TEXT)
+                : CREATE_ROW_HOUSES_BUTTON_TEXT);
     }
 
     private JPanel createAddressSection(JPanel incrementButtonsPanel) {
@@ -853,6 +871,7 @@ final class StreetSelectionDialog {
         runSplitBuildingAction(() -> streetModeController.startInternalSingleSplitFlowFromDialog(
                 splitMakeRectangularCheckbox != null && splitMakeRectangularCheckbox.isSelected()
         ));
+        refreshSplitToolButtonState();
     }
 
     private void onCreateRowHousesRequested() {
@@ -865,6 +884,7 @@ final class StreetSelectionDialog {
                     .setDuration(Notification.TIME_SHORT)
                     .show();
         }
+        refreshSplitToolButtonState();
     }
 
     static boolean runSplitBuildingAction(BooleanSupplier action) {

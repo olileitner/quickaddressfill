@@ -714,7 +714,7 @@ public final class HouseNumberClickRiskRegressionTests {
 
         assertTrue(result.isSuccess(), "split should succeed for exactly two valid intersections");
         assertEquals(2, result.getResultWays().size(), "split should expose two result ways");
-        assertEquals(2, dataSet.getSelectedWays().size(), "result ways should be selected");
+        assertEquals(0, dataSet.getSelectedWays().size(), "service split should not change selection directly");
     }
 
     private static void testSingleSplitReusesExactCornerNodes() {

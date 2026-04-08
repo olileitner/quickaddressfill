@@ -118,6 +118,22 @@ final class StreetModeController {
         return map != null && streetMapMode != null && map.mapMode == streetMapMode;
     }
 
+    boolean isLineSplitModeActive() {
+        MapFrame map = MainApplication.getMap();
+        return map != null
+                && splitMapMode != null
+                && map.mapMode == splitMapMode
+                && splitMapMode.getInteractionKind() == HouseNumberSplitMapMode.InteractionKind.LINE_SPLIT;
+    }
+
+    boolean isTerraceSplitModeActive() {
+        MapFrame map = MainApplication.getMap();
+        return map != null
+                && splitMapMode != null
+                && map.mapMode == splitMapMode
+                && splitMapMode.getInteractionKind() == HouseNumberSplitMapMode.InteractionKind.TERRACE_CLICK;
+    }
+
     void activate(String streetName, String postcode, String buildingType, String houseNumber, int houseNumberIncrementStep) {
         activate(new AddressSelection(streetName, postcode, buildingType, houseNumber, houseNumberIncrementStep));
     }
