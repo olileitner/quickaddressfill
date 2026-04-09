@@ -34,7 +34,7 @@ public final class HouseNumberClickRiskRegressionTests {
             run("HouseNumberService apply increment keeps existing behavior", HouseNumberClickRiskRegressionTests::testHouseNumberIncrementAfterApplyRules);
             run("HouseNumberService number and letter part updates", HouseNumberClickRiskRegressionTests::testHouseNumberPartUpdateRules);
             run("AddressReadbackService reads address tags from building", HouseNumberClickRiskRegressionTests::testAddressReadbackFromBuilding);
-            run("AddressReadbackService street fallback keeps postcode/buildingType", HouseNumberClickRiskRegressionTests::testAddressReadbackStreetFallback);
+            run("AddressReadbackService street fallback only returns street", HouseNumberClickRiskRegressionTests::testAddressReadbackStreetFallback);
             run("AddressReadbackService candidate fallback order", HouseNumberClickRiskRegressionTests::testAddressReadbackCandidateOrderAndMissingTags);
             run("PostcodeCollector collects sorted visible postcodes", HouseNumberClickRiskRegressionTests::testPostcodeCollectorCollectsSortedVisiblePostcodes);
             run("AddressConflictService detects street and postcode conflicts", HouseNumberClickRiskRegressionTests::testAddressConflictDetection);
@@ -139,9 +139,9 @@ public final class HouseNumberClickRiskRegressionTests {
         AddressReadbackService.AddressReadbackResult result = service.readFromStreetFallback(" Example Avenue ", " 99999 ", "residential");
 
         assertEquals("Example Avenue", result.getStreet(), "street fallback should be trimmed");
-        assertEquals("99999", result.getPostcode(), "postcode should keep current value");
-        assertEquals("residential", result.getBuildingType(), "building type should keep current value");
-        assertEquals("1", result.getHouseNumber(), "street fallback should reset house number to 1");
+        assertEquals("", result.getPostcode(), "street fallback should not provide a postcode override");
+        assertEquals("", result.getBuildingType(), "street fallback should not provide a building-type override");
+        assertEquals("", result.getHouseNumber(), "street fallback should not provide a house-number override");
         assertEquals("street-fallback", result.getSource(), "source should mark street fallback");
         assertEquals(null, service.readFromStreetFallback("   ", "99999", "residential"), "empty fallback street should produce no readback result");
     }

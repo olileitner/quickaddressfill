@@ -89,7 +89,7 @@ final class StreetSelectionDialog {
     private boolean streetNavigationDispatcherRegistered;
 
     private static final int DIALOG_WIDTH = 390;
-    private static final int DIALOG_HEIGHT = 720;
+    private static final int DIALOG_HEIGHT = 770;
     private static final int DIALOG_OFFSET_X = 66;
     private static final int DIALOG_OFFSET_Y = 80;
     private static final String SHOW_OVERVIEW_BUTTON_TEXT = I18n.tr("Show overview");
@@ -500,9 +500,18 @@ final class StreetSelectionDialog {
     private void updateAddressValuesFromMode(String streetName, String postcode, String buildingType, String houseNumber) {
         updatingInputs = true;
         setStreetSelection(streetName);
-        // Keep the user's selected postcode stable; readback should not silently override it.
-        buildingTypeCombo.getEditor().setItem(normalize(buildingType));
-        houseNumberField.setText(normalize(houseNumber));
+        String normalizedPostcode = normalize(postcode);
+        if (!normalizedPostcode.isEmpty()) {
+            setSelectedPostcode(normalizedPostcode);
+        }
+        String normalizedBuildingType = normalize(buildingType);
+        if (!normalizedBuildingType.isEmpty()) {
+            buildingTypeCombo.getEditor().setItem(normalizedBuildingType);
+        }
+        String normalizedHouseNumber = normalize(houseNumber);
+        if (!normalizedHouseNumber.isEmpty()) {
+            houseNumberField.setText(normalizedHouseNumber);
+        }
         lastSelectedStreet = getSelectedStreet();
         updatingInputs = false;
         notifyAddressChanged();

@@ -63,7 +63,7 @@ final class AddressReadbackService {
         if (normalizedStreet.isEmpty()) {
             return null;
         }
-        return new AddressReadbackResult(normalizedStreet, currentPostcode, currentBuildingType, "1", "street-fallback");
+        return new AddressReadbackResult(normalizedStreet, "", "", "", "street-fallback");
     }
 
     String resolveStreetNameAtClick(MapFrame map, MouseEvent e) {

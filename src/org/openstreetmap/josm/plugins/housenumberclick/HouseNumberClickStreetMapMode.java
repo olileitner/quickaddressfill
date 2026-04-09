@@ -166,7 +166,7 @@ final class HouseNumberClickStreetMapMode extends MapMode {
             }
             return false;
         }
-
+ 
         int id = e.getID();
         if (!e.isConsumed() && id == KeyEvent.KEY_PRESSED && e.getKeyCode() == KeyEvent.VK_ALT) {
             if (!isTextInputFocused() && controller.activateTemporarySplitModeFromAlt()) {
