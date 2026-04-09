@@ -40,6 +40,7 @@ public final class HouseNumberClickRiskRegressionTests {
             run("AddressConflictService detects street and postcode conflicts", HouseNumberClickRiskRegressionTests::testAddressConflictDetection);
             run("AddressConflictService handles missing tags and partial differences", HouseNumberClickRiskRegressionTests::testAddressConflictEdgeCases);
             run("AddressConflictService building-type yes overwrite is ignored", HouseNumberClickRiskRegressionTests::testAddressConflictBuildingTypeYesOverwriteIgnored);
+            run("Overwrite warning supports independent street and postcode suppression", HouseNumberClickRiskRegressionTests::testOverwriteWarningSupportsIndependentStreetAndPostcodeSuppression);
             run("ConflictDialogModelBuilder keeps field order and value mapping", HouseNumberClickRiskRegressionTests::testConflictDialogModelBuilderMapping);
             run("ConflictDialogModelBuilder handles empty analysis", HouseNumberClickRiskRegressionTests::testConflictDialogModelBuilderEmpty);
             run("HouseNumberOverview duplicate marker ignores mixed variants", HouseNumberClickRiskRegressionTests::testOverviewDuplicateMarkerIgnoresMixedVariants);
@@ -270,6 +271,17 @@ public final class HouseNumberClickRiskRegressionTests {
         assertTrue(realTypeOverwrite.hasConflict(), "overwriting a specific building type should trigger warning");
         assertEquals(1, realTypeOverwrite.getDifferingFields().size(), "specific building-type overwrite should add one dialog row");
         assertEquals("building", realTypeOverwrite.getDifferingFields().get(0).getKey(), "building overwrite row should use building key");
+    }
+
+    private static void testOverwriteWarningSupportsIndependentStreetAndPostcodeSuppression() throws Exception {
+        String source = readPluginSource("HouseNumberClickStreetMapMode.java");
+
+        assertTrue(source.contains("Do not warn again for street:"),
+                "overwrite dialog should offer a street-specific suppression option");
+        assertTrue(source.contains("Do not warn again for postcode:"),
+                "overwrite dialog should offer a postcode-specific suppression option");
+        assertTrue(source.contains("shouldShowOverwriteWarning"),
+                "warning decision should be derived from field-specific suppression checks");
     }
 
     private static void testConflictDialogModelBuilderMapping() {
