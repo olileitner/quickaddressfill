@@ -37,6 +37,7 @@ import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.tools.I18n;
+import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
 
 final class HouseNumberClickStreetMapMode extends MapMode {
@@ -63,6 +64,7 @@ final class HouseNumberClickStreetMapMode extends MapMode {
     private int houseNumberIncrementStep = 1;
     private String warningSuppressedStreet;
     private boolean ctrlDispatcherRegistered;
+    private boolean ctrlPressedForCursor;
     private long lastClickWhen;
     private int lastClickX = Integer.MIN_VALUE;
     private int lastClickY = Integer.MIN_VALUE;
@@ -117,6 +119,7 @@ final class HouseNumberClickStreetMapMode extends MapMode {
     @Override
     public void enterMode() {
         super.enterMode();
+        ctrlPressedForCursor = false;
         registerCtrlKeyDispatcher();
         MapFrame map = MainApplication.getMap();
         if (map != null && map.mapView != null) {
@@ -130,6 +133,7 @@ final class HouseNumberClickStreetMapMode extends MapMode {
 
     @Override
     public void exitMode() {
+        ctrlPressedForCursor = false;
         unregisterCtrlKeyDispatcher();
         MapFrame map = MainApplication.getMap();
         if (map != null && map.mapView != null) {
@@ -149,6 +153,17 @@ final class HouseNumberClickStreetMapMode extends MapMode {
             return false;
         }
         if (!isModeActiveOnMap(MainApplication.getMap())) {
+            return false;
+        }
+
+        if (e.getKeyCode() == KeyEvent.VK_CONTROL) {
+            if (e.getID() == KeyEvent.KEY_PRESSED) {
+                ctrlPressedForCursor = true;
+                updateHouseNumberCursor();
+            } else if (e.getID() == KeyEvent.KEY_RELEASED) {
+                ctrlPressedForCursor = false;
+                updateHouseNumberCursor();
+            }
             return false;
         }
 
@@ -576,7 +591,19 @@ final class HouseNumberClickStreetMapMode extends MapMode {
         if (map == null || map.mapView == null || !isModeActiveOnMap(map)) {
             return;
         }
-        map.mapView.setCursor(createHouseNumberCursor());
+        map.mapView.setCursor(ctrlPressedForCursor ? createCtrlZoomCursor() : createHouseNumberCursor());
+    }
+
+    private Cursor createCtrlZoomCursor() {
+        try {
+            Cursor zoomCursor = ImageProvider.getCursor("normal", "zoom");
+            if (zoomCursor != null) {
+                return zoomCursor;
+            }
+        } catch (RuntimeException ex) {
+            Logging.debug(ex);
+        }
+        return Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR);
     }
 
     private Cursor createHouseNumberCursor() {
