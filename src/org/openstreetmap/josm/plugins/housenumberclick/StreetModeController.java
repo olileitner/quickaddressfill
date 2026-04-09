@@ -443,7 +443,7 @@ final class StreetModeController {
     }
 
     private void refreshOverlayLayer() {
-        if (!houseNumberOverlayEnabled || normalize(currentStreet).isEmpty()) {
+        if (normalize(currentStreet).isEmpty()) {
             removeOverlayLayer();
             return;
         }
@@ -461,6 +461,7 @@ final class StreetModeController {
 
         houseNumberOverlayLayer.updateSettings(
                 currentStreet,
+                houseNumberOverlayEnabled,
                 connectionLinesEnabled,
                 separateEvenOddConnectionLinesEnabled
         );

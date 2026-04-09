@@ -50,6 +50,7 @@ final class HouseNumberOverlayLayer extends Layer {
 
     private final HouseNumberOverlayCollector collector;
     private String selectedStreet = "";
+    private boolean houseNumberLabelsEnabled;
     private boolean connectionLinesEnabled;
     private boolean separateEvenOddConnectionLinesEnabled;
     private DataSet cachedDataSet;
@@ -64,12 +65,14 @@ final class HouseNumberOverlayLayer extends Layer {
         this.collector = new HouseNumberOverlayCollector();
     }
 
-    void updateSettings(String selectedStreet, boolean connectionLinesEnabled, boolean separateEvenOddConnectionLinesEnabled) {
+    void updateSettings(String selectedStreet, boolean houseNumberLabelsEnabled, boolean connectionLinesEnabled,
+            boolean separateEvenOddConnectionLinesEnabled) {
         String normalizedStreet = normalize(selectedStreet);
         if (!normalizedStreet.equals(this.selectedStreet)) {
             cacheDirty = true;
         }
         this.selectedStreet = normalizedStreet;
+        this.houseNumberLabelsEnabled = houseNumberLabelsEnabled;
         this.connectionLinesEnabled = connectionLinesEnabled;
         this.separateEvenOddConnectionLinesEnabled = connectionLinesEnabled && separateEvenOddConnectionLinesEnabled;
         invalidate();
@@ -99,6 +102,11 @@ final class HouseNumberOverlayLayer extends Layer {
         g.setFont(TEXT_FONT);
 
         drawSelectedStreetHighlight(g, mapView, dataSet);
+
+        if (!houseNumberLabelsEnabled) {
+            g.dispose();
+            return;
+        }
 
         refreshCacheIfNeeded(dataSet);
         List<HouseNumberOverlayEntry> entries = cachedEntries;
