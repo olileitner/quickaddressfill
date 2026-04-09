@@ -80,6 +80,7 @@ final class StreetModeController {
     private final TerraceSplitService terraceSplitService = new TerraceSplitService();
     private final CornerSnapService cornerSnapService = new CornerSnapService();
     private boolean rectangularizeAfterLineSplit;
+    private int modifierTerraceParts = 2;
     private AddressSelection lastSelection = new AddressSelection("", "", "", "", 1);
     private List<String> streetNavigationOrder = List.of();
     private String currentStreet = "";
@@ -605,19 +606,44 @@ final class StreetModeController {
     }
 
     boolean activateInternalSplitMode() {
-        return activateInternalSplitMode(HouseNumberSplitMapMode.InteractionKind.LINE_SPLIT, 0);
+        return activateInternalSplitMode(HouseNumberSplitMapMode.InteractionKind.LINE_SPLIT, 0, false);
+    }
+
+    boolean activateTemporarySplitModeFromAlt() {
+        DataSet dataSet = getActiveEditDataSet();
+        if (dataSet == null) {
+            showNoDataSetNotification();
+            return false;
+        }
+        return activateInternalSplitMode(HouseNumberSplitMapMode.InteractionKind.LINE_SPLIT, modifierTerraceParts, true);
+    }
+
+    int getModifierTerraceParts() {
+        return modifierTerraceParts;
+    }
+
+    void updateModifierTerraceParts(int parts) {
+        if (parts >= 2 && parts <= 9) {
+            modifierTerraceParts = parts;
+        }
     }
 
     private boolean activateInternalSplitMode(HouseNumberSplitMapMode.InteractionKind interactionKind, int terraceParts) {
+        return activateInternalSplitMode(interactionKind, terraceParts, false);
+    }
+
+    private boolean activateInternalSplitMode(HouseNumberSplitMapMode.InteractionKind interactionKind,
+                                              int terraceParts,
+                                              boolean temporaryModifierSession) {
         MapFrame map = MainApplication.getMap();
         if (map == null || map.mapView == null) {
             return false;
         }
 
         if (splitMapMode == null) {
-            splitMapMode = new HouseNumberSplitMapMode(this, interactionKind, terraceParts);
+            splitMapMode = new HouseNumberSplitMapMode(this, interactionKind, terraceParts, temporaryModifierSession);
         } else {
-            splitMapMode.configureFor(interactionKind, terraceParts);
+            splitMapMode.configureFor(interactionKind, terraceParts, temporaryModifierSession);
         }
 
         if (map.mapMode == splitMapMode) {
@@ -703,6 +729,8 @@ final class StreetModeController {
         if (!new TerraceSplitRequest(parts).hasValidParts()) {
             return TerraceSplitResult.failure("Create row houses requires parts >= 2.");
         }
+
+        updateModifierTerraceParts(parts);
 
         dataSet.setSelected(Collections.emptyList());
         if (!activateInternalSplitMode(HouseNumberSplitMapMode.InteractionKind.TERRACE_CLICK, parts)) {

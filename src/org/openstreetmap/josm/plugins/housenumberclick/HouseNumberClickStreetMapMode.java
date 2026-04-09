@@ -62,7 +62,6 @@ final class HouseNumberClickStreetMapMode extends MapMode {
     private String houseNumber;
     private int houseNumberIncrementStep = 1;
     private String warningSuppressedStreet;
-    private boolean controlPressed;
     private boolean ctrlDispatcherRegistered;
     private long lastClickWhen;
     private int lastClickX = Integer.MIN_VALUE;
@@ -92,19 +91,9 @@ final class HouseNumberClickStreetMapMode extends MapMode {
         this.escListener = new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_CONTROL) {
-                    setControlPressed(true);
-                }
                 if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
                     controller.deactivate();
                     e.consume();
-                }
-            }
-
-            @Override
-            public void keyReleased(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_CONTROL) {
-                    setControlPressed(false);
                 }
             }
         };
@@ -135,7 +124,6 @@ final class HouseNumberClickStreetMapMode extends MapMode {
             map.mapView.addMouseListener(this);
             map.mapView.requestFocusInWindow();
         }
-        controlPressed = false;
         controller.notifyModeStateChanged(true);
         refreshModePresentation(null);
     }
@@ -149,7 +137,6 @@ final class HouseNumberClickStreetMapMode extends MapMode {
             map.mapView.removeMouseListener(this);
             map.mapView.setCursor(Cursor.getDefaultCursor());
         }
-        controlPressed = false;
         if (map != null && map.statusLine != null) {
             map.statusLine.setHelpText(this, I18n.tr("HouseNumberClick PAUSED"));
         }
@@ -158,17 +145,20 @@ final class HouseNumberClickStreetMapMode extends MapMode {
     }
 
     private boolean handleGlobalKeyEvent(KeyEvent e) {
+        if (e == null) {
+            return false;
+        }
         if (!isModeActiveOnMap(MainApplication.getMap())) {
             return false;
         }
 
         int id = e.getID();
-        if (id == KeyEvent.KEY_PRESSED || id == KeyEvent.KEY_RELEASED) {
-            if (e.getKeyCode() == KeyEvent.VK_CONTROL) {
-                setControlPressed(id == KeyEvent.KEY_PRESSED);
-            } else {
-                setControlPressed(e.isControlDown());
+        if (!e.isConsumed() && id == KeyEvent.KEY_PRESSED && e.getKeyCode() == KeyEvent.VK_ALT) {
+            if (!isTextInputFocused() && controller.activateTemporarySplitModeFromAlt()) {
+                e.consume();
+                return true;
             }
+            return false;
         }
 
         if (id != KeyEvent.KEY_PRESSED || e.isConsumed()) {
@@ -260,7 +250,7 @@ final class HouseNumberClickStreetMapMode extends MapMode {
 
     @Override
     public String getModeHelpText() {
-        return I18n.tr("Left-click applies tags, Ctrl+left-click reads building data or street name, + / - change number or suffix depending on current house number, L toggles letter suffix.");
+        return I18n.tr("Left-click applies tags, Ctrl+left-click reads building data or street name, hold Alt for temporary split actions, + / - change number or suffix, L toggles letter suffix.");
     }
 
     private boolean isPlusShortcut(KeyEvent e) {
@@ -586,15 +576,7 @@ final class HouseNumberClickStreetMapMode extends MapMode {
         if (map == null || map.mapView == null || !isModeActiveOnMap(map)) {
             return;
         }
-        map.mapView.setCursor(controlPressed ? createMagnifierCursor() : createHouseNumberCursor());
-    }
-
-    private void setControlPressed(boolean pressed) {
-        if (controlPressed == pressed) {
-            return;
-        }
-        controlPressed = pressed;
-        updateHouseNumberCursor();
+        map.mapView.setCursor(createHouseNumberCursor());
     }
 
     private Cursor createHouseNumberCursor() {
@@ -637,32 +619,6 @@ final class HouseNumberClickStreetMapMode extends MapMode {
             g.dispose();
 
             return Toolkit.getDefaultToolkit().createCustomCursor(image, new Point(centerX, tipY), "hnc-house-number-cursor");
-        } catch (RuntimeException ex) {
-            Logging.debug(ex);
-            return Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR);
-        }
-    }
-
-    private Cursor createMagnifierCursor() {
-        try {
-            int width = 32;
-            int height = 32;
-            BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-            Graphics2D g = image.createGraphics();
-            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-            g.setColor(new java.awt.Color(30, 30, 30, 230));
-            g.setStroke(new java.awt.BasicStroke(2f));
-            g.drawOval(4, 4, 16, 16);
-            g.setColor(new java.awt.Color(255, 255, 255, 110));
-            g.fillOval(8, 8, 7, 7);
-
-            g.setColor(new java.awt.Color(30, 30, 30, 230));
-            g.setStroke(new java.awt.BasicStroke(3f));
-            g.drawLine(17, 17, 27, 27);
-            g.dispose();
-
-            return Toolkit.getDefaultToolkit().createCustomCursor(image, new Point(10, 10), "hnc-magnifier-cursor");
         } catch (RuntimeException ex) {
             Logging.debug(ex);
             return Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR);

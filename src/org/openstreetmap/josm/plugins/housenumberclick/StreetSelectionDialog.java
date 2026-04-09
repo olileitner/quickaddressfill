@@ -849,7 +849,10 @@ final class StreetSelectionDialog {
 
         gbc.gridy = 1;
         gbc.insets = new Insets(2, 0, 0, 0);
-        panel.add(new JLabel(I18n.tr("+ / -: change number    L: toggle letter")), gbc);
+        panel.add(new JLabel(I18n.tr("Hold Alt: temporary split (drag=line split, click=row houses)")), gbc);
+
+        gbc.gridy = 2;
+        panel.add(new JLabel(I18n.tr("Alt+2..9: row-house parts    + / -: change number    L: toggle letter")), gbc);
 
         return panel;
     }
@@ -1220,18 +1223,6 @@ final class StreetSelectionDialog {
         int keyCode = event.getKeyCode();
         if (keyCode == KeyEvent.VK_LEFT || keyCode == KeyEvent.VK_RIGHT) {
             navigateStreetByOffset(keyCode == KeyEvent.VK_LEFT ? -1 : 1);
-            event.consume();
-            return true;
-        }
-
-        if (keyCode == KeyEvent.VK_S) {
-            onSplitBuildingRequested();
-            event.consume();
-            return true;
-        }
-
-        if (keyCode == KeyEvent.VK_C) {
-            onCreateRowHousesRequested();
             event.consume();
             return true;
         }
