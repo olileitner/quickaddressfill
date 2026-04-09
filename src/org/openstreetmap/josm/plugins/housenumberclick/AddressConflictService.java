@@ -55,7 +55,6 @@ final class AddressConflictService {
             return differingFields;
         }
     }
-
     ConflictAnalysis analyze(
             OsmPrimitive building,
             String proposedStreet,

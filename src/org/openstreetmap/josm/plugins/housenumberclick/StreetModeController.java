@@ -609,6 +609,16 @@ final class StreetModeController {
         return activateInternalSplitMode(HouseNumberSplitMapMode.InteractionKind.LINE_SPLIT, 0);
     }
 
+    // Keep this method for runtime compatibility with already compiled map-mode code paths.
+    boolean activateTemporarySplitModeFromAlt() {
+        DataSet dataSet = getActiveEditDataSet();
+        if (dataSet == null) {
+            showNoDataSetNotification();
+            return false;
+        }
+        return activateInternalSplitMode(HouseNumberSplitMapMode.InteractionKind.LINE_SPLIT, 0);
+    }
+
     private boolean activateInternalSplitMode(HouseNumberSplitMapMode.InteractionKind interactionKind, int terraceParts) {
         MapFrame map = MainApplication.getMap();
         if (map == null || map.mapView == null) {

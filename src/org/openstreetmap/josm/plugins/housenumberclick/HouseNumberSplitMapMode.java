@@ -41,6 +41,7 @@ final class HouseNumberSplitMapMode extends MapMode {
 
     private static final int CURSOR_HOTSPOT_X = 15;
     private static final int CURSOR_HOTSPOT_Y = 29;
+    private static final int CLICK_SPLIT_THRESHOLD_PX = 4;
 
     private final StreetModeController controller;
     private InteractionKind interactionKind;
@@ -50,6 +51,7 @@ final class HouseNumberSplitMapMode extends MapMode {
     private final KeyEventDispatcher splitKeyDispatcher;
     private LatLon dragStart;
     private LatLon dragCurrent;
+    private Point dragStartPoint;
     private boolean flowCompleted;
     private boolean dragOverlayAttached;
     private Way activeTerraceSourceBuilding;
@@ -82,6 +84,7 @@ final class HouseNumberSplitMapMode extends MapMode {
         this.terraceParts = nextTerraceParts >= 2 ? nextTerraceParts : 2;
         dragStart = null;
         dragCurrent = null;
+        dragStartPoint = null;
         activeTerraceSourceBuilding = null;
         activeTerraceUndoStart = -1;
         applyInteractionPresentation();
@@ -124,6 +127,7 @@ final class HouseNumberSplitMapMode extends MapMode {
         }
         dragStart = null;
         dragCurrent = null;
+        dragStartPoint = null;
         activeTerraceSourceBuilding = null;
         activeTerraceUndoStart = -1;
         super.exitMode();
@@ -143,6 +147,7 @@ final class HouseNumberSplitMapMode extends MapMode {
         }
         dragStart = toLatLon(e);
         dragCurrent = dragStart;
+        dragStartPoint = e.getPoint();
         repaintMapView();
     }
 
@@ -185,6 +190,14 @@ final class HouseNumberSplitMapMode extends MapMode {
             return;
         }
 
+        // If press was missed during a fast mode switch, still treat release as click split.
+        if (dragStart == null && isLeftButton(e)) {
+            if (executeTerraceSplitAtEvent(e)) {
+                completeWithOutcome(StreetModeController.SplitFlowOutcome.SUCCESS);
+            }
+            return;
+        }
+
         // Release events can arrive as NOBUTTON on some platforms; rely on left press state.
         if (dragStart == null) {
             return;
@@ -195,10 +208,20 @@ final class HouseNumberSplitMapMode extends MapMode {
         if (dragEnd == null) {
             dragEnd = dragCurrent;
         }
+        Point releasePoint = e != null ? e.getPoint() : null;
+        boolean clickGesture = isClickGesture(dragStartPoint, releasePoint);
 
         dragStart = null;
         dragCurrent = null;
+        dragStartPoint = null;
         repaintMapView();
+
+        if (clickGesture) {
+            if (executeTerraceSplitAtEvent(e)) {
+                completeWithOutcome(StreetModeController.SplitFlowOutcome.SUCCESS);
+            }
+            return;
+        }
 
         if (dragEnd != null) {
             SingleSplitResult result = controller.executeInternalSingleSplit(splitStart, dragEnd);
@@ -222,6 +245,21 @@ final class HouseNumberSplitMapMode extends MapMode {
         return event != null && SwingUtilities.isLeftMouseButton(event);
     }
 
+    private boolean executeTerraceSplitAtEvent(MouseEvent event) {
+        Way clickedBuilding = resolveClickedBuilding(event);
+        TerraceSplitResult terraceResult = controller.executeInternalTerraceSplitAtClick(clickedBuilding, terraceParts);
+        return terraceResult.isSuccess();
+    }
+
+    private boolean isClickGesture(Point start, Point end) {
+        if (start == null || end == null) {
+            return false;
+        }
+        int dx = start.x - end.x;
+        int dy = start.y - end.y;
+        return (dx * dx) + (dy * dy) <= (CLICK_SPLIT_THRESHOLD_PX * CLICK_SPLIT_THRESHOLD_PX);
+    }
+
     private boolean handleGlobalKeyEvent(KeyEvent event) {
         if (!isModeActiveOnMap(MainApplication.getMap()) || interactionKind != InteractionKind.TERRACE_CLICK || event == null) {
             return false;
@@ -234,7 +272,7 @@ final class HouseNumberSplitMapMode extends MapMode {
         }
 
         int keyCode = event.getKeyCode();
-        if (keyCode == KeyEvent.VK_ESCAPE || keyCode == KeyEvent.VK_ENTER || keyCodeToDigit(keyCode) >= 0) {
+        if (keyCode == KeyEvent.VK_ESCAPE) {
             handleTerraceModeKey(event);
             event.consume();
             return true;
@@ -348,11 +386,6 @@ final class HouseNumberSplitMapMode extends MapMode {
     private void handleTerraceModeKey(KeyEvent event) {
         int keyCode = event.getKeyCode();
         if (keyCode == KeyEvent.VK_ESCAPE) {
-            completeWithOutcome(StreetModeController.SplitFlowOutcome.CANCELLED);
-            event.consume();
-            return;
-        }
-        if (keyCode == KeyEvent.VK_ENTER) {
             completeWithOutcome(StreetModeController.SplitFlowOutcome.CANCELLED);
             event.consume();
             return;

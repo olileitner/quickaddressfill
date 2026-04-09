@@ -69,6 +69,8 @@ final class StreetSelectionDialog {
     private final JButton splitBuildingButton;
     private final JCheckBox splitMakeRectangularCheckbox;
     private final JButton createRowHousesButton;
+    private final JButton rowHousePartsMinusButton;
+    private final JButton rowHousePartsPlusButton;
     private final JTextField rowHousePartsField;
     private int houseNumberIncrementStep = 1;
     private String lastSelectedStreet;
@@ -221,6 +223,15 @@ final class StreetSelectionDialog {
         this.createRowHousesButton = new JButton(CREATE_ROW_HOUSES_BUTTON_TEXT);
         this.createRowHousesButton.addActionListener(e -> onCreateRowHousesRequested());
         this.rowHousePartsField = new JTextField("2", 4);
+        int rowHousePartsFieldHeight = rowHousePartsField.getPreferredSize().height;
+        Dimension rowHousePartsFieldSize = new Dimension(56, rowHousePartsFieldHeight);
+        this.rowHousePartsField.setPreferredSize(rowHousePartsFieldSize);
+        this.rowHousePartsField.setMinimumSize(rowHousePartsFieldSize);
+        this.rowHousePartsMinusButton = createRowHousePartsAdjustButton(-1);
+        this.rowHousePartsPlusButton = createRowHousePartsAdjustButton(1);
+        Dimension squarePartsButtonSize = new Dimension(rowHousePartsFieldHeight, rowHousePartsFieldHeight);
+        this.rowHousePartsMinusButton.setPreferredSize(squarePartsButtonSize);
+        this.rowHousePartsPlusButton.setPreferredSize(squarePartsButtonSize);
         harmonizePrimaryActionButtonWidths();
 
         GridBagConstraints splitGbc = new GridBagConstraints();
@@ -248,10 +259,21 @@ final class StreetSelectionDialog {
         splitToolsPanel.add(new JLabel(I18n.tr("Parts:")), splitGbc);
 
         splitGbc.gridx = 2;
+        splitGbc.weightx = 0.0;
+        splitGbc.fill = GridBagConstraints.NONE;
+        splitToolsPanel.add(rowHousePartsMinusButton, splitGbc);
+
+        splitGbc.gridx = 3;
         splitGbc.weightx = 1.0;
         splitGbc.fill = GridBagConstraints.HORIZONTAL;
-        splitGbc.insets = new Insets(0, 0, 0, 0);
+        splitGbc.insets = new Insets(0, 0, 0, 4);
         splitToolsPanel.add(rowHousePartsField, splitGbc);
+
+        splitGbc.gridx = 4;
+        splitGbc.weightx = 0.0;
+        splitGbc.fill = GridBagConstraints.NONE;
+        splitGbc.insets = new Insets(0, 0, 0, 0);
+        splitToolsPanel.add(rowHousePartsPlusButton, splitGbc);
 
         JPanel sectionsPanel = new JPanel(new GridBagLayout());
         GridBagConstraints sectionGbc = new GridBagConstraints();
@@ -893,7 +915,7 @@ final class StreetSelectionDialog {
         panel.add(new JLabel(I18n.tr("Hold Alt: temporary split (drag=line split, click=row houses)")), gbc);
 
         gbc.gridy = 2;
-        panel.add(new JLabel(I18n.tr("Alt+2..9: row-house parts    + / -: change number    L: toggle letter")), gbc);
+        panel.add(new JLabel(I18n.tr("Row-house parts: set in dialog    + / -: change number    L: toggle letter")), gbc);
 
         return panel;
     }
@@ -943,6 +965,19 @@ final class StreetSelectionDialog {
         } catch (NumberFormatException ex) {
             return -1;
         }
+    }
+
+    private JButton createRowHousePartsAdjustButton(int delta) {
+        JButton button = new JButton(delta < 0 ? "-" : "+");
+        button.addActionListener(e -> {
+            int current = parseTerraceParts(rowHousePartsField.getText());
+            if (current < 2) {
+                current = 2;
+            }
+            int next = Math.max(2, current + delta);
+            rowHousePartsField.setText(Integer.toString(next));
+        });
+        return button;
     }
 
     private void onCreateOverviewRequested() {
