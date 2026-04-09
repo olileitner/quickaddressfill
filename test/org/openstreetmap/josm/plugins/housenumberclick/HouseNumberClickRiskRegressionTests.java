@@ -79,6 +79,7 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Split cursor hotspot keeps scalp tip shifted left", HouseNumberClickRiskRegressionTests::testSplitCursorHotspotShiftedLeft);
             run("Terrace split flow completes immediately on successful click", HouseNumberClickRiskRegressionTests::testTerraceSplitCompletesImmediatelyOnSuccess);
             run("Rectangularize option is propagated to temporary line split mode", HouseNumberClickRiskRegressionTests::testRectangularizePreferencePropagation);
+            run("Rectangularize skips triangle split results", HouseNumberClickRiskRegressionTests::testRectangularizeCandidateGuard);
             run("House-number cursor label depends on complete address inputs", HouseNumberClickRiskRegressionTests::testHouseNumberCursorLabelCompletenessGuard);
             run("Street mode blocks apply when postcode is not selected", HouseNumberClickRiskRegressionTests::testPostcodeSelectionGuard);
             run("Main dialog close cleanup is safe", HouseNumberClickRiskRegressionTests::testMainDialogCloseCleanupIsSafe);
@@ -553,6 +554,28 @@ public final class HouseNumberClickRiskRegressionTests {
                 "dialog should push make-rectangular checkbox state into controller preference");
         assertTrue(controllerSource.contains("void setRectangularizeAfterLineSplit(boolean makeRectangular)"),
                 "controller should expose a setter for line-split rectangularize preference");
+    }
+
+    private static void testRectangularizeCandidateGuard() {
+        Way triangle = new Way();
+        Node t1 = new Node(new LatLon(0.0, 0.0));
+        Node t2 = new Node(new LatLon(0.0, 0.0001));
+        Node t3 = new Node(new LatLon(0.0001, 0.0));
+        triangle.setNodes(List.of(t1, t2, t3, t1));
+        triangle.put("building", "yes");
+
+        Way rectangle = new Way();
+        Node r1 = new Node(new LatLon(0.0, 0.0));
+        Node r2 = new Node(new LatLon(0.0, 0.0001));
+        Node r3 = new Node(new LatLon(0.0001, 0.0001));
+        Node r4 = new Node(new LatLon(0.0001, 0.0));
+        rectangle.setNodes(List.of(r1, r2, r3, r4, r1));
+        rectangle.put("building", "yes");
+
+        assertFalse(StreetModeController.isRectangularizeCandidate(triangle),
+                "triangle split results must not be rectangularized");
+        assertTrue(StreetModeController.isRectangularizeCandidate(rectangle),
+                "ways with at least four unique corners remain rectangularize candidates");
     }
 
     private static void testHouseNumberCursorLabelCompletenessGuard() throws Exception {

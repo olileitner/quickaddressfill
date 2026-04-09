@@ -11,6 +11,7 @@ import org.openstreetmap.josm.actions.OrthogonalizeAction;
 import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.osm.DataSet;
+import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
@@ -774,8 +775,18 @@ final class StreetModeController {
         if (ways == null || ways.isEmpty()) {
             return;
         }
+        List<Way> rectangularizeCandidates = new ArrayList<>();
+        for (Way way : ways) {
+            if (isRectangularizeCandidate(way)) {
+                rectangularizeCandidates.add(way);
+            }
+        }
+        if (rectangularizeCandidates.isEmpty()) {
+            return;
+        }
         try {
-            SequenceCommand orthogonalizeCommand = OrthogonalizeAction.orthogonalize(new ArrayList<>(ways));
+            List<OsmPrimitive> orthogonalizeTargets = new ArrayList<>(rectangularizeCandidates);
+            SequenceCommand orthogonalizeCommand = OrthogonalizeAction.orthogonalize(orthogonalizeTargets);
             if (orthogonalizeCommand != null) {
                 UndoRedoHandler.getInstance().add(orthogonalizeCommand);
             }
@@ -785,6 +796,25 @@ final class StreetModeController {
                     .setDuration(Notification.TIME_SHORT)
                     .show();
         }
+    }
+
+    static boolean isRectangularizeCandidate(Way way) {
+        if (way == null || !way.isClosed()) {
+            return false;
+        }
+        List<Node> nodes = way.getNodes();
+        if (nodes == null || nodes.size() < 5) {
+            return false;
+        }
+        LinkedHashSet<Node> uniqueCorners = new LinkedHashSet<>();
+        int endExclusive = nodes.size() - 1;
+        for (int i = 0; i < endExclusive; i++) {
+            Node node = nodes.get(i);
+            if (node != null) {
+                uniqueCorners.add(node);
+            }
+        }
+        return uniqueCorners.size() >= 4;
     }
 
     private SplitTargetScan findSingleSplitTargetWay(DataSet dataSet, LatLon lineStart, LatLon lineEnd) {
