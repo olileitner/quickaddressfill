@@ -39,7 +39,7 @@ final class HouseNumberSplitMapMode extends MapMode {
         TERRACE_CLICK
     }
 
-    private static final int CURSOR_HOTSPOT_X = 11;
+    private static final int CURSOR_HOTSPOT_X = 7;
     private static final int CURSOR_HOTSPOT_Y = 29;
     private static final int CLICK_SPLIT_THRESHOLD_PX = 4;
 

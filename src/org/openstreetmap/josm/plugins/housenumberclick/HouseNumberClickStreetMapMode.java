@@ -688,27 +688,40 @@ final class HouseNumberClickStreetMapMode extends MapMode {
 
     private Cursor createCtrlZoomCursor() {
         try {
-            int width = 32;
-            int height = 32;
-            int hotspotX = 12;
-            int hotspotY = 12;
+            Toolkit toolkit = Toolkit.getDefaultToolkit();
+            Dimension bestSize = toolkit.getBestCursorSize(48, 48);
+            int width = bestSize != null && bestSize.width > 0 ? bestSize.width : 48;
+            int height = bestSize != null && bestSize.height > 0 ? bestSize.height : 48;
+
+            int lensRadius = Math.max(10, Math.min(width, height) / 5);
+            int lensCenterX = Math.max(lensRadius + 4, width / 2 - 4);
+            int lensCenterY = Math.max(lensRadius + 4, height / 2 - 6);
+            int hotspotX = lensCenterX;
+            int hotspotY = lensCenterY;
 
             BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
             Graphics2D g = image.createGraphics();
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-            int lensCenterX = 12;
-            int lensCenterY = 12;
-            int lensRadius = 8;
-            g.setColor(new java.awt.Color(255, 255, 255, 210));
+            // Requested palette: black lens interior, white ring and white handle.
+            g.setColor(new java.awt.Color(20, 20, 20, 245));
             g.fillOval(lensCenterX - lensRadius, lensCenterY - lensRadius, lensRadius * 2, lensRadius * 2);
-            g.setColor(new java.awt.Color(30, 30, 30, 240));
-            g.setStroke(new BasicStroke(2.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g.setColor(new java.awt.Color(250, 250, 250, 250));
+            g.setStroke(new BasicStroke(3.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
             g.drawOval(lensCenterX - lensRadius, lensCenterY - lensRadius, lensRadius * 2, lensRadius * 2);
-            g.drawLine(18, 18, 26, 26);
+
+
+            int handleStartX = lensCenterX + lensRadius - 1;
+            int handleStartY = lensCenterY + lensRadius - 1;
+            int handleEndX = Math.min(width - 4, handleStartX + Math.max(8, lensRadius));
+            int handleEndY = Math.min(height - 4, handleStartY + Math.max(8, lensRadius));
+            g.setColor(new java.awt.Color(250, 250, 250, 250));
+            g.setStroke(new BasicStroke(4.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g.drawLine(handleStartX, handleStartY, handleEndX, handleEndY);
+            g.fillOval(handleEndX - 2, handleEndY - 2, 4, 4);
             g.dispose();
 
-            return Toolkit.getDefaultToolkit().createCustomCursor(image, new Point(hotspotX, hotspotY), "hnc-magnifier-cursor");
+            return toolkit.createCustomCursor(image, new Point(hotspotX, hotspotY), "hnc-magnifier-cursor");
         } catch (RuntimeException ex) {
             Logging.debug(ex);
         }
@@ -730,22 +743,33 @@ final class HouseNumberClickStreetMapMode extends MapMode {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
+            java.awt.Color arrowColor = new java.awt.Color(245, 245, 245, 240);
+            int labelBoxWidth = 22;
+            int labelBoxHeight = 16;
+            int labelBoxX = centerX - (labelBoxWidth / 2);
+            int labelBoxY = 2;
+
             if (showHouseNumberLabel) {
                 g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
                 FontMetrics metrics = g.getFontMetrics();
                 int textWidth = metrics.stringWidth(label);
                 int textX = Math.max(1, (width - textWidth) / 2);
                 int textY = 14;
+                int dynamicBoxWidth = textWidth + 6;
+                int dynamicBoxX = textX - 3;
 
                 g.setColor(new java.awt.Color(255, 255, 220, 235));
-                g.fillRoundRect(textX - 3, 2, textWidth + 6, 16, 6, 6);
+                g.fillRoundRect(dynamicBoxX, labelBoxY, dynamicBoxWidth, labelBoxHeight, 6, 6);
                 g.setColor(java.awt.Color.BLACK);
-                g.drawRoundRect(textX - 3, 2, textWidth + 6, 16, 6, 6);
+                g.drawRoundRect(dynamicBoxX, labelBoxY, dynamicBoxWidth, labelBoxHeight, 6, 6);
                 g.drawString(label, textX, textY);
+            } else {
+                // Keep an empty placeholder box so the cursor layout stays stable when number is unavailable.
+                g.setColor(arrowColor);
+                g.drawRoundRect(labelBoxX, labelBoxY, labelBoxWidth, labelBoxHeight, 6, 6);
             }
 
-            java.awt.Color lightArrowColor = new java.awt.Color(245, 245, 245, 240);
-            g.setColor(lightArrowColor);
+            g.setColor(arrowColor);
             g.drawLine(centerX, 20, centerX, 36);
             Polygon arrowHead = new Polygon();
             arrowHead.addPoint(centerX, tipY);

@@ -76,6 +76,7 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Ctrl has priority over Alt split activation", HouseNumberClickRiskRegressionTests::testCtrlHasPriorityOverAltActivation);
             run("Temporary Alt split exits on Alt release", HouseNumberClickRiskRegressionTests::testTemporaryAltSplitExitsOnAltRelease);
             run("Ctrl cursor uses custom magnifier without arrow asset fallback", HouseNumberClickRiskRegressionTests::testCtrlCursorUsesCustomMagnifier);
+            run("Split cursor hotspot keeps scalp tip shifted left", HouseNumberClickRiskRegressionTests::testSplitCursorHotspotShiftedLeft);
             run("Terrace split flow completes immediately on successful click", HouseNumberClickRiskRegressionTests::testTerraceSplitCompletesImmediatelyOnSuccess);
             run("Rectangularize option is propagated to temporary line split mode", HouseNumberClickRiskRegressionTests::testRectangularizePreferencePropagation);
             run("House-number cursor label depends on complete address inputs", HouseNumberClickRiskRegressionTests::testHouseNumberCursorLabelCompletenessGuard);
@@ -514,10 +515,20 @@ public final class HouseNumberClickRiskRegressionTests {
         String methodBody = source.substring(methodStart, methodEnd);
         assertTrue(methodBody.contains("new BufferedImage"),
                 "Ctrl cursor should be rendered from a custom magnifier image");
+        assertTrue(methodBody.contains("Toolkit.getDefaultToolkit()"),
+                "Ctrl cursor should build from toolkit custom-cursor support");
         assertTrue(methodBody.contains("g.drawOval"),
                 "Ctrl cursor should draw a magnifier lens shape");
+        assertTrue(methodBody.contains("g.fillOval(lensCenterX - lensRadius"),
+                "Ctrl cursor should fill the lens interior for contrast");
         assertFalse(methodBody.contains("ImageProvider.getCursor"),
                 "Ctrl cursor should no longer use arrow-based JOSM zoom cursor assets");
+    }
+
+    private static void testSplitCursorHotspotShiftedLeft() throws Exception {
+        String source = readPluginSource("HouseNumberSplitMapMode.java");
+        assertTrue(source.contains("private static final int CURSOR_HOTSPOT_X = 7;"),
+                "split cursor hotspot should remain shifted left for accurate scalp-tip drawing");
     }
 
     private static void testTerraceSplitCompletesImmediatelyOnSuccess() throws Exception {
@@ -551,6 +562,8 @@ public final class HouseNumberClickRiskRegressionTests {
                 "street mode should define a completeness guard for cursor label rendering");
         assertTrue(source.contains("boolean showHouseNumberLabel = hasCompleteAddressInputForApply()"),
                 "house-number cursor should gate label drawing by complete address inputs");
+        assertTrue(source.contains("g.drawRoundRect(labelBoxX, labelBoxY, labelBoxWidth, labelBoxHeight, 6, 6);"),
+                "house-number cursor should keep an empty placeholder box when label text is hidden");
     }
 
     private static void testPostcodeSelectionGuard() {
