@@ -35,11 +35,11 @@ HouseNumberClick is a JOSM plugin for fast, street-focused house-number tagging 
 
 ## Split and Row-House Tools
 
-- Hold `Alt`, then drag a line across one building to run a temporary line split.
+- Hold `Alt`, then press the left mouse button, drag a line across one building, and release to attempt a line split.
 - Right-click a building to split it into row-house `Parts` configured in the dialog.
-- No preselection is required; the target building is resolved from the drag/click.
+- No preselection is required; the target building is resolved directly from the drag or click.
 - `Make rectangular` can orthogonalize line-split results after a successful split.
-- After split success or cancellation, control returns to normal Street Mode.
+- Split actions are handled temporarily within Street Mode; there is no separate split mode.
 
 ## Map Mode Shortcuts
 
@@ -48,11 +48,51 @@ HouseNumberClick is a JOSM plugin for fast, street-focused house-number tagging 
 - `Esc`: leave/pause Street Mode.
 - Left/right street navigation is disabled while typing in text fields.
 
-## Split Mode Controls
+## Split Controls
 
-- **Temporary line split:** hold `Alt`, press left mouse button, drag, and release to attempt split.
-- Releasing `Alt` cancels the temporary split and returns to normal Street Mode.
-- **Row-house split:** right-click inside a building in Street Mode; split uses dialog `Parts` value.
+- **Temporary line split:** hold `Alt`, press the left mouse button, drag, and release to attempt a split.
+- Releasing `Alt` cancels an ongoing split gesture (if not yet completed).
+- **Row-house split:** right-click inside a building in Street Mode; the split uses the `Parts` value from the dialog.
+
+## Power User Workflow
+
+HouseNumberClick is designed for high-speed mapping with minimal context switching.
+
+Instead of switching tools or modes, all core actions are available directly on the map:
+
+- **Left-click**: apply address
+- **Ctrl + Click**: read existing address or nearby street
+- **Right-click**: split a building into row houses
+- **Alt + Drag**: perform a temporary line split
+
+This means you can:
+
+- continue mapping without leaving Street Mode
+- fix building geometry exactly at the moment you need it
+- immediately resume assigning house numbers after a split
+- avoid moving the mouse back and forth between map and dialog
+
+### Example flow
+
+1. Click buildings to assign house numbers
+2. Encounter a building that needs splitting
+3. Hold `Alt` and drag -> split
+4. Release and continue clicking -> assign numbers
+5. For row houses: right-click and continue mapping
+
+No tool switching. No modal dialogs. No interruption of flow.
+
+### Why this matters
+
+Traditional workflows require:
+
+- selecting a separate tool
+- performing the split
+- switching back to the address tool
+
+HouseNumberClick removes these steps and keeps everything in a single continuous interaction loop.
+
+This significantly reduces friction when mapping long streets or dense residential areas.
 
 ## Optional Visual Tools
 
