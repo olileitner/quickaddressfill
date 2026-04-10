@@ -899,17 +899,17 @@ final class StreetSelectionDialog {
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.anchor = GridBagConstraints.WEST;
-        panel.add(new JLabel(I18n.tr("Click: apply address    Ctrl+Click: read")), gbc);
+        panel.add(new JLabel(I18n.tr("Click: apply address")), gbc);
 
         gbc.gridy = 1;
         gbc.insets = new Insets(2, 0, 0, 0);
-        panel.add(new JLabel(I18n.tr("Alt+Drag across building: line split (stays in Street Mode)")), gbc);
+        panel.add(new JLabel(I18n.tr("Ctrl+Click: read street/address")), gbc);
 
         gbc.gridy = 2;
-        panel.add(new JLabel(I18n.tr("Right-click building: create row houses (Parts from dialog)    + / -: change number    L: toggle letter")), gbc);
+        panel.add(new JLabel(I18n.tr("Alt+Drag: line split")), gbc);
 
         gbc.gridy = 3;
-        panel.add(new JLabel(I18n.tr("Split triggers: hold Alt and drag for line split; right-click building for row houses.")), gbc);
+        panel.add(new JLabel(I18n.tr("Right-click: row houses (Parts from dialog)")), gbc);
 
         return panel;
     }

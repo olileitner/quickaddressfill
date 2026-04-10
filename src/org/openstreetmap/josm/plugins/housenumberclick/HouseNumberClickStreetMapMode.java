@@ -335,12 +335,14 @@ final class HouseNumberClickStreetMapMode extends MapMode {
 
     @Override
     public void mouseReleased(MouseEvent e) {
+        // 1) Alt+drag split finalization has top priority while a split drag is active.
         if (isSplitDragInProgress()) {
             handleSplitDragRelease(e);
             return;
         }
 
-        if (e != null && (SwingUtilities.isRightMouseButton(e) || e.isPopupTrigger())) {
+        // 2) Right-click always means terrace split.
+        if (isTerraceTriggerRelease(e)) {
             long startedAtNanos = System.nanoTime();
             ClickResolutionStats stats = new ClickResolutionStats();
             try {
@@ -356,7 +358,8 @@ final class HouseNumberClickStreetMapMode extends MapMode {
             return;
         }
 
-        if (!SwingUtilities.isLeftMouseButton(e)) {
+        // 3) Only left-click paths remain: Ctrl+left readback, plain left apply.
+        if (!isLeftButtonRelease(e)) {
             return;
         }
 
@@ -369,11 +372,7 @@ final class HouseNumberClickStreetMapMode extends MapMode {
         long startedAtNanos = System.nanoTime();
         ClickResolutionStats stats = new ClickResolutionStats();
         try {
-            if (e.isControlDown()) {
-                handleSecondaryClick(e, stats);
-            } else {
-                handlePrimaryClick(e, stats);
-            }
+            handleLeftReleaseByModifier(e, stats);
         } catch (RuntimeException ex) {
             Logging.warn(
                     "HouseNumberClick StreetMapMode.mouseReleased: failure while processing click, control={0}, street={1}, postcode={2}, houseNumber={3}",
@@ -392,6 +391,7 @@ final class HouseNumberClickStreetMapMode extends MapMode {
 
     @Override
     public void mousePressed(MouseEvent e) {
+        // Alt alone means split-ready cursor; actual split starts only when drag begins.
         if (!isAltLeftSplitPress(e)) {
             return;
         }
@@ -973,6 +973,22 @@ final class HouseNumberClickStreetMapMode extends MapMode {
                 && !e.isMetaDown();
     }
 
+    private boolean isTerraceTriggerRelease(MouseEvent e) {
+        return e != null && (SwingUtilities.isRightMouseButton(e) || e.isPopupTrigger());
+    }
+
+    private boolean isLeftButtonRelease(MouseEvent e) {
+        return e != null && SwingUtilities.isLeftMouseButton(e);
+    }
+
+    private void handleLeftReleaseByModifier(MouseEvent e, ClickResolutionStats stats) {
+        if (e.isControlDown()) {
+            handleSecondaryClick(e, stats);
+            return;
+        }
+        handlePrimaryClick(e, stats);
+    }
+
     private boolean isSplitDragInProgress() {
         return splitDragStart != null;
     }
@@ -982,14 +998,9 @@ final class HouseNumberClickStreetMapMode extends MapMode {
         LatLon splitEnd = splitDragCurrent;
         Point pressPoint = splitDragStartPoint;
         Point releasePoint = e != null ? e.getPoint() : null;
-        if (e != null) {
-            MapFrame map = MainApplication.getMap();
-            if (map != null && map.mapView != null) {
-                LatLon atRelease = map.mapView.getLatLon(e.getX(), e.getY());
-                if (atRelease != null) {
-                    splitEnd = atRelease;
-                }
-            }
+        LatLon releaseLatLon = resolveLatLonAtEvent(e);
+        if (releaseLatLon != null) {
+            splitEnd = releaseLatLon;
         }
 
         clearSplitDragState();
@@ -1011,6 +1022,17 @@ final class HouseNumberClickStreetMapMode extends MapMode {
         if (e != null) {
             e.consume();
         }
+    }
+
+    private LatLon resolveLatLonAtEvent(MouseEvent e) {
+        if (e == null) {
+            return null;
+        }
+        MapFrame map = MainApplication.getMap();
+        if (map == null || map.mapView == null) {
+            return null;
+        }
+        return map.mapView.getLatLon(e.getX(), e.getY());
     }
 
     private boolean isClickGesture(Point start, Point end) {

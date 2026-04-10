@@ -257,9 +257,7 @@ final class StreetModeController {
             return;
         }
 
-        DataSet editDataSet = MainApplication.getLayerManager() != null
-                ? MainApplication.getLayerManager().getEditDataSet()
-                : null;
+        DataSet editDataSet = getActiveEditDataSet();
         if (editDataSet == null) {
             return;
         }
@@ -375,9 +373,7 @@ final class StreetModeController {
             return;
         }
 
-        DataSet editDataSet = MainApplication.getLayerManager() != null
-                ? MainApplication.getLayerManager().getEditDataSet()
-                : null;
+        DataSet editDataSet = getActiveEditDataSet();
         if (editDataSet == null) {
             new Notification(I18n.tr("No active dataset available."))
                     .setDuration(Notification.TIME_SHORT)
@@ -507,9 +503,7 @@ final class StreetModeController {
             houseNumberOverviewDialog = new HouseNumberOverviewDialog(this::continueWorkingFromTableInteraction);
         }
 
-        DataSet editDataSet = MainApplication.getLayerManager() != null
-                ? MainApplication.getLayerManager().getEditDataSet()
-                : null;
+        DataSet editDataSet = getActiveEditDataSet();
         houseNumberOverviewDialog.updateData(
                 currentStreet,
                 houseNumberOverviewCollector.collectRows(editDataSet, currentStreet)
@@ -537,9 +531,7 @@ final class StreetModeController {
             );
         }
 
-        DataSet editDataSet = MainApplication.getLayerManager() != null
-                ? MainApplication.getLayerManager().getEditDataSet()
-                : null;
+        DataSet editDataSet = getActiveEditDataSet();
         List<StreetHouseNumberCountRow> rows = streetHouseNumberCountCollector.collectRows(editDataSet);
         streetNavigationOrder = Collections.unmodifiableList(
                 StreetHouseNumberCountDialog.buildStreetNavigationOrder(rows)
