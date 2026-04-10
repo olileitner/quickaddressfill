@@ -67,7 +67,6 @@ final class StreetModeController {
     }
 
     private HouseNumberClickStreetMapMode streetMapMode;
-    private HouseNumberSplitMapMode splitMapMode;
     private final OverlayManager overlayManager = new OverlayManager();
     private final OverviewManager overviewManager = new OverviewManager();
     private final NavigationService navigationService = new NavigationService();
@@ -448,22 +447,10 @@ final class StreetModeController {
     }
 
     private boolean activateInternalSplitMode(boolean temporaryAltHold) {
-        MapFrame map = MainApplication.getMap();
-        if (map == null || map.mapView == null) {
-            return false;
-        }
-
-        if (splitMapMode == null) {
-            splitMapMode = new HouseNumberSplitMapMode(this, temporaryAltHold);
-        } else {
-            splitMapMode.configureFor(temporaryAltHold);
-        }
-
-        if (map.mapMode == splitMapMode) {
-            return true;
-        }
-        return map.selectMapMode(splitMapMode);
+        // Split map mode has been removed; keep this compatibility entrypoint non-throwing.
+        return false;
     }
+
 
     void setRectangularizeAfterLineSplit(boolean makeRectangular) {
         rectangularizeAfterLineSplit = makeRectangular;
