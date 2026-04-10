@@ -355,6 +355,7 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
                 stats.outcome = "runtime-error";
             } finally {
                 logClickDiagnostics(startedAtNanos, e, stats);
+                updateHouseNumberCursor();
             }
             return;
         }
