@@ -5,7 +5,7 @@ HouseNumberClick is a JOSM plugin for fast, street-focused house-number tagging 
 ## What's New in 1.1.5
 
 - Single-mode interaction is finalized (`HouseNumberClickStreetMapMode` only), including inline split gestures.
-- Split workflows stay inline: `Alt+Drag` for line split, right-click for row-house split, and `Alt+1..9` to quick-set `Parts`.
+- Split workflows stay inline: `Alt+Drag` for line split, `Alt+Right-click` for row-house split, and `Alt+1..9` to quick-set `Parts`.
 - Alt-based split readiness is hardened against global modifier shortcuts and missing key-release edge cases.
 - Build/release documentation is aligned with the current Ant + GitHub Releases flow.
 
@@ -37,7 +37,7 @@ HouseNumberClick is a JOSM plugin for fast, street-focused house-number tagging 
 ## Split and Row-House Tools
 
 - Hold `Alt`, then press the left mouse button, drag a line across one building, and release to attempt a line split.
-- Right-click a building to split it into row-house `Parts` configured in the dialog.
+- Hold `Alt` and right-click a building to split it into row-house `Parts` configured in the dialog.
 - No preselection is required; the target building is resolved directly from the drag or click.
 - `Make rectangular` can orthogonalize line-split results after a successful split.
 - Split actions are handled temporarily within Street Mode; there is no separate split mode.
@@ -55,7 +55,7 @@ HouseNumberClick is a JOSM plugin for fast, street-focused house-number tagging 
 - **Temporary line split:** hold `Alt`, press the left mouse button, drag, and release to attempt a split.
 - Releasing `Alt` cancels an ongoing split gesture (if not yet completed).
 - **Parts quick-set:** press `Alt+1..9` in Street Mode to set row-house `Parts` quickly.
-- **Row-house split:** right-click inside a building in Street Mode; the split uses the `Parts` value from the dialog.
+- **Row-house split:** hold `Alt` and right-click inside a building in Street Mode; the split uses the `Parts` value from the dialog.
 
 ## Power User Workflow
 
@@ -65,7 +65,7 @@ Instead of switching tools or modes, all core actions are available directly on 
 
 - **Left-click**: apply address
 - **Ctrl + Click**: read existing address or nearby street
-- **Right-click**: split a building into row houses
+- **Alt + Right-click**: split a building into row houses
 - **Alt + Drag**: perform a temporary line split
 
 This means you can:
@@ -81,7 +81,7 @@ This means you can:
 2. Encounter a building that needs splitting
 3. Hold `Alt` and drag -> split
 4. Release and continue clicking -> assign numbers
-5. For row houses: right-click and continue mapping
+5. For row houses: hold `Alt` and right-click, then continue mapping
 
 No tool switching. No modal dialogs. No interruption of flow.
 
@@ -115,7 +115,7 @@ This significantly reduces friction when mapping long streets or dense residenti
 1. Start <img src="images/housenumberclick.svg" alt="HouseNumberClick icon" width="18" /> `HouseNumberClick` in JOSM.
 2. Select street and set postcode (from list or manual input), then optional building type/house number.
 3. Click buildings to apply addresses. House number increments automatically after each successful click.
-4. Optional: use split interactions (`Alt+Drag` line split, right-click row-house split) for geometry workflows.
+4. Optional: use split interactions (`Alt+Drag` line split, `Alt+Right-click` row-house split) for geometry workflows.
 5. Use shortcuts and optional overview windows as needed.
 
 ![HouseNumberClick dialog](docs/images/housenumberclick-dialog.png)

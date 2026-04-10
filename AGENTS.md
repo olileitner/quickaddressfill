@@ -26,7 +26,7 @@ All interactions happen directly within this mode:
 | ------------ | --------------------- |
 | Left Click   | Apply address         |
 | Ctrl + Click | Read address / street |
-| Right Click  | Row-house split       |
+| Alt + Right Click | Row-house split  |
 | Alt + Drag   | Line split            |
 | Alt + 1..9   | Set row-house parts   |
 
@@ -73,7 +73,7 @@ Important:
 * no mode switching
 * uses `SingleBuildingSplitService`
 
-### Row-House Split (Right Click)
+### Row-House Split (Alt + Right Click)
 
 * triggered from map mode
 * executed via `StreetModeController.executeInternalTerraceSplitAtClick(...)`
@@ -100,7 +100,7 @@ Split behavior is fully inline:
 
 ### Row-House Split
 
-* Trigger: right-click
+* Trigger: `Alt + Right Click`
 * Parts:
 
   * controlled via dialog (`Parts`)
@@ -205,7 +205,7 @@ Agents must be careful with:
 Verify BOTH:
 
 1. Line split (`Alt + Drag`)
-2. Row-house split (Right Click)
+2. Row-house split (`Alt + Right Click`)
 
 Do NOT:
 

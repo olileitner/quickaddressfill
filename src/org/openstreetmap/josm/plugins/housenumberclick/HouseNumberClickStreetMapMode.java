@@ -378,7 +378,7 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
 
     @Override
     public String getModeHelpText() {
-        return I18n.tr("Left-click applies tags, right-click creates row houses, Ctrl+left-click reads building data or street name, hold Alt and drag for temporary line split, Alt+1..9 sets row-house parts, + / - change number or suffix, L toggles letter suffix.");
+        return I18n.tr("Left-click applies tags, Alt+right-click creates row houses, Ctrl+left-click reads building data or street name, hold Alt and drag for temporary line split, Alt+1..9 sets row-house parts, + / - change number or suffix, L toggles letter suffix.");
     }
 
     private int resolveAltPartsShortcut(KeyEvent e) {
@@ -415,7 +415,12 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
             return;
         }
 
-        if (e != null && (SwingUtilities.isRightMouseButton(e) || e.isPopupTrigger())) {
+        if (e != null && e.isAltDown() && (e.isControlDown() || e.isShiftDown() || e.isMetaDown())) {
+            // Ignore global/system shortcut chords (e.g. Ctrl+Alt+Shift+...) in split gesture paths.
+            return;
+        }
+
+        if (e != null && altPressed && e.isAltDown() && (SwingUtilities.isRightMouseButton(e) || e.isPopupTrigger())) {
             long startedAtNanos = System.nanoTime();
             ClickResolutionStats stats = new ClickResolutionStats();
             try {
@@ -426,6 +431,7 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
                 updateStatusLine(I18n.tr("Row-house split failed. See log for details."));
                 stats.outcome = "runtime-error";
             } finally {
+                resetTemporarySplitState();
                 logClickDiagnostics(startedAtNanos, e, stats);
                 updateHouseNumberCursor();
             }
