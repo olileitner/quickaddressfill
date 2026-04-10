@@ -65,16 +65,18 @@ final class BuildingOverviewLayer extends Layer {
     private void drawPrimitive(Graphics2D g, MapView mapView, BuildingOverviewCollector.BuildingOverviewEntry entry) {
         OsmPrimitive primitive = entry.getPrimitive();
         if (primitive instanceof Way) {
-            drawWay(g, mapView, (Way) primitive, entry.hasHouseNumber(), entry.hasMisplacedHouseNumber());
+            drawWay(g, mapView, (Way) primitive, entry.hasHouseNumber(), entry.hasMisplacedHouseNumber(),
+                    entry.hasDuplicateExactAddress());
             return;
         }
         if (primitive instanceof Relation) {
-            drawRelation(g, mapView, (Relation) primitive, entry.hasHouseNumber(), entry.hasMisplacedHouseNumber());
+            drawRelation(g, mapView, (Relation) primitive, entry.hasHouseNumber(), entry.hasMisplacedHouseNumber(),
+                    entry.hasDuplicateExactAddress());
         }
     }
 
     private void drawRelation(Graphics2D g, MapView mapView, Relation relation, boolean hasHouseNumber,
-            boolean hasMisplacedHouseNumber) {
+            boolean hasMisplacedHouseNumber, boolean hasDuplicateExactAddress) {
         if (relation == null || !relation.isUsable()) {
             return;
         }
@@ -87,24 +89,28 @@ final class BuildingOverviewLayer extends Layer {
             if (!role.isEmpty() && !"outer".equals(role)) {
                 continue;
             }
-            drawWay(g, mapView, member.getWay(), hasHouseNumber, hasMisplacedHouseNumber);
+            drawWay(g, mapView, member.getWay(), hasHouseNumber, hasMisplacedHouseNumber, hasDuplicateExactAddress);
         }
     }
 
     private void drawWay(Graphics2D g, MapView mapView, Way way, boolean hasHouseNumber,
-            boolean hasMisplacedHouseNumber) {
+            boolean hasMisplacedHouseNumber, boolean hasDuplicateExactAddress) {
         Path2D polygon = buildScreenPolygon(mapView, way);
         if (polygon == null) {
             return;
         }
 
-        g.setColor(resolveFillColor(hasHouseNumber, hasMisplacedHouseNumber));
+        g.setColor(resolveFillColor(hasHouseNumber, hasMisplacedHouseNumber, hasDuplicateExactAddress));
         g.fill(polygon);
         g.setColor(OUTLINE_COLOR);
         g.draw(polygon);
     }
 
-    private Color resolveFillColor(boolean hasHouseNumber, boolean hasMisplacedHouseNumber) {
+    private Color resolveFillColor(boolean hasHouseNumber, boolean hasMisplacedHouseNumber,
+            boolean hasDuplicateExactAddress) {
+        if (hasDuplicateExactAddress) {
+            return MISPLACED_COLOR;
+        }
         if (hasHouseNumber) {
             return ADDRESSED_FILL_COLOR;
         }

@@ -1,7 +1,10 @@
 package org.openstreetmap.josm.plugins.housenumberclick;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DataSet;
@@ -22,17 +25,37 @@ final class BuildingOverviewCollector {
             return List.of();
         }
 
-        List<BuildingOverviewEntry> entries = new ArrayList<>();
+        List<CandidateEntry> candidates = new ArrayList<>();
         for (Way way : dataSet.getWays()) {
-            collectPrimitive(entries, way);
+            collectPrimitive(candidates, way);
         }
         for (Relation relation : dataSet.getRelations()) {
-            collectPrimitive(entries, relation);
+            collectPrimitive(candidates, relation);
+        }
+
+        Map<String, Integer> duplicateAddressCounts = new HashMap<>();
+        for (CandidateEntry candidate : candidates) {
+            String duplicateKey = candidate.duplicateAddressKey;
+            if (!duplicateKey.isEmpty()) {
+                duplicateAddressCounts.merge(duplicateKey, 1, Integer::sum);
+            }
+        }
+
+        List<BuildingOverviewEntry> entries = new ArrayList<>(candidates.size());
+        for (CandidateEntry candidate : candidates) {
+            boolean hasDuplicateExactAddress = !candidate.duplicateAddressKey.isEmpty()
+                    && duplicateAddressCounts.getOrDefault(candidate.duplicateAddressKey, 0) > 1;
+            entries.add(new BuildingOverviewEntry(
+                    candidate.primitive,
+                    candidate.hasHouseNumber,
+                    candidate.hasMisplacedHouseNumber,
+                    hasDuplicateExactAddress
+            ));
         }
         return entries;
     }
 
-    private void collectPrimitive(List<BuildingOverviewEntry> entries, OsmPrimitive primitive) {
+    private void collectPrimitive(List<CandidateEntry> entries, OsmPrimitive primitive) {
         if (!AddressedBuildingMatcher.isBuildingGeometry(primitive)) {
             return;
         }
@@ -44,7 +67,21 @@ final class BuildingOverviewCollector {
 
         boolean hasHouseNumber = !normalize(primitive.get("addr:housenumber")).isEmpty();
         boolean hasMisplacedHouseNumber = !hasHouseNumber && hasMisplacedHouseNumber(primitive);
-        entries.add(new BuildingOverviewEntry(primitive, hasHouseNumber, hasMisplacedHouseNumber));
+        String duplicateAddressKey = hasHouseNumber ? buildDuplicateAddressKey(primitive) : "";
+        entries.add(new CandidateEntry(primitive, hasHouseNumber, hasMisplacedHouseNumber, duplicateAddressKey));
+    }
+
+    private String buildDuplicateAddressKey(OsmPrimitive primitive) {
+        String street = normalize(primitive.get("addr:street"));
+        String postcode = normalize(primitive.get("addr:postcode"));
+        String houseNumber = normalize(primitive.get("addr:housenumber"));
+        if (street.isEmpty() || postcode.isEmpty() || houseNumber.isEmpty()) {
+            return "";
+        }
+
+        return street.toLowerCase(Locale.ROOT)
+                + "|" + postcode.toLowerCase(Locale.ROOT)
+                + "|" + houseNumber.toLowerCase(Locale.ROOT);
     }
 
     private boolean hasMisplacedHouseNumber(OsmPrimitive primitive) {
@@ -169,11 +206,14 @@ final class BuildingOverviewCollector {
         private final OsmPrimitive primitive;
         private final boolean hasHouseNumber;
         private final boolean hasMisplacedHouseNumber;
+        private final boolean hasDuplicateExactAddress;
 
-        BuildingOverviewEntry(OsmPrimitive primitive, boolean hasHouseNumber, boolean hasMisplacedHouseNumber) {
+        BuildingOverviewEntry(OsmPrimitive primitive, boolean hasHouseNumber, boolean hasMisplacedHouseNumber,
+                boolean hasDuplicateExactAddress) {
             this.primitive = primitive;
             this.hasHouseNumber = hasHouseNumber;
             this.hasMisplacedHouseNumber = hasMisplacedHouseNumber;
+            this.hasDuplicateExactAddress = hasDuplicateExactAddress;
         }
 
         OsmPrimitive getPrimitive() {
@@ -186,6 +226,25 @@ final class BuildingOverviewCollector {
 
         boolean hasMisplacedHouseNumber() {
             return hasMisplacedHouseNumber;
+        }
+
+        boolean hasDuplicateExactAddress() {
+            return hasDuplicateExactAddress;
+        }
+    }
+
+    private static final class CandidateEntry {
+        private final OsmPrimitive primitive;
+        private final boolean hasHouseNumber;
+        private final boolean hasMisplacedHouseNumber;
+        private final String duplicateAddressKey;
+
+        CandidateEntry(OsmPrimitive primitive, boolean hasHouseNumber, boolean hasMisplacedHouseNumber,
+                String duplicateAddressKey) {
+            this.primitive = primitive;
+            this.hasHouseNumber = hasHouseNumber;
+            this.hasMisplacedHouseNumber = hasMisplacedHouseNumber;
+            this.duplicateAddressKey = duplicateAddressKey;
         }
     }
 }

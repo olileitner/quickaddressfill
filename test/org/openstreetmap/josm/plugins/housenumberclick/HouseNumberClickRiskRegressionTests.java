@@ -697,24 +697,53 @@ public final class HouseNumberClickRiskRegressionTests {
         DataSet dataSet = new DataSet();
 
         Way addressedLarge = createClosedBuildingWithSize("Example Street", "1", 0.0002);
+        addressedLarge.put("addr:postcode", "12345");
+        Way addressedDuplicate = createClosedBuildingWithSize("Example Street", "1", 0.0002);
+        addressedDuplicate.put("addr:postcode", "12345");
+        Way sameHouseOtherStreet = createClosedBuildingWithSize("Other Street", "1", 0.0002);
+        sameHouseOtherStreet.put("addr:postcode", "12345");
+        Way sameHouseMissingPostcode = createClosedBuildingWithSize("Example Street", "1", 0.0002);
         Way unaddressedLarge = createClosedBuildingWithSize(null, null, 0.0002);
         Way addressedTiny = createClosedBuildingWithSize("Example Street", "99", 0.00001);
 
         dataSet.addPrimitiveRecursive(addressedLarge);
+        dataSet.addPrimitiveRecursive(addressedDuplicate);
+        dataSet.addPrimitiveRecursive(sameHouseOtherStreet);
+        dataSet.addPrimitiveRecursive(sameHouseMissingPostcode);
         dataSet.addPrimitiveRecursive(unaddressedLarge);
         dataSet.addPrimitiveRecursive(addressedTiny);
 
         BuildingOverviewCollector collector = new BuildingOverviewCollector();
         List<BuildingOverviewCollector.BuildingOverviewEntry> entries = collector.collect(dataSet);
 
-        assertEquals(2, entries.size(), "collector should skip buildings below minimum area");
+        assertEquals(5, entries.size(), "collector should skip buildings below minimum area");
 
         boolean containsAddressedLarge = false;
+        boolean containsAddressedDuplicate = false;
+        boolean containsSameHouseOtherStreet = false;
+        boolean containsSameHouseMissingPostcode = false;
         boolean containsUnaddressedLarge = false;
         boolean containsAddressedTiny = false;
         for (BuildingOverviewCollector.BuildingOverviewEntry entry : entries) {
-            if (entry.getPrimitive() == addressedLarge && entry.hasHouseNumber()) {
+            if (entry.getPrimitive() == addressedLarge
+                    && entry.hasHouseNumber()
+                    && entry.hasDuplicateExactAddress()) {
                 containsAddressedLarge = true;
+            }
+            if (entry.getPrimitive() == addressedDuplicate
+                    && entry.hasHouseNumber()
+                    && entry.hasDuplicateExactAddress()) {
+                containsAddressedDuplicate = true;
+            }
+            if (entry.getPrimitive() == sameHouseOtherStreet
+                    && entry.hasHouseNumber()
+                    && !entry.hasDuplicateExactAddress()) {
+                containsSameHouseOtherStreet = true;
+            }
+            if (entry.getPrimitive() == sameHouseMissingPostcode
+                    && entry.hasHouseNumber()
+                    && !entry.hasDuplicateExactAddress()) {
+                containsSameHouseMissingPostcode = true;
             }
             if (entry.getPrimitive() == unaddressedLarge && !entry.hasHouseNumber()) {
                 containsUnaddressedLarge = true;
@@ -724,7 +753,14 @@ public final class HouseNumberClickRiskRegressionTests {
             }
         }
 
-        assertTrue(containsAddressedLarge, "large addressed building should be included and marked addressed");
+        assertTrue(containsAddressedLarge,
+                "large addressed building with duplicate street/postcode/housenumber should be marked duplicate");
+        assertTrue(containsAddressedDuplicate,
+                "second duplicate building with same street/postcode/housenumber should be marked duplicate");
+        assertTrue(containsSameHouseOtherStreet,
+                "same housenumber with different street must not be marked duplicate");
+        assertTrue(containsSameHouseMissingPostcode,
+                "same housenumber without postcode must not be marked duplicate");
         assertTrue(containsUnaddressedLarge, "large unaddressed building should be included and marked unaddressed");
         assertFalse(containsAddressedTiny, "tiny building should be excluded by minimum area filter");
     }
