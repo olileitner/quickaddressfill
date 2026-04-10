@@ -90,7 +90,7 @@ final class StreetSelectionDialog {
     private boolean streetNavigationDispatcherRegistered;
 
     private static final int DIALOG_WIDTH = 390;
-    private static final int DIALOG_HEIGHT = 820;
+    private static final int DIALOG_HEIGHT = 860;
     private static final int DIALOG_OFFSET_X = 66;
     private static final int DIALOG_OFFSET_Y = 80;
     private static final String SHOW_OVERVIEW_BUTTON_TEXT = I18n.tr("Show overview");
@@ -212,7 +212,6 @@ final class StreetSelectionDialog {
         modeStatePanel.add(modeStateLabel, BorderLayout.WEST);
         modeStatePanel.add(continueWorkingButton, BorderLayout.EAST);
 
-        JPanel splitToolsPanel = new JPanel(new GridBagLayout());
         this.splitMakeRectangularCheckbox = new JCheckBox(I18n.tr("Make rectangular"));
         this.splitMakeRectangularCheckbox.setSelected(rememberedSplitMakeRectangular);
         this.splitMakeRectangularCheckbox.addActionListener(e -> onSplitMakeRectangularSelectionChanged());
@@ -235,7 +234,7 @@ final class StreetSelectionDialog {
             }
         });
         int rowHousePartsFieldHeight = rowHousePartsField.getPreferredSize().height;
-        Dimension rowHousePartsFieldSize = new Dimension(56, rowHousePartsFieldHeight);
+        Dimension rowHousePartsFieldSize = new Dimension(40, rowHousePartsFieldHeight);
         this.rowHousePartsField.setPreferredSize(rowHousePartsFieldSize);
         this.rowHousePartsField.setMinimumSize(rowHousePartsFieldSize);
         this.rowHousePartsMinusButton = createRowHousePartsAdjustButton(-1);
@@ -243,42 +242,6 @@ final class StreetSelectionDialog {
         Dimension squarePartsButtonSize = new Dimension(rowHousePartsFieldHeight, rowHousePartsFieldHeight);
         this.rowHousePartsMinusButton.setPreferredSize(squarePartsButtonSize);
         this.rowHousePartsPlusButton.setPreferredSize(squarePartsButtonSize);
-
-        GridBagConstraints splitGbc = new GridBagConstraints();
-        splitGbc.gridx = 0;
-        splitGbc.gridy = 0;
-        splitGbc.gridwidth = 5;
-        splitGbc.weightx = 1.0;
-        splitGbc.fill = GridBagConstraints.HORIZONTAL;
-        splitGbc.anchor = GridBagConstraints.WEST;
-        splitGbc.insets = new Insets(0, 0, 4, 0);
-        splitToolsPanel.add(splitMakeRectangularCheckbox, splitGbc);
-
-        splitGbc.gridx = 0;
-        splitGbc.gridy = 1;
-        splitGbc.gridwidth = 1;
-        splitGbc.weightx = 0.0;
-        splitGbc.fill = GridBagConstraints.NONE;
-        splitGbc.insets = new Insets(0, 0, 0, 8);
-        splitToolsPanel.add(new JLabel(I18n.tr("Parts:")), splitGbc);
-
-        splitGbc.gridx = 1;
-        splitGbc.weightx = 0.0;
-        splitGbc.fill = GridBagConstraints.NONE;
-        splitGbc.insets = new Insets(0, 0, 0, 4);
-        splitToolsPanel.add(rowHousePartsMinusButton, splitGbc);
-
-        splitGbc.gridx = 2;
-        splitGbc.weightx = 1.0;
-        splitGbc.fill = GridBagConstraints.HORIZONTAL;
-        splitGbc.insets = new Insets(0, 0, 0, 4);
-        splitToolsPanel.add(rowHousePartsField, splitGbc);
-
-        splitGbc.gridx = 3;
-        splitGbc.weightx = 0.0;
-        splitGbc.fill = GridBagConstraints.NONE;
-        splitGbc.insets = new Insets(0, 0, 0, 0);
-        splitToolsPanel.add(rowHousePartsPlusButton, splitGbc);
 
         JPanel sectionsPanel = new JPanel(new GridBagLayout());
         GridBagConstraints sectionGbc = new GridBagConstraints();
@@ -293,25 +256,29 @@ final class StreetSelectionDialog {
 
         sectionGbc.gridy = 1;
         sectionGbc.insets = new Insets(6, 0, 0, 0);
-        sectionsPanel.add(createDisplaySection(), sectionGbc);
+        sectionsPanel.add(createStreetNavigationSection(), sectionGbc);
 
         sectionGbc.gridy = 2;
         sectionGbc.insets = new Insets(6, 0, 0, 0);
-        sectionsPanel.add(createAnalysisSection(), sectionGbc);
+        sectionsPanel.add(createLineSplitSection(), sectionGbc);
 
         sectionGbc.gridy = 3;
         sectionGbc.insets = new Insets(6, 0, 0, 0);
-        sectionsPanel.add(createStreetNavigationSection(), sectionGbc);
+        sectionsPanel.add(createRowHousesSection(), sectionGbc);
 
         sectionGbc.gridy = 4;
         sectionGbc.insets = new Insets(6, 0, 0, 0);
-        sectionsPanel.add(createAdvancedToolsSection(splitToolsPanel), sectionGbc);
+        sectionsPanel.add(createDisplaySection(), sectionGbc);
 
         sectionGbc.gridy = 5;
         sectionGbc.insets = new Insets(6, 0, 0, 0);
-        sectionsPanel.add(createHelpSection(), sectionGbc);
+        sectionsPanel.add(createAnalysisSection(), sectionGbc);
 
         sectionGbc.gridy = 6;
+        sectionGbc.insets = new Insets(6, 0, 0, 0);
+        sectionsPanel.add(createHelpSection(), sectionGbc);
+
+        sectionGbc.gridy = 7;
         sectionGbc.weighty = 1.0;
         sectionGbc.fill = GridBagConstraints.BOTH;
         sectionGbc.insets = new Insets(0, 0, 0, 0);
@@ -886,10 +853,45 @@ final class StreetSelectionDialog {
         return panel;
     }
 
-    private JPanel createAdvancedToolsSection(JPanel splitToolsPanel) {
+    private JPanel createLineSplitSection() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Extra tools")));
-        panel.add(splitToolsPanel, BorderLayout.CENTER);
+        panel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Line Split")));
+        panel.add(splitMakeRectangularCheckbox, BorderLayout.WEST);
+        return panel;
+    }
+
+    private JPanel createRowHousesSection() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Row Houses")));
+
+        JPanel partsControlsPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints controlsGbc = new GridBagConstraints();
+        controlsGbc.gridy = 0;
+        controlsGbc.anchor = GridBagConstraints.WEST;
+
+        controlsGbc.gridx = 0;
+        controlsGbc.insets = new Insets(0, 0, 0, 4);
+        partsControlsPanel.add(rowHousePartsMinusButton, controlsGbc);
+
+        controlsGbc.gridx = 1;
+        controlsGbc.insets = new Insets(0, 0, 0, 4);
+        partsControlsPanel.add(rowHousePartsField, controlsGbc);
+
+        controlsGbc.gridx = 2;
+        controlsGbc.insets = new Insets(0, 0, 0, 0);
+        partsControlsPanel.add(rowHousePartsPlusButton, controlsGbc);
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.insets = new Insets(0, 0, 4, 0);
+        panel.add(new JLabel(I18n.tr("Parts")), gbc);
+
+        gbc.gridy = 1;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        panel.add(partsControlsPanel, gbc);
+
         return panel;
     }
 
@@ -899,21 +901,31 @@ final class StreetSelectionDialog {
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
-        gbc.gridy = 0;
         gbc.anchor = GridBagConstraints.WEST;
-        panel.add(new JLabel(I18n.tr("Click: apply address    Ctrl+Click: read")), gbc);
+        gbc.insets = new Insets(0, 0, 2, 12);
 
-        gbc.gridy = 1;
-        gbc.insets = new Insets(2, 0, 0, 0);
-        panel.add(new JLabel(I18n.tr("Hold Alt: temporary line split (drag across building)")), gbc);
+        GridBagConstraints actionGbc = new GridBagConstraints();
+        actionGbc.gridx = 1;
+        actionGbc.anchor = GridBagConstraints.WEST;
+        actionGbc.weightx = 1.0;
+        actionGbc.fill = GridBagConstraints.HORIZONTAL;
+        actionGbc.insets = new Insets(0, 0, 2, 0);
 
-        gbc.gridy = 2;
-        panel.add(new JLabel(I18n.tr("Right-click building: create row houses (Parts from dialog)    + / -: change number    L: toggle letter")), gbc);
-
-        gbc.gridy = 3;
-        panel.add(new JLabel(I18n.tr("Split triggers: hold Alt and drag for line split; right-click building for row houses.")), gbc);
+        addHelpRow(panel, gbc, actionGbc, 0, I18n.tr("Left click"), I18n.tr("Apply address"));
+        addHelpRow(panel, gbc, actionGbc, 1, I18n.tr("Ctrl+Click"), I18n.tr("Read address"));
+        addHelpRow(panel, gbc, actionGbc, 2, I18n.tr("Right click"), I18n.tr("Row houses"));
+        addHelpRow(panel, gbc, actionGbc, 3, I18n.tr("Alt+Drag"), I18n.tr("Line split"));
+        addHelpRow(panel, gbc, actionGbc, 4, I18n.tr("Alt+1..9"), I18n.tr("Set parts"));
 
         return panel;
+    }
+
+    private void addHelpRow(JPanel panel, GridBagConstraints keyGbc, GridBagConstraints actionGbc,
+                            int row, String input, String action) {
+        keyGbc.gridy = row;
+        actionGbc.gridy = row;
+        panel.add(new JLabel(input), keyGbc);
+        panel.add(new JLabel(action), actionGbc);
     }
 
     private void onSplitMakeRectangularSelectionChanged() {
