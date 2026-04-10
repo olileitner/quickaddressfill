@@ -45,6 +45,7 @@ HouseNumberClick is a JOSM plugin for fast, street-focused house-number tagging 
 
 - `+` / `-`: change current house-number component.
 - `L`: toggle suffix (`12 <-> 12a`).
+- `Alt+1..9`: set row-house `Parts` in Street Mode.
 - `Esc`: leave/pause Street Mode.
 - Left/right street navigation is disabled while typing in text fields.
 
@@ -52,6 +53,7 @@ HouseNumberClick is a JOSM plugin for fast, street-focused house-number tagging 
 
 - **Temporary line split:** hold `Alt`, press the left mouse button, drag, and release to attempt a split.
 - Releasing `Alt` cancels an ongoing split gesture (if not yet completed).
+- **Parts quick-set:** press `Alt+1..9` in Street Mode to set row-house `Parts` quickly.
 - **Row-house split:** right-click inside a building in Street Mode; the split uses the `Parts` value from the dialog.
 
 ## Power User Workflow

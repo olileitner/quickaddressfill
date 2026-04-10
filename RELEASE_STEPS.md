@@ -6,7 +6,7 @@ This repository is prepared for externally hosted plugin jars (for example via G
 
 - Ensure working tree is clean.
 - Ensure local branch is up to date.
-- Set target release version in `build.xml` (`plugin.version`).
+- Update target release version in `build.xml` (`plugin.version`) before tagging.
 
 ```bash
 cd /home/oliver/IdeaProjects/housenumberclick
@@ -26,6 +26,14 @@ ant release-artifact
 Expected artifacts:
 - `dist/HouseNumberClick.jar`
 - `dist/HouseNumberClick-<version>.jar`
+
+Quick artifact/manifest check:
+
+```bash
+cd /home/oliver/IdeaProjects/housenumberclick
+ls -lh dist/HouseNumberClick-<version>.jar
+unzip -p dist/HouseNumberClick-<version>.jar META-INF/MANIFEST.MF
+```
 
 ## 3) Tag the Release
 
@@ -56,4 +64,18 @@ PluginsSource URL pattern for the uploaded asset:
   - `Plugin-Class`
   - `Plugin-Version`
   - `Plugin-Mainversion`
+
+## 6) Local Smoke Test (Recommended)
+
+```bash
+cd /home/oliver/IdeaProjects/housenumberclick
+cp dist/HouseNumberClick.jar ~/.josm/plugins/
+```
+
+- Start JOSM and verify plugin loads.
+- Start Street Mode and test:
+  - Left click (`apply`)
+  - Ctrl+Click (`readback`)
+  - Right click (`row-house split`)
+  - Alt+Drag (`line split`)
 

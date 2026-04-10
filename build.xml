@@ -16,7 +16,6 @@
     <property name="dist.dir" value="dist"/>
     <property name="lib.dir" value="lib"/>
     <property name="josm.jar" value="${lib.dir}/josm-tested.jar"/>
-    <property name="buildingsplitter.jar" value="${user.home}/.josm/plugins/buildingsplitter.jar"/>
     <property name="i18n.dir" value="i18n"/>
     <property name="i18n.po.dir" value="${i18n.dir}/po"/>
     <property name="i18n.lang.dir" value="${i18n.dir}/lang"/>
@@ -114,13 +113,8 @@
     </target>
 
     <target name="compile" depends="fetch-josm,validate-metadata">
-        <condition property="buildingsplitter.status" value="available" else="not found (optional)">
-            <available file="${buildingsplitter.jar}"/>
-        </condition>
-        <echo message="BuildingSplitter jar ${buildingsplitter.status}: ${buildingsplitter.jar}"/>
         <path id="compile.classpath">
             <pathelement location="${josm.jar}"/>
-            <pathelement location="${buildingsplitter.jar}"/>
         </path>
         <javac srcdir="${src.dir}"
                destdir="${classes.dir}"

@@ -18,7 +18,7 @@ From `build.xml` in this repository:
 
 ## 2) Recommended PluginsSource-First Flow
 
-1. Set `plugin.version` in `build.xml`.
+1. Update `plugin.version` in `build.xml` before tagging/release.
 2. Build and verify:
 
 ```bash
@@ -26,6 +26,13 @@ cd /home/oliver/IdeaProjects/housenumberclick
 ant clean
 ant test
 ant release-artifact
+```
+
+   Quick verification:
+
+```bash
+ls -lh dist/HouseNumberClick-<version>.jar
+unzip -p dist/HouseNumberClick-<version>.jar META-INF/MANIFEST.MF
 ```
 
 3. Tag and release on GitHub:
@@ -42,9 +49,9 @@ URL pattern:
 
 `https://github.com/<owner>/<repo>/releases/download/v<version>/HouseNumberClick-<version>.jar`
 
-## 3) Optional Future Official JOSM Publish Path
+## 3) Hosting Note and Optional Future Official JOSM Publish Path
 
-This repository intentionally does not include an `ant publish` target.
+This repository intentionally does not include an `ant publish` target; external artifact hosting is the intended release path.
 
 If you later decide to use the official JOSM publish path, that must be done in the JOSM publication context/repository where `ant publish` is supported.
 

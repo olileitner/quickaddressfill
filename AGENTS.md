@@ -28,6 +28,7 @@ All interactions happen directly within this mode:
 | Ctrl + Click | Read address / street |
 | Right Click  | Row-house split       |
 | Alt + Drag   | Line split            |
+| Alt + 1..9   | Set row-house parts   |
 
 Important:
 
@@ -103,6 +104,7 @@ Split behavior is fully inline:
 * Parts:
 
   * controlled via dialog (`Parts`)
+  * quick-set via `Alt + 1..9`
   * stored in controller (`configuredTerraceParts`)
 * Execution:
 
@@ -119,6 +121,7 @@ Split behavior is fully inline:
 ## Build, Test, and Release
 
 * Build: Ant + Java 17
+* No external BuildingSplitter dependency remains
 
 * Commands:
 
