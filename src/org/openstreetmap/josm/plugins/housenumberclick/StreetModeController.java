@@ -482,7 +482,7 @@ final class StreetModeController {
     }
 
     void setConfiguredTerraceParts(int parts) {
-        if (parts >= 2) {
+        if (parts >= 1) {
             configuredTerraceParts = parts;
         }
     }

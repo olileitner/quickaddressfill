@@ -71,6 +71,7 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Duplicate click detection keeps rapid distinct clicks", HouseNumberClickRiskRegressionTests::testRapidDistinctClicksAreKept);
             run("Ctrl has priority over Alt split activation", HouseNumberClickRiskRegressionTests::testCtrlHasPriorityOverAltActivation);
             run("Temporary Alt split exits on Alt release", HouseNumberClickRiskRegressionTests::testTemporaryAltSplitExitsOnAltRelease);
+            run("Alt+digit sets row-house parts through controller", HouseNumberClickRiskRegressionTests::testAltDigitSetsTerracePartsShortcut);
             run("Ctrl cursor uses custom magnifier without arrow asset fallback", HouseNumberClickRiskRegressionTests::testCtrlCursorUsesCustomMagnifier);
             run("Split cursor hotspot keeps scalp tip shifted left", HouseNumberClickRiskRegressionTests::testSplitCursorHotspotShiftedLeft);
             run("Split map mode is line-split only", HouseNumberClickRiskRegressionTests::testSplitMapModeIsLineSplitOnly);
@@ -516,6 +517,16 @@ public final class HouseNumberClickRiskRegressionTests {
                 "Alt release should clear active inline split-drag state");
         assertTrue(streetModeSource.contains("mouseDragged"),
                 "single-mapmode model should handle split drag updates in street mode directly");
+    }
+
+    private static void testAltDigitSetsTerracePartsShortcut() throws Exception {
+        String source = readPluginSource("HouseNumberClickStreetMapMode.java");
+        assertTrue(source.contains("resolveAltPartsShortcut"),
+                "street mode should decode Alt+digit shortcuts for terrace part count");
+        assertTrue(source.contains("controller.setConfiguredTerraceParts"),
+                "Alt+digit shortcut must set terrace parts in controller as single source of truth");
+        assertTrue(source.contains("Row houses parts set to {0}."),
+                "Alt+digit shortcut should provide status feedback for configured parts");
     }
 
     private static void testCtrlCursorUsesCustomMagnifier() throws Exception {

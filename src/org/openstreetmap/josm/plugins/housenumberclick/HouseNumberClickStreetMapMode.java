@@ -206,6 +206,16 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
             return false;
         }
 
+        if (!e.isConsumed() && id == KeyEvent.KEY_PRESSED && e.isAltDown() && !e.isControlDown() && !e.isMetaDown()) {
+            int shortcutParts = resolveAltPartsShortcut(e);
+            if (shortcutParts > 0) {
+                controller.setConfiguredTerraceParts(shortcutParts);
+                refreshModePresentation(I18n.tr("Row houses parts set to {0}.", controller.getConfiguredTerraceParts()));
+                e.consume();
+                return true;
+            }
+        }
+
         if (id != KeyEvent.KEY_PRESSED || e.isConsumed()) {
             return false;
         }
@@ -295,7 +305,18 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
 
     @Override
     public String getModeHelpText() {
-        return I18n.tr("Left-click applies tags, right-click creates row houses, Ctrl+left-click reads building data or street name, hold Alt and drag for temporary line split, + / - change number or suffix, L toggles letter suffix.");
+        return I18n.tr("Left-click applies tags, right-click creates row houses, Ctrl+left-click reads building data or street name, hold Alt and drag for temporary line split, Alt+1..9 sets row-house parts, + / - change number or suffix, L toggles letter suffix.");
+    }
+
+    private int resolveAltPartsShortcut(KeyEvent e) {
+        int keyCode = e.getKeyCode();
+        if (keyCode >= KeyEvent.VK_1 && keyCode <= KeyEvent.VK_9) {
+            return keyCode - KeyEvent.VK_0;
+        }
+        if (keyCode >= KeyEvent.VK_NUMPAD1 && keyCode <= KeyEvent.VK_NUMPAD9) {
+            return keyCode - KeyEvent.VK_NUMPAD0;
+        }
+        return -1;
     }
 
     private boolean isPlusShortcut(KeyEvent e) {
