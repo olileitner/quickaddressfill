@@ -15,6 +15,8 @@ import org.openstreetmap.josm.gui.MapFrame;
 
 final class ClickHandlerService {
 
+    private static final String DEFAULT_STREET_PICKED_HOUSE_NUMBER = "1";
+
     interface InteractionPort {
         boolean shouldShowOverwriteWarning(
                 AddressConflictService.ConflictAnalysis conflictAnalysis,
@@ -207,11 +209,15 @@ final class ClickHandlerService {
                     buildingType
             );
             if (readback != null) {
+                String streetPickedHouseNumber = normalize(readback.getHouseNumber());
+                if (streetPickedHouseNumber.isEmpty()) {
+                    streetPickedHouseNumber = DEFAULT_STREET_PICKED_HOUSE_NUMBER;
+                }
                 port.updateAddressValues(
                         readback.getStreet(),
                         readback.getPostcode(),
                         readback.getBuildingType(),
-                        readback.getHouseNumber()
+                        streetPickedHouseNumber
                 );
                 port.updateStatusLine(org.openstreetmap.josm.tools.I18n.tr(
                         "Street name loaded from map: {0}",

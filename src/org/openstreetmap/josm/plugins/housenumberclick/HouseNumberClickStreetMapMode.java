@@ -14,9 +14,12 @@ import java.awt.Point;
 import java.awt.Polygon;
 import java.awt.RenderingHints;
 import java.awt.Toolkit;
+import java.awt.Window;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,6 +60,7 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
     private final ConflictDialogModelBuilder conflictDialogModelBuilder;
     private final KeyAdapter escListener;
     private final KeyEventDispatcher ctrlKeyDispatcher;
+    private final WindowAdapter appFocusListener;
     private String streetName;
     private String postcode;
     private String buildingType;
@@ -77,6 +81,8 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
     private int lastClickY = Integer.MIN_VALUE;
     private int lastClickModifiers;
     private int lastClickButton;
+    private boolean appFocusListenerRegistered;
+    private Window appFocusWindow;
 
     private static final class ClickResolutionStats {
         private String outcome = "unknown";
@@ -101,6 +107,17 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
         this.houseNumberService = new HouseNumberService();
         this.conflictDialogModelBuilder = new ConflictDialogModelBuilder();
         this.ctrlKeyDispatcher = this::handleGlobalKeyEvent;
+        this.appFocusListener = new WindowAdapter() {
+            @Override
+            public void windowLostFocus(WindowEvent e) {
+                handleApplicationWindowLostFocus();
+            }
+
+            @Override
+            public void windowGainedFocus(WindowEvent e) {
+                handleApplicationWindowGainedFocus();
+            }
+        };
         this.escListener = new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -139,6 +156,7 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
         altPressed = false;
         clearSplitDragState();
         registerCtrlKeyDispatcher();
+        registerAppFocusListener();
         MapFrame map = MainApplication.getMap();
         if (map != null && map.mapView != null) {
             map.mapView.addKeyListener(escListener);
@@ -156,6 +174,7 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
         ctrlPressedForCursor = false;
         altPressed = false;
         clearSplitDragState();
+        unregisterAppFocusListener();
         unregisterCtrlKeyDispatcher();
         MapFrame map = MainApplication.getMap();
         if (map != null && map.mapView != null) {
@@ -301,6 +320,52 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
         }
         KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(ctrlKeyDispatcher);
         ctrlDispatcherRegistered = true;
+    }
+
+    private void registerAppFocusListener() {
+        if (appFocusListenerRegistered) {
+            return;
+        }
+        Window mainWindow = MainApplication.getMainFrame();
+        if (mainWindow == null) {
+            return;
+        }
+        mainWindow.addWindowFocusListener(appFocusListener);
+        appFocusWindow = mainWindow;
+        appFocusListenerRegistered = true;
+    }
+
+    private void unregisterAppFocusListener() {
+        if (!appFocusListenerRegistered) {
+            return;
+        }
+        if (appFocusWindow != null) {
+            appFocusWindow.removeWindowFocusListener(appFocusListener);
+        }
+        appFocusWindow = null;
+        appFocusListenerRegistered = false;
+    }
+
+    private void handleApplicationWindowLostFocus() {
+        if (!isModeActiveOnMap(MainApplication.getMap())) {
+            return;
+        }
+        resetTemporarySplitState();
+        setDefaultMapCursor();
+    }
+
+    private void handleApplicationWindowGainedFocus() {
+        if (!isModeActiveOnMap(MainApplication.getMap())) {
+            return;
+        }
+        updateHouseNumberCursor();
+    }
+
+    private void setDefaultMapCursor() {
+        MapFrame map = MainApplication.getMap();
+        if (map != null && map.mapView != null) {
+            map.mapView.setCursor(Cursor.getDefaultCursor());
+        }
     }
 
     private void unregisterCtrlKeyDispatcher() {

@@ -35,6 +35,7 @@ public final class HouseNumberClickRiskRegressionTests {
             run("HouseNumberService number and letter part updates", HouseNumberClickRiskRegressionTests::testHouseNumberPartUpdateRules);
             run("AddressReadbackService reads address tags from building", HouseNumberClickRiskRegressionTests::testAddressReadbackFromBuilding);
             run("AddressReadbackService street fallback only returns street", HouseNumberClickRiskRegressionTests::testAddressReadbackStreetFallback);
+            run("Street fallback click readback initializes house number to one", HouseNumberClickRiskRegressionTests::testStreetFallbackClickReadbackInitializesHouseNumber);
             run("AddressReadbackService candidate fallback order", HouseNumberClickRiskRegressionTests::testAddressReadbackCandidateOrderAndMissingTags);
             run("PostcodeCollector collects sorted visible postcodes", HouseNumberClickRiskRegressionTests::testPostcodeCollectorCollectsSortedVisiblePostcodes);
             run("AddressConflictService detects street and postcode conflicts", HouseNumberClickRiskRegressionTests::testAddressConflictDetection);
@@ -150,6 +151,14 @@ public final class HouseNumberClickRiskRegressionTests {
         assertEquals("", result.getHouseNumber(), "street fallback should not provide a house-number override");
         assertEquals("street-fallback", result.getSource(), "source should mark street fallback");
         assertEquals(null, service.readFromStreetFallback("   ", "99999", "residential"), "empty fallback street should produce no readback result");
+    }
+
+    private static void testStreetFallbackClickReadbackInitializesHouseNumber() throws Exception {
+        String source = readPluginSource("ClickHandlerService.java");
+        assertTrue(source.contains("DEFAULT_STREET_PICKED_HOUSE_NUMBER = \"1\""),
+                "street fallback click readback should define default house number 1");
+        assertTrue(source.contains("streetPickedHouseNumber = DEFAULT_STREET_PICKED_HOUSE_NUMBER"),
+                "street fallback click readback should apply house number 1 when no house number is available");
     }
 
     private static void testAddressReadbackCandidateOrderAndMissingTags() {
