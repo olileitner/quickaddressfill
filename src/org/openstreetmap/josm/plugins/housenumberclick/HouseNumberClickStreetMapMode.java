@@ -909,8 +909,8 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
         try {
             Toolkit toolkit = Toolkit.getDefaultToolkit();
             Image image = toolkit.getImage(getClass().getResource("/images/scalpel_cursor.png"));
-            int hotspotX = 4;
-            int hotspotY = 28;
+            int hotspotX = 7;
+            int hotspotY = 29;
             return toolkit.createCustomCursor(image, new Point(hotspotX, hotspotY), "hnc-split-cursor");
         } catch (RuntimeException ex) {
             Logging.debug(ex);
