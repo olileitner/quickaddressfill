@@ -8,6 +8,7 @@ import java.util.List;
 
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.actions.OrthogonalizeAction;
+import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.osm.DataSet;
@@ -441,6 +442,7 @@ final class StreetModeController {
     }
 
     SingleSplitResult executeInternalSingleSplit(LatLon lineStart, LatLon lineEnd) {
+        int undoStartSize = UndoRedoHandler.getInstance().getUndoCommands().size();
         DataSet dataSet = getActiveEditDataSet();
         if (dataSet == null) {
             return failSingleSplit("No editable dataset is available.");
@@ -477,6 +479,7 @@ final class StreetModeController {
             if (rectangularizeAfterLineSplit) {
                 applyRectangularizeOnWays(result.getResultWays());
             }
+            mergeUndoStepsSince(undoStartSize, "Line split");
             clearDataSetSelection(dataSet);
         }
         return result;
@@ -503,6 +506,7 @@ final class StreetModeController {
     }
 
     TerraceSplitResult executeInternalTerraceSplitAtClick(Way clickedBuilding, int parts) {
+        int undoStartSize = UndoRedoHandler.getInstance().getUndoCommands().size();
         DataSet dataSet = getActiveEditDataSet();
         if (dataSet == null) {
             TerraceSplitResult failure = TerraceSplitResult.failure("No editable dataset is available.");
@@ -532,8 +536,23 @@ final class StreetModeController {
             return result;
         }
 
+        mergeUndoStepsSince(undoStartSize, "Create row houses");
+
         dataSet.setSelected(result.getResultWays());
         return result;
+    }
+
+    private void mergeUndoStepsSince(int undoStartSize, String commandName) {
+        List<Command> undoCommands = UndoRedoHandler.getInstance().getUndoCommands();
+        int undoEndSize = undoCommands.size();
+        int addedCount = undoEndSize - undoStartSize;
+        if (addedCount <= 1) {
+            return;
+        }
+
+        List<Command> addedCommands = new ArrayList<>(undoCommands.subList(undoStartSize, undoEndSize));
+        UndoRedoHandler.getInstance().undo(addedCount);
+        UndoRedoHandler.getInstance().add(new SequenceCommand(commandName, addedCommands));
     }
 
     private void applyRectangularizeOnWays(List<Way> ways) {
