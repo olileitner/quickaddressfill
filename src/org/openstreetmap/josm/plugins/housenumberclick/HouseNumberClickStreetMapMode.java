@@ -180,7 +180,7 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
             return false;
         }
 
-        if (isAltModifierChordActive(e)) {
+        if (altPressed && (e.isControlDown() || e.isShiftDown() || e.isMetaDown())) {
             // Global shortcuts like Ctrl+Alt+Shift+P must not leave split readiness active.
             resetTemporarySplitState();
         }
@@ -519,11 +519,6 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
                 && !e.isMetaDown();
     }
 
-    private boolean isAltModifierChordActive(KeyEvent e) {
-        return e != null
-                && e.isAltDown()
-                && (e.isControlDown() || e.isShiftDown() || e.isMetaDown());
-    }
 
     private void resetTemporarySplitState() {
         altPressed = false;
