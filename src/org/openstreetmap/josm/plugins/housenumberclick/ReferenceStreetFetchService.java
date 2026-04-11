@@ -17,12 +17,13 @@ import org.openstreetmap.josm.data.osm.PrimitiveId;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.progress.NullProgressMonitor;
 import org.openstreetmap.josm.io.OverpassDownloadReader;
+import org.openstreetmap.josm.tools.Logging;
 
 final class ReferenceStreetFetchService {
 
-    private static final double EXPAND_RATIO = 0.12;
+    private static final double EXPAND_RATIO = 0.10;
     private static final double MIN_EXPAND_DEGREES = 0.001;
-    private static final double MAX_EXPAND_DEGREES = 0.02;
+    private static final double MAX_EXPAND_DEGREES = 0.015;
     private static final double ENDPOINT_NEAR_METERS = 35.0;
     private static final double ANY_NODE_NEAR_METERS = 18.0;
 
@@ -44,6 +45,14 @@ final class ReferenceStreetFetchService {
         }
 
         Bounds expandedBounds = expand(bounds);
+        Logging.debug(String.format(
+                "Reference street fetch: street='%s', bounds=[%.6f,%.6f,%.6f,%.6f]",
+                normalizedStreet,
+                expandedBounds.getMinLat(),
+                expandedBounds.getMinLon(),
+                expandedBounds.getMaxLat(),
+                expandedBounds.getMaxLon()
+        ));
         String query = buildStreetReferenceQuery(normalizedStreet);
         String overpassServer = OverpassDownloadReader.OVERPASS_SERVER.get();
 
@@ -68,7 +77,22 @@ final class ReferenceStreetFetchService {
             return new DataSet();
         }
 
+        int downloadedStreetWayCount = collectStreetWays(downloaded, normalizedStreet).size();
+        int totalDownloadedWayCount = downloaded.getWays().size();
+        Logging.debug(String.format(
+                "Reference street fetch: street='%s', downloadedWays=%d, totalWaysInDataset=%d",
+                normalizedStreet,
+                downloadedStreetWayCount,
+                totalDownloadedWayCount
+        ));
+
         Set<Way> keptComponent = keepPlausibleConnectedComponent(downloaded, localStreetWays, normalizedStreet);
+        Logging.debug(String.format(
+                "Reference street fetch: street='%s', keptWays=%d, removedWays=%d",
+                normalizedStreet,
+                keptComponent.size(),
+                Math.max(downloadedStreetWayCount - keptComponent.size(), 0)
+        ));
         if (keptComponent.isEmpty()) {
             return new DataSet();
         }
@@ -79,9 +103,10 @@ final class ReferenceStreetFetchService {
     private String buildStreetReferenceQuery(String streetName) {
         String escapedStreet = escapeOverpassString(normalize(streetName));
         return "[out:xml][timeout:25];"
-                + "way[\"highway\"][\"name\"=\"" + escapedStreet + "\"]({{bbox}});"
+                + "way[\"highway\"~\"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|service|living_street)$\"][\"name\"=\""
+                + escapedStreet + "\"]({{bbox}});"
                 + "(._;>;);"
-                + "out body;";
+                + "out meta;";
     }
 
     private Set<Way> keepPlausibleConnectedComponent(DataSet downloaded, List<Way> localStreetWays, String normalizedStreet) {
@@ -297,5 +322,3 @@ final class ReferenceStreetFetchService {
         return normalized.isEmpty() ? "(no message)" : normalized;
     }
 }
-
-
