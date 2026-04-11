@@ -479,10 +479,12 @@ final class StreetModeController {
                             .show();
                 });
             } catch (Exception ex) {
-                Logging.warn("HouseNumberClick reference load failed for street={0}: {1}",
-                        normalizedStreet, ex.getMessage());
+                Logging.warn("HouseNumberClick reference load failed for street={0} | category={1} | diagnostics={2}",
+                        normalizedStreet,
+                        classifyReferenceLoadIssue(ex),
+                        summarizeExceptionChain(ex));
                 Logging.debug(ex);
-                javax.swing.SwingUtilities.invokeLater(() -> showReferenceLoadFailure(normalizedStreet, ex));
+                javax.swing.SwingUtilities.invokeLater(() -> showReferenceLoadFailure(normalizedStreet));
             } finally {
                 referenceStreetLoadInProgress = false;
             }
@@ -491,22 +493,48 @@ final class StreetModeController {
         loadThread.start();
     }
 
-    private void showReferenceLoadFailure(String streetName, Exception ex) {
-        String detail = summarizeException(ex);
-        showShortNotification(I18n.tr(
-                "Failed to load street reference for {0}: {1}. See log for details.",
-                streetName,
-                detail
-        ));
+    private void showReferenceLoadFailure(String streetName) {
+        showShortNotification(I18n.tr("Failed to load street reference for {0}. See log for details.", streetName));
     }
 
-    private String summarizeException(Exception ex) {
-        if (ex == null) {
-            return I18n.tr("unknown error");
+    private String summarizeExceptionChain(Throwable throwable) {
+        if (throwable == null) {
+            return "unknown";
         }
-        String message = normalize(ex.getMessage());
-        String type = ex.getClass().getSimpleName();
-        return message.isEmpty() ? type : I18n.tr("{0}: {1}", type, message);
+        String primary = throwable.getClass().getSimpleName() + ": " + nonEmptyMessage(throwable.getMessage());
+        Throwable cause = throwable.getCause();
+        if (cause == null) {
+            return primary;
+        }
+        return primary + " | cause=" + cause.getClass().getSimpleName() + ": " + nonEmptyMessage(cause.getMessage());
+    }
+
+    private String classifyReferenceLoadIssue(Throwable throwable) {
+        String diagnostics = summarizeExceptionChain(throwable).toLowerCase(java.util.Locale.ROOT);
+        if (diagnostics.contains("malformedurl") || diagnostics.contains("no protocol")
+                || diagnostics.contains("illegalargumentexception")) {
+            return "api";
+        }
+        if (diagnostics.contains("sockettimeout") || diagnostics.contains("connect timed out")
+                || diagnostics.contains("read timed out")) {
+            return "timeout";
+        }
+        if (diagnostics.contains("ssl") || diagnostics.contains("handshake")) {
+            return "ssl";
+        }
+        if (diagnostics.contains("osmtransferexception") || diagnostics.contains("http") || diagnostics.contains("429")
+                || diagnostics.contains("403") || diagnostics.contains("500")) {
+            return "transport";
+        }
+        if (diagnostics.contains("illegaldata") || diagnostics.contains("parse")) {
+            return "parse";
+        }
+        return "plugin";
+    }
+
+    private String nonEmptyMessage(String message) {
+        String normalized = normalize(message);
+        return normalized.isEmpty() ? "(no message)" : normalized;
     }
 
     void setRectangularizeAfterLineSplit(boolean makeRectangular) {

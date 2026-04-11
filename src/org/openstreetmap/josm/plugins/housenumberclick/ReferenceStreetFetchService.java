@@ -47,19 +47,21 @@ final class ReferenceStreetFetchService {
         String query = buildStreetReferenceQuery(normalizedStreet);
         String overpassServer = OverpassDownloadReader.OVERPASS_SERVER.get();
 
-        OverpassDownloadReader reader = new OverpassDownloadReader(expandedBounds, query, overpassServer);
+        // API order is (bounds, overpassServer, overpassQuery).
+        OverpassDownloadReader reader = new OverpassDownloadReader(expandedBounds, overpassServer, query);
         DataSet downloaded;
         try {
             downloaded = reader.parseOsm(NullProgressMonitor.INSTANCE);
         } catch (Exception ex) {
             throw new Exception(String.format(
-                    "Overpass request failed (street='%s', server='%s', bounds=[%.6f,%.6f,%.6f,%.6f])",
+                    "Overpass request failed (street='%s', server='%s', bounds=[%.6f,%.6f,%.6f,%.6f], diagnostics=%s)",
                     normalizedStreet,
                     overpassServer,
                     expandedBounds.getMinLat(),
                     expandedBounds.getMinLon(),
                     expandedBounds.getMaxLat(),
-                    expandedBounds.getMaxLon()
+                    expandedBounds.getMaxLon(),
+                    summarizeExceptionChain(ex)
             ), ex);
         }
         if (downloaded == null) {
@@ -276,6 +278,23 @@ final class ReferenceStreetFetchService {
 
     private String normalize(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private String summarizeExceptionChain(Throwable throwable) {
+        if (throwable == null) {
+            return "unknown";
+        }
+        String primary = throwable.getClass().getSimpleName() + ": " + nonEmptyMessage(throwable.getMessage());
+        Throwable cause = throwable.getCause();
+        if (cause == null) {
+            return primary;
+        }
+        return primary + " | cause=" + cause.getClass().getSimpleName() + ": " + nonEmptyMessage(cause.getMessage());
+    }
+
+    private String nonEmptyMessage(String message) {
+        String normalized = normalize(message);
+        return normalized.isEmpty() ? "(no message)" : normalized;
     }
 }
 
