@@ -15,14 +15,20 @@ final class OverviewManager {
     private final StreetHouseNumberCountCollector streetHouseNumberCountCollector = new StreetHouseNumberCountCollector();
     private final StreetCompletenessHeuristic streetCompletenessHeuristic = new StreetCompletenessHeuristic();
 
-    void refreshHouseNumberOverview(boolean enabled, String currentStreet, DataSet editDataSet, Runnable continueWorkingCallback) {
+    void refreshHouseNumberOverview(
+            boolean enabled,
+            String currentStreet,
+            DataSet editDataSet,
+            Runnable continueWorkingCallback,
+            Consumer<String> loadReferenceStreetCallback
+    ) {
         if (!enabled || normalize(currentStreet).isEmpty() || editDataSet == null) {
             hideHouseNumberOverview();
             return;
         }
 
         if (houseNumberOverviewDialog == null) {
-            houseNumberOverviewDialog = new HouseNumberOverviewDialog(continueWorkingCallback);
+            houseNumberOverviewDialog = new HouseNumberOverviewDialog(continueWorkingCallback, loadReferenceStreetCallback);
         }
 
         houseNumberOverviewDialog.updateData(

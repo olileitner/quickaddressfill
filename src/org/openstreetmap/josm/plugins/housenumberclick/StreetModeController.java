@@ -69,6 +69,7 @@ final class StreetModeController {
     private final SingleBuildingSplitService singleBuildingSplitService = new SingleBuildingSplitService();
     private final TerraceSplitService terraceSplitService = new TerraceSplitService();
     private final CornerSnapService cornerSnapService = new CornerSnapService();
+    private final ReferenceStreetFetchService referenceStreetFetchService = new ReferenceStreetFetchService();
     private boolean rectangularizeAfterLineSplit;
     private int configuredTerraceParts = 2;
     private AddressSelection lastSelection = new AddressSelection("", "", "", "", 1);
@@ -78,6 +79,8 @@ final class StreetModeController {
     private boolean houseNumberOverviewEnabled;
     private boolean streetHouseNumberCountsEnabled;
     private boolean zoomToSelectedStreetEnabled;
+    private volatile boolean referenceStreetLoadInProgress;
+    private String lastLoadedReferenceStreet = "";
     private HouseNumberUpdateListener houseNumberUpdateListener;
     private AddressValuesReadListener addressValuesReadListener;
     private BuildingTypeConsumedListener buildingTypeConsumedListener;
@@ -395,7 +398,8 @@ final class StreetModeController {
                 houseNumberOverviewEnabled,
                 navigationService.getCurrentStreet(),
                 editDataSet,
-                this::continueWorkingFromTableInteraction
+                this::continueWorkingFromTableInteraction,
+                this::loadReferenceStreet
         );
     }
 
@@ -434,7 +438,75 @@ final class StreetModeController {
         hideStreetHouseNumberCounts();
         overviewManager.resetSessionPositioningState();
         overlayManager.removeOverlayLayer();
+        overlayManager.removeReferenceStreetLayer();
+        lastLoadedReferenceStreet = "";
         deactivate();
+    }
+
+    void loadReferenceStreet(String streetName) {
+        String normalizedStreet = normalize(streetName);
+        if (normalizedStreet.isEmpty()) {
+            showShortNotification("Select a street first.");
+            return;
+        }
+
+        if (normalizedStreet.equalsIgnoreCase(lastLoadedReferenceStreet)
+                && overlayManager.hasReferenceStreetLoaded(normalizedStreet)) {
+            return;
+        }
+
+        DataSet editDataSet = getActiveEditDataSet();
+        if (editDataSet == null) {
+            showShortNotification("No editable dataset is available.");
+            return;
+        }
+        if (referenceStreetLoadInProgress) {
+            return;
+        }
+
+        referenceStreetLoadInProgress = true;
+        Thread loadThread = new Thread(() -> {
+            try {
+                DataSet referenceData = referenceStreetFetchService.loadReferenceStreet(editDataSet, normalizedStreet);
+                javax.swing.SwingUtilities.invokeLater(() -> {
+                    overlayManager.showReferenceStreetLayer(normalizedStreet, referenceData);
+                    lastLoadedReferenceStreet = normalizedStreet;
+                    String loadedMessage = referenceData == null || referenceData.getWays().isEmpty()
+                            ? I18n.tr("No reference street geometry found for {0}.", normalizedStreet)
+                            : I18n.tr("Street reference loaded for {0}.", normalizedStreet);
+                    new Notification(loadedMessage)
+                            .setDuration(Notification.TIME_SHORT)
+                            .show();
+                });
+            } catch (Exception ex) {
+                Logging.warn("HouseNumberClick reference load failed for street={0}: {1}",
+                        normalizedStreet, ex.getMessage());
+                Logging.debug(ex);
+                javax.swing.SwingUtilities.invokeLater(() -> showReferenceLoadFailure(normalizedStreet, ex));
+            } finally {
+                referenceStreetLoadInProgress = false;
+            }
+        }, "hnc-reference-street-loader");
+        loadThread.setDaemon(true);
+        loadThread.start();
+    }
+
+    private void showReferenceLoadFailure(String streetName, Exception ex) {
+        String detail = summarizeException(ex);
+        showShortNotification(I18n.tr(
+                "Failed to load street reference for {0}: {1}. See log for details.",
+                streetName,
+                detail
+        ));
+    }
+
+    private String summarizeException(Exception ex) {
+        if (ex == null) {
+            return I18n.tr("unknown error");
+        }
+        String message = normalize(ex.getMessage());
+        String type = ex.getClass().getSimpleName();
+        return message.isEmpty() ? type : I18n.tr("{0}: {1}", type, message);
     }
 
     void setRectangularizeAfterLineSplit(boolean makeRectangular) {

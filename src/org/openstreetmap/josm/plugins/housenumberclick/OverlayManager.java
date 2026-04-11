@@ -15,6 +15,7 @@ final class OverlayManager {
 
     private HouseNumberOverlayLayer houseNumberOverlayLayer;
     private BuildingOverviewLayer buildingOverviewLayer;
+    private ReferenceStreetLayer referenceStreetLayer;
 
     void refreshOverlayLayer(
             String currentStreet,
@@ -44,8 +45,45 @@ final class OverlayManager {
                 connectionLinesEnabled,
                 separateEvenOddConnectionLinesEnabled
         );
+        ensureReferenceLayerBelowOverlay(layerManager);
         ensureOverlayLayerAboveBuildingOverview(layerManager);
         map.mapView.repaint();
+    }
+
+    void showReferenceStreetLayer(String streetName, DataSet referenceDataSet) {
+        LayerManager layerManager = MainApplication.getLayerManager();
+        MapFrame map = MainApplication.getMap();
+        if (layerManager == null || map == null || map.mapView == null) {
+            return;
+        }
+
+        if (referenceStreetLayer == null || !layerManager.containsLayer(referenceStreetLayer)) {
+            referenceStreetLayer = new ReferenceStreetLayer();
+            layerManager.addLayer(referenceStreetLayer, false);
+        }
+
+        referenceStreetLayer.updateReferenceStreet(streetName, referenceDataSet);
+        ensureReferenceLayerBelowOverlay(layerManager);
+        map.mapView.repaint();
+    }
+
+    boolean hasReferenceStreetLoaded(String streetName) {
+        LayerManager layerManager = MainApplication.getLayerManager();
+        return layerManager != null
+                && referenceStreetLayer != null
+                && layerManager.containsLayer(referenceStreetLayer)
+                && referenceStreetLayer.hasStreet(streetName);
+    }
+
+    void removeReferenceStreetLayer() {
+        LayerManager layerManager = MainApplication.getLayerManager();
+        if (referenceStreetLayer == null || layerManager == null) {
+            return;
+        }
+        if (layerManager.containsLayer(referenceStreetLayer)) {
+            layerManager.removeLayer(referenceStreetLayer);
+        }
+        referenceStreetLayer = null;
     }
 
     void invalidateOverlayDataCache() {
@@ -148,6 +186,25 @@ final class OverlayManager {
 
         // In JOSM layer index ordering, lower index means visually above.
         layerManager.moveLayer(houseNumberOverlayLayer, Math.max(overviewIndex - 1, 0));
+    }
+
+    private void ensureReferenceLayerBelowOverlay(LayerManager layerManager) {
+        if (layerManager == null || referenceStreetLayer == null || houseNumberOverlayLayer == null) {
+            return;
+        }
+        if (!layerManager.containsLayer(referenceStreetLayer) || !layerManager.containsLayer(houseNumberOverlayLayer)) {
+            return;
+        }
+
+        List<Layer> layers = layerManager.getLayers();
+        int referenceIndex = layers.indexOf(referenceStreetLayer);
+        int overlayIndex = layers.indexOf(houseNumberOverlayLayer);
+        if (referenceIndex < 0 || overlayIndex < 0 || referenceIndex > overlayIndex) {
+            return;
+        }
+
+        // Keep reference behind the main highlight/label overlay.
+        layerManager.moveLayer(referenceStreetLayer, Math.min(overlayIndex + 1, layers.size() - 1));
     }
 
     private String normalize(String value) {
