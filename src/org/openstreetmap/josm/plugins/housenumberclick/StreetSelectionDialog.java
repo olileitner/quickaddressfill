@@ -39,6 +39,7 @@ import org.openstreetmap.josm.tools.I18n;
 final class StreetSelectionDialog {
 
     private static final String DEFAULT_HOUSE_NUMBER = "1";
+    private static final String INITIAL_HOUSE_NUMBER = "";
 
     private final StreetModeController streetModeController;
     private final DialogController dialogController = new DialogController();
@@ -73,16 +74,16 @@ final class StreetSelectionDialog {
     private String rememberedStreet;
     private String rememberedPostcode;
     private String rememberedBuildingType;
-    private String rememberedHouseNumber = DEFAULT_HOUSE_NUMBER;
+    private String rememberedHouseNumber = INITIAL_HOUSE_NUMBER;
     private int rememberedIncrementStep = 1;
-    private boolean rememberedHouseNumberLayerEnabled;
-    private boolean rememberedConnectionLinesEnabled;
+    private boolean rememberedHouseNumberLayerEnabled = true;
+    private boolean rememberedConnectionLinesEnabled = true;
     private boolean rememberedConnectionLinesPreference = true;
-    private boolean rememberedSeparateEvenOddLinesEnabled;
+    private boolean rememberedSeparateEvenOddLinesEnabled = true;
     private boolean rememberedSeparateEvenOddLinesPreference = true;
     private boolean rememberedHouseNumberOverviewEnabled;
     private boolean rememberedStreetHouseNumberCountsEnabled;
-    private boolean rememberedZoomToSelectedStreetEnabled;
+    private boolean rememberedZoomToSelectedStreetEnabled = true;
     private boolean rememberedSplitMakeRectangular;
     private boolean updatingInputs;
     private DataSet rememberedDataSet;
@@ -344,7 +345,7 @@ final class StreetSelectionDialog {
         }
         rememberedDataSet = activeDataSet;
 
-        String previousStreet = firstNonEmpty(getSelectedStreet(), rememberedStreet);
+        String previousStreet = null;
         updatingInputs = true;
 
         streetCombo.removeAllItems();
@@ -355,14 +356,12 @@ final class StreetSelectionDialog {
         if (previousStreet != null && !normalize(previousStreet).isEmpty()) {
             streetCombo.setSelectedItem(previousStreet);
         }
-        if (streetCombo.getSelectedItem() == null && streetCombo.getItemCount() > 0) {
-            streetCombo.setSelectedIndex(0);
-        }
+        streetCombo.setSelectedItem(null);
 
         populatePostcodeOptions(detectedPostcodes);
         setSelectedPostcode(rememberedPostcode);
         buildingTypeCombo.getEditor().setItem(firstNonEmpty(rememberedBuildingType, ""));
-        houseNumberField.setText(firstNonEmpty(rememberedHouseNumber, DEFAULT_HOUSE_NUMBER));
+        houseNumberField.setText(firstNonEmpty(rememberedHouseNumber, INITIAL_HOUSE_NUMBER));
         applyIncrementStep(rememberedIncrementStep);
         applyOverlaySettings(
                 rememberedHouseNumberLayerEnabled,
@@ -375,7 +374,8 @@ final class StreetSelectionDialog {
         splitMakeRectangularCheckbox.setSelected(rememberedSplitMakeRectangular);
         streetModeController.setRectangularizeAfterLineSplit(rememberedSplitMakeRectangular);
         rowHousePartsField.setText(Integer.toString(streetModeController.getConfiguredTerraceParts()));
-        lastSelectedStreet = getSelectedStreet();
+        lastSelectedStreet = null;
+        rememberedStreet = null;
         updatingInputs = false;
         updateStreetNavigationButtonState();
 
@@ -1197,16 +1197,16 @@ final class StreetSelectionDialog {
         rememberedStreet = null;
         rememberedPostcode = null;
         rememberedBuildingType = null;
-        rememberedHouseNumber = DEFAULT_HOUSE_NUMBER;
+        rememberedHouseNumber = INITIAL_HOUSE_NUMBER;
         rememberedIncrementStep = 1;
-        rememberedHouseNumberLayerEnabled = false;
-        rememberedConnectionLinesEnabled = false;
+        rememberedHouseNumberLayerEnabled = true;
+        rememberedConnectionLinesEnabled = true;
         rememberedConnectionLinesPreference = true;
-        rememberedSeparateEvenOddLinesEnabled = false;
+        rememberedSeparateEvenOddLinesEnabled = true;
         rememberedSeparateEvenOddLinesPreference = true;
         rememberedHouseNumberOverviewEnabled = false;
         rememberedStreetHouseNumberCountsEnabled = false;
-        rememberedZoomToSelectedStreetEnabled = false;
+        rememberedZoomToSelectedStreetEnabled = true;
         rememberedSplitMakeRectangular = false;
         lastSelectedStreet = null;
     }
@@ -1229,7 +1229,14 @@ final class StreetSelectionDialog {
 
     private void navigateStreetByOffset(int offset) {
         String selectedStreet = getSelectedStreet();
-        if (!canNavigateStreet(offset) || selectedStreet == null) {
+        if (!canNavigateStreet(offset)) {
+            return;
+        }
+        if (selectedStreet == null) {
+            if (offset > 0 && streetCombo != null && streetCombo.getItemCount() > 0) {
+                // With empty initial selection, Next should start at the first street.
+                streetCombo.setSelectedIndex(0);
+            }
             return;
         }
 
