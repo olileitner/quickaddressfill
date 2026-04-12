@@ -754,19 +754,6 @@ final class StreetSelectionDialog {
 
         gbc.gridx = 0;
         gbc.gridy = 0;
-        panel.add(new JLabel(I18n.tr("Postcode:")), gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(2, 0, 2, 0);
-        panel.add(postcodeCombo, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.weightx = 0.0;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.insets = new Insets(2, 0, 2, 8);
         panel.add(new JLabel(I18n.tr("Street:")), gbc);
 
         gbc.gridx = 1;
@@ -776,7 +763,33 @@ final class StreetSelectionDialog {
         panel.add(streetCombo, gbc);
 
         gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.weightx = 0.0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.insets = new Insets(2, 0, 2, 8);
+        panel.add(new JLabel(I18n.tr("Postcode:")), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(2, 0, 2, 0);
+        panel.add(postcodeCombo, gbc);
+
+        gbc.gridx = 0;
         gbc.gridy = 2;
+        gbc.weightx = 0.0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.insets = new Insets(2, 0, 2, 8);
+        panel.add(new JLabel(I18n.tr("House number:")), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(2, 0, 2, 0);
+        panel.add(houseNumberField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 3;
         gbc.weightx = 0.0;
         gbc.fill = GridBagConstraints.NONE;
         gbc.insets = new Insets(2, 0, 2, 8);
@@ -789,24 +802,11 @@ final class StreetSelectionDialog {
         panel.add(buildingTypeCombo, gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 3;
+        gbc.gridy = 4;
         gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(2, 0, 2, 0);
         panel.add(applyTypeToAllCheckbox, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 4;
-        gbc.weightx = 0.0;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.insets = new Insets(2, 0, 2, 8);
-        panel.add(new JLabel(I18n.tr("House number:")), gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(2, 0, 2, 0);
-        panel.add(houseNumberField, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 5;

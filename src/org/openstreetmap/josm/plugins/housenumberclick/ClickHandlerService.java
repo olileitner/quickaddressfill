@@ -30,11 +30,12 @@ final class ClickHandlerService {
                 String overwrittenPostcode
         );
 
-        void updateStatusLine(String message);
-
         void notifyUser(String message);
 
         String displayValue(String value);
+
+        void updateStatusLine(String message);
+
 
         void notifyAddressApplied();
 
@@ -136,18 +137,20 @@ final class ClickHandlerService {
             String houseNumber,
             InteractionPort port
     ) {
-        if (streetName == null || streetName.isBlank()) {
+        if (normalize(streetName).isEmpty()) {
             String message = org.openstreetmap.josm.tools.I18n.tr("No street selected.");
             port.updateStatusLine(message);
             port.notifyUser(message);
             return rejectedPrimary("no-street-selected", buildingType, streetName, houseNumber);
         }
+
         if (!isPostcodeSelected(postcode)) {
             String message = org.openstreetmap.josm.tools.I18n.tr("No postcode selected.");
             port.updateStatusLine(message);
             port.notifyUser(message);
             return rejectedPrimary("no-postcode-selected", buildingType, streetName, houseNumber);
         }
+
         if (houseNumber == null || houseNumber.isBlank()) {
             String message = org.openstreetmap.josm.tools.I18n.tr("No house number selected.");
             port.updateStatusLine(message);

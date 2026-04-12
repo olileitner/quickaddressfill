@@ -708,6 +708,11 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
             }
 
             @Override
+            public String displayValue(String value) {
+                return HouseNumberClickStreetMapMode.this.displayValue(value);
+            }
+
+            @Override
             public void notifyUser(String message) {
                 if (message == null || message.isBlank()) {
                     return;
@@ -715,11 +720,6 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
                 new Notification(message)
                         .setDuration(Notification.TIME_SHORT)
                         .show();
-            }
-
-            @Override
-            public String displayValue(String value) {
-                return HouseNumberClickStreetMapMode.this.displayValue(value);
             }
 
             @Override
