@@ -211,6 +211,10 @@ final class StreetSelectionDialog {
         modeStatePanel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Status")));
         modeStatePanel.add(modeStateLabel, BorderLayout.WEST);
         modeStatePanel.add(continueWorkingButton, BorderLayout.EAST);
+        int statusPanelStableHeight = Math.max(modeStateLabel.getPreferredSize().height, continueWorkingButton.getPreferredSize().height) + 16;
+        Dimension stableStatusSize = new Dimension(modeStatePanel.getPreferredSize().width, statusPanelStableHeight);
+        modeStatePanel.setMinimumSize(stableStatusSize);
+        modeStatePanel.setPreferredSize(stableStatusSize);
 
         this.splitMakeRectangularCheckbox = new JCheckBox(I18n.tr("Make rectangular"));
         this.splitMakeRectangularCheckbox.setSelected(rememberedSplitMakeRectangular);
