@@ -87,6 +87,8 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Postcode overview toggle entrypoint is safe", HouseNumberClickRiskRegressionTests::testPostcodeOverviewToggleEntrypointIsSafe);
             run("Postcode color mapping is deterministic", HouseNumberClickRiskRegressionTests::testPostcodeColorMappingIsDeterministic);
             run("Postcode legend uses top-5 deterministic ordering", HouseNumberClickRiskRegressionTests::testPostcodeLegendTopFiveOrdering);
+            run("Completeness legend labels are present", HouseNumberClickRiskRegressionTests::testCompletenessLegendLabelsPresent);
+            run("Completeness layer is named consistently", HouseNumberClickRiskRegressionTests::testCompletenessLayerNameConsistency);
             run("Analysis section has no text postcode legend", HouseNumberClickRiskRegressionTests::testAnalysisSectionHasNoTextPostcodeLegend);
             run("Overview layer toggles are mutually exclusive", HouseNumberClickRiskRegressionTests::testOverviewLayerTogglesAreMutuallyExclusive);
             run("Table click continue hook is safe", HouseNumberClickRiskRegressionTests::testTableClickContinueHookIsSafe);
@@ -706,6 +708,22 @@ public final class HouseNumberClickRiskRegressionTests {
         assertEquals(5, top.size(), "legend should return exactly top five postcodes when enough are present");
         assertEquals(List.of("10000", "30000", "20000", "50000", "60000"), top,
                 "legend ordering should be count desc and deterministic by postcode for equal counts");
+    }
+
+    private static void testCompletenessLegendLabelsPresent() throws Exception {
+        String source = readPluginSource("BuildingOverviewLayer.java");
+        assertTrue(source.contains("Address complete"),
+                "completeness legend should contain complete-address label");
+        assertTrue(source.contains("Address incomplete"),
+                "completeness legend should contain incomplete-address label");
+        assertTrue(source.contains("Address problematic"),
+                "completeness legend should contain problematic-address label");
+    }
+
+    private static void testCompletenessLayerNameConsistency() throws Exception {
+        String source = readPluginSource("BuildingOverviewLayer.java");
+        assertTrue(source.contains("Completeness overview"),
+                "completeness layer should use Completeness overview naming");
     }
 
     private static void testAnalysisSectionHasNoTextPostcodeLegend() throws Exception {

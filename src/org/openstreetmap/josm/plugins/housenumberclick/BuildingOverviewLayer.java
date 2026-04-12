@@ -31,12 +31,17 @@ final class BuildingOverviewLayer extends Layer {
     private static final Color UNADDRESSED_FILL_COLOR = new Color(60, 60, 60, 155);
     private static final Color MISPLACED_COLOR = new Color(180, 150, 60, 120);
     private static final Color OUTLINE_COLOR = new Color(20, 20, 20, 170);
+    private static final Color LEGEND_BACKGROUND_COLOR = new Color(248, 248, 248, 215);
+    private static final Color LEGEND_BORDER_COLOR = new Color(35, 35, 35, 180);
+    private static final int LEGEND_PADDING = 8;
+    private static final int LEGEND_ROW_HEIGHT = 16;
+    private static final int LEGEND_SWATCH_SIZE = 11;
 
     private final DataSet dataSet;
     private final BuildingOverviewCollector collector;
 
     BuildingOverviewLayer(DataSet dataSet) {
-        super(I18n.tr("Building overview"));
+        super(I18n.tr("Completeness overview"));
         this.dataSet = dataSet;
         this.collector = new BuildingOverviewCollector();
     }
@@ -59,7 +64,60 @@ final class BuildingOverviewLayer extends Layer {
         for (BuildingOverviewCollector.BuildingOverviewEntry entry : entries) {
             drawPrimitive(g, mapView, entry);
         }
+        drawLegend(g, mapView);
         g.dispose();
+    }
+
+    private void drawLegend(Graphics2D g, MapView mapView) {
+        if (mapView.getWidth() < 220 || mapView.getHeight() < 120) {
+            return;
+        }
+
+        String title = I18n.tr("Completeness");
+        String complete = I18n.tr("Address complete");
+        String incomplete = I18n.tr("Address incomplete");
+        String problematic = I18n.tr("Address problematic");
+
+        int contentRows = 3;
+        int legendHeight = LEGEND_PADDING * 2 + LEGEND_ROW_HEIGHT + (contentRows * LEGEND_ROW_HEIGHT);
+        int legendWidth = Math.max(
+                250,
+                Math.max(
+                        g.getFontMetrics().stringWidth(problematic),
+                        g.getFontMetrics().stringWidth(title)
+                ) + 60
+        );
+        int legendX = Math.max(8, mapView.getWidth() - legendWidth - 10);
+        int legendY = 10;
+
+        g.setColor(LEGEND_BACKGROUND_COLOR);
+        g.fillRoundRect(legendX, legendY, legendWidth, legendHeight, 8, 8);
+        g.setColor(LEGEND_BORDER_COLOR);
+        g.drawRoundRect(legendX, legendY, legendWidth, legendHeight, 8, 8);
+
+        int textBaseX = legendX + LEGEND_PADDING;
+        int rowY = legendY + LEGEND_PADDING + 12;
+        g.setColor(Color.BLACK);
+        g.drawString(title, textBaseX, rowY);
+
+        rowY += LEGEND_ROW_HEIGHT;
+        drawLegendRow(g, textBaseX, rowY, ADDRESSED_FILL_COLOR, complete);
+
+        rowY += LEGEND_ROW_HEIGHT;
+        drawLegendRow(g, textBaseX, rowY, UNADDRESSED_FILL_COLOR, incomplete);
+
+        rowY += LEGEND_ROW_HEIGHT;
+        drawLegendRow(g, textBaseX, rowY, MISPLACED_COLOR, problematic);
+    }
+
+    private void drawLegendRow(Graphics2D g, int textBaseX, int rowY, Color swatchColor, String label) {
+        int swatchY = rowY - LEGEND_SWATCH_SIZE + 3;
+        g.setColor(swatchColor);
+        g.fillRect(textBaseX, swatchY, LEGEND_SWATCH_SIZE, LEGEND_SWATCH_SIZE);
+        g.setColor(OUTLINE_COLOR);
+        g.drawRect(textBaseX, swatchY, LEGEND_SWATCH_SIZE, LEGEND_SWATCH_SIZE);
+        g.setColor(Color.BLACK);
+        g.drawString(label, textBaseX + LEGEND_SWATCH_SIZE + 6, rowY);
     }
 
     private void drawPrimitive(Graphics2D g, MapView mapView, BuildingOverviewCollector.BuildingOverviewEntry entry) {
@@ -195,7 +253,7 @@ final class BuildingOverviewLayer extends Layer {
 
     @Override
     public String getToolTipText() {
-        return I18n.tr("Building-only overview (green: with house number, gray: without house number)");
+        return I18n.tr("Completeness overview (green: address complete, gray: address incomplete, ochre: address problematic)");
     }
 
     @Override

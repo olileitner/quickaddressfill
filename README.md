@@ -106,10 +106,10 @@ This significantly reduces friction when mapping long streets or dense residenti
 - Duplicate house numbers are highlighted in the overlay.
 - `Show overview panel (selected street)`: odd/even table with gap markers (`•` for missing base numbers); table click zooms to target object(s).
 - `Show all street counts`: list of all known streets and current counts; row click zooms to selected street.
-- `Show completeness` / `Hide completeness`: building-completeness overview layer:
-  - green = complete address on building object (`addr:housenumber` + `addr:street` + `addr:postcode`),
-  - subtle yellow/ochre = incomplete/misplaced address information (for example missing street/postcode or likely misplaced housenumber on multipolygon outer way),
-  - dark gray = no housenumber found.
+- `Show completeness` / `Hide completeness`: `Completeness overview` layer:
+  - `Address complete` (green),
+  - `Address incomplete` (dark gray),
+  - `Address problematic` (subtle yellow/ochre).
 - `Show Postcode` / `Hide Postcode`: postcode overview layer:
   - gray = no postcode,
   - same color = same postcode,
