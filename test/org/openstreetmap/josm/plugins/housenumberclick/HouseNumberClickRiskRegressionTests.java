@@ -535,7 +535,7 @@ public final class HouseNumberClickRiskRegressionTests {
                 "street mode should decode Alt+digit shortcuts for terrace part count");
         assertTrue(source.contains("controller.setConfiguredTerraceParts"),
                 "Alt+digit shortcut must set terrace parts in controller as single source of truth");
-        assertTrue(source.contains("Row houses parts set to {0}."),
+        assertTrue(source.contains("Row-house parts set to {0}."),
                 "Alt+digit shortcut should provide status feedback for configured parts");
     }
 

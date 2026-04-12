@@ -95,7 +95,7 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
         super(
                 I18n.tr("HouseNumberClick Street Mode"),
                 "housenumberclick",
-                I18n.tr("Click buildings to set addr:street"),
+                I18n.tr("Click buildings to apply selected address tags"),
                 Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR)
         );
         this.controller = controller;
@@ -252,7 +252,7 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
             int shortcutParts = resolveAltPartsShortcut(e);
             if (shortcutParts > 0) {
                 controller.setConfiguredTerraceParts(shortcutParts);
-                refreshModePresentation(I18n.tr("Row houses parts set to {0}.", controller.getConfiguredTerraceParts()));
+                refreshModePresentation(I18n.tr("Row-house parts set to {0}.", controller.getConfiguredTerraceParts()));
                 e.consume();
                 return true;
             }
@@ -902,7 +902,7 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
         }
 
         String baseText = I18n.tr(
-                "HouseNumberClick ACTIVE | Street: {0} | Postcode: {1} | Nr: {2} | Step: {3}",
+                "HouseNumberClick ACTIVE | Street: {0} | Postcode: {1} | House number: {2} | Step: {3}",
                 displayValue(streetName),
                 displayValue(postcode),
                 displayValue(houseNumber),

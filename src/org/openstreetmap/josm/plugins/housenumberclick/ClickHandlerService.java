@@ -164,7 +164,7 @@ final class ClickHandlerService {
         BuildingResolver.BuildingResolutionResult resolution = buildingResolver.resolveAtClick(map, e);
         OsmPrimitive building = resolution.getBuilding();
         if (building == null) {
-            port.updateStatusLine(org.openstreetmap.josm.tools.I18n.tr("No building detected"));
+            port.updateStatusLine(org.openstreetmap.josm.tools.I18n.tr("No building detected."));
             return rejectedPrimary("no-building-hit", resolution, buildingType, streetName, houseNumber);
         }
 
@@ -241,7 +241,7 @@ final class ClickHandlerService {
                 return clickResult("street-picked", resolution);
             }
 
-            port.updateStatusLine(org.openstreetmap.josm.tools.I18n.tr("No building detected"));
+            port.updateStatusLine(org.openstreetmap.josm.tools.I18n.tr("No building detected."));
             return clickResult("no-building-hit", resolution);
         }
 
@@ -273,7 +273,7 @@ final class ClickHandlerService {
         OsmPrimitive building = resolution.getBuilding();
         Way targetWay = resolveTerraceTargetWay(building);
         if (targetWay == null) {
-            port.updateStatusLine(org.openstreetmap.josm.tools.I18n.tr("No building detected"));
+            port.updateStatusLine(org.openstreetmap.josm.tools.I18n.tr("No building detected."));
             return clickResult("no-building-hit", resolution);
         }
 

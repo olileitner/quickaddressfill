@@ -160,7 +160,7 @@ final class BuildingOverviewLayer extends Layer {
 
     @Override
     public String getToolTipText() {
-        return I18n.tr("Building-only overview (green: with housenumber, gray: without housenumber)");
+        return I18n.tr("Building-only overview (green: with house number, gray: without house number)");
     }
 
     @Override
