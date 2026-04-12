@@ -411,8 +411,7 @@ final class StreetModeController {
                 houseNumberOverviewEnabled,
                 navigationService.getCurrentStreet(),
                 editDataSet,
-                this::continueWorkingFromTableInteraction,
-                this::loadReferenceStreet
+                this::continueWorkingFromTableInteraction
         );
     }
 

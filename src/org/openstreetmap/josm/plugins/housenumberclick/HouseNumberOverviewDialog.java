@@ -12,10 +12,8 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Consumer;
 
 import javax.swing.BorderFactory;
-import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -47,13 +45,10 @@ final class HouseNumberOverviewDialog {
     private final DefaultTableModel tableModel;
     private final List<HouseNumberOverviewRow> currentRows = new ArrayList<>();
     private final Runnable rowClickListener;
-    private final Consumer<String> loadReferenceStreetListener;
-    private String currentStreet = "";
     private boolean positionInitializedForSession;
 
-    HouseNumberOverviewDialog(Runnable rowClickListener, Consumer<String> loadReferenceStreetListener) {
+    HouseNumberOverviewDialog(Runnable rowClickListener) {
         this.rowClickListener = rowClickListener;
-        this.loadReferenceStreetListener = loadReferenceStreetListener;
         Frame owner = MainApplication.getMainFrame();
         this.dialog = new JDialog(owner, I18n.tr("House number overview"), false);
         this.dialog.setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);
@@ -111,9 +106,6 @@ final class HouseNumberOverviewDialog {
         content.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         JPanel titlePanel = new JPanel(new BorderLayout());
         titlePanel.add(streetLabel, BorderLayout.WEST);
-        JButton loadReferenceButton = new JButton(I18n.tr("Load reference"));
-        loadReferenceButton.addActionListener(e -> onLoadReferenceStreetRequested());
-        titlePanel.add(loadReferenceButton, BorderLayout.EAST);
         JPanel headerPanel = new JPanel(new BorderLayout(0, 2));
         headerPanel.add(titlePanel, BorderLayout.NORTH);
         headerPanel.add(incompleteStreetWarningLabel, BorderLayout.CENTER);
@@ -127,7 +119,6 @@ final class HouseNumberOverviewDialog {
 
     void updateData(String streetName, List<HouseNumberOverviewRow> rows, boolean streetPossiblyIncomplete) {
         String normalizedStreet = normalize(streetName);
-        currentStreet = normalizedStreet;
         streetLabel.setText(I18n.tr("Street: {0}", normalizedStreet.isEmpty() ? I18n.tr("(none)") : normalizedStreet));
         incompleteStreetWarningLabel.setVisible(streetPossiblyIncomplete);
 
@@ -259,12 +250,6 @@ final class HouseNumberOverviewDialog {
         }
     }
 
-    private void onLoadReferenceStreetRequested() {
-        if (loadReferenceStreetListener == null || currentStreet.isEmpty()) {
-            return;
-        }
-        loadReferenceStreetListener.accept(currentStreet);
-    }
 }
 
 

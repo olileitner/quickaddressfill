@@ -19,8 +19,7 @@ final class OverviewManager {
             boolean enabled,
             String currentStreet,
             DataSet editDataSet,
-            Runnable continueWorkingCallback,
-            Consumer<String> loadReferenceStreetCallback
+            Runnable continueWorkingCallback
     ) {
         if (!enabled || normalize(currentStreet).isEmpty() || editDataSet == null) {
             hideHouseNumberOverview();
@@ -28,7 +27,7 @@ final class OverviewManager {
         }
 
         if (houseNumberOverviewDialog == null) {
-            houseNumberOverviewDialog = new HouseNumberOverviewDialog(continueWorkingCallback, loadReferenceStreetCallback);
+            houseNumberOverviewDialog = new HouseNumberOverviewDialog(continueWorkingCallback);
         }
 
         houseNumberOverviewDialog.updateData(
