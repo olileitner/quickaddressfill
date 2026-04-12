@@ -139,13 +139,6 @@ final class StreetModeController {
         navigationService.updateFromSelection(selection);
         syncDataSourceListenerBinding();
         lastSelection = selection;
-        if (navigationService.getCurrentStreet().isEmpty()) {
-            refreshOverlayLayer();
-            refreshHouseNumberOverview();
-            refreshStreetHouseNumberCounts();
-            Logging.debug("HouseNumberClick StreetModeController.activate: skipped because street is empty.");
-            return;
-        }
 
         MapFrame map = MainApplication.getMap();
         if (map == null || map.mapView == null) {

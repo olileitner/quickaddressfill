@@ -395,6 +395,10 @@ final class StreetSelectionDialog {
             dialog.toFront();
             dialog.requestFocus();
         }
+
+        // Ensure Street Mode is the effective active map mode after UI state updates.
+        streetModeController.activate(buildCurrentSelection());
+        refreshModeStateUi(streetModeController.isActive());
     }
 
     private void notifyAddressChanged() {
@@ -403,10 +407,7 @@ final class StreetSelectionDialog {
         }
         enforcePlusOneForLetterHouseNumbers();
         rememberCurrentValues();
-        String selectedStreet = getSelectedStreet();
-        if (selectedStreet != null) {
-            streetModeController.activate(buildCurrentSelection());
-        }
+        streetModeController.activate(buildCurrentSelection());
     }
 
     private void onStreetSelectionChanged() {
