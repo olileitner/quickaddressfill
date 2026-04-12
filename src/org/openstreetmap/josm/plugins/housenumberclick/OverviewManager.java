@@ -21,7 +21,7 @@ final class OverviewManager {
             DataSet editDataSet,
             Runnable continueWorkingCallback
     ) {
-        if (!enabled || normalize(currentStreet).isEmpty() || editDataSet == null) {
+        if (!enabled || editDataSet == null) {
             hideHouseNumberOverview();
             return;
         }
@@ -91,9 +91,6 @@ final class OverviewManager {
         streetHouseNumberCountDialog.highlightStreet(streetName);
     }
 
-    private String normalize(String value) {
-        return value == null ? "" : value.trim();
-    }
 }
 
 

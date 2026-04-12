@@ -17,6 +17,7 @@ import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.osm.DataSet;
+import org.openstreetmap.josm.data.osm.DataSourceListener;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
@@ -90,6 +91,8 @@ final class StreetModeController {
     private boolean zoomToSelectedStreetEnabled;
     private String visibleReferenceStreetKey = "";
     private String lastReferenceSyncStreetKey = "";
+    private DataSet observedDataSourceDataSet;
+    private boolean dataSourceRescanQueued;
     private HouseNumberUpdateListener houseNumberUpdateListener;
     private AddressValuesReadListener addressValuesReadListener;
     private BuildingTypeConsumedListener buildingTypeConsumedListener;
@@ -116,6 +119,8 @@ final class StreetModeController {
         void onTerracePartsUpdated(int parts);
     }
 
+    private final DataSourceListener dataSourceRefreshListener = event -> onDataSourceChanged();
+
     boolean isActive() {
         MapFrame map = MainApplication.getMap();
         return map != null && streetMapMode != null && map.mapMode == streetMapMode;
@@ -132,6 +137,7 @@ final class StreetModeController {
         }
 
         navigationService.updateFromSelection(selection);
+        syncDataSourceListenerBinding();
         lastSelection = selection;
         if (navigationService.getCurrentStreet().isEmpty()) {
             refreshOverlayLayer();
@@ -235,6 +241,7 @@ final class StreetModeController {
 
     void setHouseNumberOverviewEnabled(boolean enabled) {
         houseNumberOverviewEnabled = enabled;
+        syncDataSourceListenerBinding();
         refreshHouseNumberOverview();
     }
 
@@ -244,6 +251,7 @@ final class StreetModeController {
 
     void setStreetHouseNumberCountsEnabled(boolean enabled) {
         streetHouseNumberCountsEnabled = enabled;
+        syncDataSourceListenerBinding();
         refreshStreetHouseNumberCounts();
     }
 
@@ -458,7 +466,45 @@ final class StreetModeController {
             referenceStreetLoadsInProgress.clear();
         }
         lastReferenceSyncStreetKey = "";
+        unbindDataSourceListener();
         deactivate();
+    }
+
+    private void onDataSourceChanged() {
+        if (!houseNumberOverviewEnabled && !streetHouseNumberCountsEnabled) {
+            return;
+        }
+        if (dataSourceRescanQueued) {
+            return;
+        }
+        dataSourceRescanQueued = true;
+        GuiHelper.runInEDT(() -> {
+            dataSourceRescanQueued = false;
+            syncDataSourceListenerBinding();
+            rescanPluginData();
+        });
+    }
+
+    private void syncDataSourceListenerBinding() {
+        DataSet activeDataSet = getActiveEditDataSet();
+        boolean shouldListen = (houseNumberOverviewEnabled || streetHouseNumberCountsEnabled) && activeDataSet != null;
+        if (!shouldListen) {
+            unbindDataSourceListener();
+            return;
+        }
+        if (observedDataSourceDataSet == activeDataSet) {
+            return;
+        }
+        unbindDataSourceListener();
+        observedDataSourceDataSet = activeDataSet;
+        observedDataSourceDataSet.addDataSourceListener(dataSourceRefreshListener);
+    }
+
+    private void unbindDataSourceListener() {
+        if (observedDataSourceDataSet != null) {
+            observedDataSourceDataSet.removeDataSourceListener(dataSourceRefreshListener);
+            observedDataSourceDataSet = null;
+        }
     }
 
     void loadReferenceStreet(String streetName) {
