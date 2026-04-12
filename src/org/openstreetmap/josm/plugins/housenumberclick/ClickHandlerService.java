@@ -241,11 +241,20 @@ final class ClickHandlerService {
                 return clickResult("street-picked", resolution);
             }
 
-            port.updateStatusLine(org.openstreetmap.josm.tools.I18n.tr("No building detected."));
-            return clickResult("no-building-hit", resolution);
+            String message = org.openstreetmap.josm.tools.I18n.tr("Please click on a street or a building.");
+            port.updateStatusLine(message);
+            port.notifyUser(message);
+            return clickResult("no-target-hit", resolution);
         }
 
         AddressReadbackService.AddressReadbackResult readback = addressReadbackService.readFromBuilding(building, buildingType);
+        if (isReadbackMissingUsableAddressData(readback)) {
+            String message = org.openstreetmap.josm.tools.I18n.tr("No address data found for this building.");
+            port.updateStatusLine(message);
+            port.notifyUser(message);
+            return clickResult("address-data-missing", resolution);
+        }
+
         port.updateAddressValues(
                 readback.getStreet(),
                 readback.getPostcode(),
@@ -316,6 +325,15 @@ final class ClickHandlerService {
 
     private ClickResult clickResult(String outcome, BuildingResolver.BuildingResolutionResult resolution) {
         return new ClickResult(outcome, resolution);
+    }
+
+    private boolean isReadbackMissingUsableAddressData(AddressReadbackService.AddressReadbackResult readback) {
+        if (readback == null) {
+            return true;
+        }
+        return normalize(readback.getStreet()).isEmpty()
+                && normalize(readback.getPostcode()).isEmpty()
+                && normalize(readback.getHouseNumber()).isEmpty();
     }
 
     private Way resolveTerraceTargetWay(OsmPrimitive building) {
