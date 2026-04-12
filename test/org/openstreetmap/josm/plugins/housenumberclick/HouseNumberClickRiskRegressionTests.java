@@ -86,6 +86,7 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Create building overview layer entrypoint is safe", HouseNumberClickRiskRegressionTests::testCreateBuildingOverviewLayerEntrypointIsSafe);
             run("Postcode overview toggle entrypoint is safe", HouseNumberClickRiskRegressionTests::testPostcodeOverviewToggleEntrypointIsSafe);
             run("Postcode color mapping is deterministic", HouseNumberClickRiskRegressionTests::testPostcodeColorMappingIsDeterministic);
+            run("Postcode legend uses top-5 deterministic ordering", HouseNumberClickRiskRegressionTests::testPostcodeLegendTopFiveOrdering);
             run("Analysis section has no text postcode legend", HouseNumberClickRiskRegressionTests::testAnalysisSectionHasNoTextPostcodeLegend);
             run("Overview layer toggles are mutually exclusive", HouseNumberClickRiskRegressionTests::testOverviewLayerTogglesAreMutuallyExclusive);
             run("Table click continue hook is safe", HouseNumberClickRiskRegressionTests::testTableClickContinueHookIsSafe);
@@ -689,6 +690,22 @@ public final class HouseNumberClickRiskRegressionTests {
         assertEquals(colorA, colorC, "postcode color mapping should ignore surrounding whitespace");
         assertTrue(missing.getRed() == 110 && missing.getGreen() == 110 && missing.getBlue() == 110,
                 "empty postcode should map to dedicated gray color");
+    }
+
+    private static void testPostcodeLegendTopFiveOrdering() {
+        java.util.Map<String, Integer> counts = new java.util.HashMap<>();
+        counts.put("", 9);
+        counts.put("70000", 2);
+        counts.put("60000", 4);
+        counts.put("50000", 4);
+        counts.put("30000", 7);
+        counts.put("10000", 7);
+        counts.put("20000", 6);
+
+        List<String> top = PostcodeOverviewLayer.sortPostcodesForLegend(counts, 5);
+        assertEquals(5, top.size(), "legend should return exactly top five postcodes when enough are present");
+        assertEquals(List.of("10000", "30000", "20000", "50000", "60000"), top,
+                "legend ordering should be count desc and deterministic by postcode for equal counts");
     }
 
     private static void testAnalysisSectionHasNoTextPostcodeLegend() throws Exception {
