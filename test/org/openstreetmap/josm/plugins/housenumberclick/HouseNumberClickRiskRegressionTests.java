@@ -84,6 +84,10 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Main dialog close cleanup is safe", HouseNumberClickRiskRegressionTests::testMainDialogCloseCleanupIsSafe);
             run("Rescan refresh entrypoint is safe", HouseNumberClickRiskRegressionTests::testRescanRefreshEntrypointIsSafe);
             run("Create building overview layer entrypoint is safe", HouseNumberClickRiskRegressionTests::testCreateBuildingOverviewLayerEntrypointIsSafe);
+            run("Postcode overview toggle entrypoint is safe", HouseNumberClickRiskRegressionTests::testPostcodeOverviewToggleEntrypointIsSafe);
+            run("Postcode color mapping is deterministic", HouseNumberClickRiskRegressionTests::testPostcodeColorMappingIsDeterministic);
+            run("Analysis section has no text postcode legend", HouseNumberClickRiskRegressionTests::testAnalysisSectionHasNoTextPostcodeLegend);
+            run("Overview layer toggles are mutually exclusive", HouseNumberClickRiskRegressionTests::testOverviewLayerTogglesAreMutuallyExclusive);
             run("Table click continue hook is safe", HouseNumberClickRiskRegressionTests::testTableClickContinueHookIsSafe);
             run("Street navigation order matches street-count sorting", HouseNumberClickRiskRegressionTests::testStreetNavigationOrderMatchesStreetCountsSorting);
             run("Street zoom fallback collects only usable named highway ways", HouseNumberClickRiskRegressionTests::testStreetZoomFallbackWayMatching);
@@ -666,6 +670,48 @@ public final class HouseNumberClickRiskRegressionTests {
         StreetModeController controller = new StreetModeController();
         controller.createBuildingOverviewLayer();
         assertTrue(true, "overview layer entrypoint should complete without exceptions");
+    }
+
+    private static void testPostcodeOverviewToggleEntrypointIsSafe() {
+        StreetModeController controller = new StreetModeController();
+        controller.togglePostcodeOverviewLayer();
+        controller.togglePostcodeOverviewLayer();
+        assertTrue(true, "postcode overview toggle entrypoint should complete without exceptions");
+    }
+
+    private static void testPostcodeColorMappingIsDeterministic() {
+        java.awt.Color colorA = PostcodeOverviewLayer.resolveColorForPostcode("12345");
+        java.awt.Color colorB = PostcodeOverviewLayer.resolveColorForPostcode("12345");
+        java.awt.Color colorC = PostcodeOverviewLayer.resolveColorForPostcode(" 12345 ");
+        java.awt.Color missing = PostcodeOverviewLayer.resolveColorForPostcode(" ");
+
+        assertEquals(colorA, colorB, "same postcode should always map to same color");
+        assertEquals(colorA, colorC, "postcode color mapping should ignore surrounding whitespace");
+        assertTrue(missing.getRed() == 110 && missing.getGreen() == 110 && missing.getBlue() == 110,
+                "empty postcode should map to dedicated gray color");
+    }
+
+    private static void testAnalysisSectionHasNoTextPostcodeLegend() throws Exception {
+        String source = readPluginSource("StreetSelectionDialog.java");
+        assertFalse(source.contains("Postcode legend: gray = no postcode, same color = same postcode"),
+                "analysis section should no longer contain a text postcode legend");
+    }
+
+    private static void testOverviewLayerTogglesAreMutuallyExclusive() throws Exception {
+        String source = readPluginSource("OverlayManager.java");
+        int createBuildingIndex = source.indexOf("void createBuildingOverviewLayer()");
+        int createPostcodeIndex = source.indexOf("void createPostcodeOverviewLayer()");
+        assertTrue(createBuildingIndex >= 0 && createPostcodeIndex > createBuildingIndex,
+                "overlay manager should expose both overview creation paths");
+
+        String createBuildingBody = source.substring(createBuildingIndex, createPostcodeIndex);
+        assertTrue(createBuildingBody.contains("removePostcodeOverviewLayer();"),
+                "enabling building overview should disable postcode overview");
+
+        int toggleBuildingIndex = source.indexOf("void toggleBuildingOverviewLayer()", createPostcodeIndex);
+        String createPostcodeBody = source.substring(createPostcodeIndex, toggleBuildingIndex);
+        assertTrue(createPostcodeBody.contains("removeBuildingOverviewLayer();"),
+                "enabling postcode overview should disable building overview");
     }
 
     private static void testTableClickContinueHookIsSafe() {

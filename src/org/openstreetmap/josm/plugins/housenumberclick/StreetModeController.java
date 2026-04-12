@@ -397,6 +397,14 @@ final class StreetModeController {
         return overlayManager.isBuildingOverviewLayerVisible();
     }
 
+    void togglePostcodeOverviewLayer() {
+        overlayManager.togglePostcodeOverviewLayer();
+    }
+
+    boolean isPostcodeOverviewLayerVisible() {
+        return overlayManager.isPostcodeOverviewLayerVisible();
+    }
+
     private void refreshOverlayLayer() {
         overlayManager.refreshOverlayLayer(
                 navigationService.getCurrentStreet(),

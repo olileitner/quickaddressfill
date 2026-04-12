@@ -15,6 +15,7 @@ final class OverlayManager {
 
     private HouseNumberOverlayLayer houseNumberOverlayLayer;
     private BuildingOverviewLayer buildingOverviewLayer;
+    private PostcodeOverviewLayer postcodeOverviewLayer;
     private ReferenceStreetLayer referenceStreetLayer;
 
     void refreshOverlayLayer(
@@ -46,7 +47,7 @@ final class OverlayManager {
                 separateEvenOddConnectionLinesEnabled
         );
         ensureReferenceLayerBelowOverlay(layerManager);
-        ensureOverlayLayerAboveBuildingOverview(layerManager);
+        ensureOverlayLayerAboveOverviewLayers(layerManager);
         map.mapView.repaint();
     }
 
@@ -112,10 +113,43 @@ final class OverlayManager {
                 .setDuration(Notification.TIME_SHORT)
                 .show();
 
+        removePostcodeOverviewLayer();
         removeBuildingOverviewLayer();
         buildingOverviewLayer = new BuildingOverviewLayer(editDataSet);
         layerManager.addLayer(buildingOverviewLayer, false);
-        ensureOverlayLayerAboveBuildingOverview(layerManager);
+        ensureOverlayLayerAboveOverviewLayers(layerManager);
+
+        MapFrame map = MainApplication.getMap();
+        if (map != null && map.mapView != null) {
+            map.mapView.repaint();
+        }
+    }
+
+    void createPostcodeOverviewLayer() {
+        LayerManager layerManager = MainApplication.getLayerManager();
+        if (layerManager == null) {
+            return;
+        }
+
+        DataSet editDataSet = MainApplication.getLayerManager() != null
+                ? MainApplication.getLayerManager().getEditDataSet()
+                : null;
+        if (editDataSet == null) {
+            new Notification(I18n.tr("No active dataset available."))
+                    .setDuration(Notification.TIME_SHORT)
+                    .show();
+            return;
+        }
+
+        new Notification(I18n.tr("Please wait, this takes a moment."))
+                .setDuration(Notification.TIME_SHORT)
+                .show();
+
+        removeBuildingOverviewLayer();
+        removePostcodeOverviewLayer();
+        postcodeOverviewLayer = new PostcodeOverviewLayer(editDataSet);
+        layerManager.addLayer(postcodeOverviewLayer, false);
+        ensureOverlayLayerAboveOverviewLayers(layerManager);
 
         MapFrame map = MainApplication.getMap();
         if (map != null && map.mapView != null) {
@@ -135,11 +169,30 @@ final class OverlayManager {
         createBuildingOverviewLayer();
     }
 
+    void togglePostcodeOverviewLayer() {
+        if (isPostcodeOverviewLayerVisible()) {
+            removePostcodeOverviewLayer();
+            MapFrame map = MainApplication.getMap();
+            if (map != null && map.mapView != null) {
+                map.mapView.repaint();
+            }
+            return;
+        }
+        createPostcodeOverviewLayer();
+    }
+
     boolean isBuildingOverviewLayerVisible() {
         LayerManager layerManager = MainApplication.getLayerManager();
         return layerManager != null
                 && buildingOverviewLayer != null
                 && layerManager.containsLayer(buildingOverviewLayer);
+    }
+
+    boolean isPostcodeOverviewLayerVisible() {
+        LayerManager layerManager = MainApplication.getLayerManager();
+        return layerManager != null
+                && postcodeOverviewLayer != null
+                && layerManager.containsLayer(postcodeOverviewLayer);
     }
 
     void removeOverlayLayer() {
@@ -169,23 +222,67 @@ final class OverlayManager {
         buildingOverviewLayer = null;
     }
 
-    private void ensureOverlayLayerAboveBuildingOverview(LayerManager layerManager) {
-        if (layerManager == null || houseNumberOverlayLayer == null || buildingOverviewLayer == null) {
+    private void removePostcodeOverviewLayer() {
+        LayerManager layerManager = MainApplication.getLayerManager();
+        if (layerManager == null) {
+            postcodeOverviewLayer = null;
             return;
         }
-        if (!layerManager.containsLayer(houseNumberOverlayLayer) || !layerManager.containsLayer(buildingOverviewLayer)) {
+
+        List<Layer> layers = new ArrayList<>(layerManager.getLayers());
+        for (Layer layer : layers) {
+            if (layer instanceof PostcodeOverviewLayer && layerManager.containsLayer(layer)) {
+                layerManager.removeLayer(layer);
+            }
+        }
+        postcodeOverviewLayer = null;
+    }
+
+    private void ensureOverlayLayerAboveOverviewLayers(LayerManager layerManager) {
+        if (layerManager == null || houseNumberOverlayLayer == null) {
+            return;
+        }
+        if (!layerManager.containsLayer(houseNumberOverlayLayer)) {
+            return;
+        }
+
+        Layer targetAbove = resolveTopMostOverviewLayer(layerManager);
+        if (targetAbove == null) {
             return;
         }
 
         List<Layer> layers = layerManager.getLayers();
         int overlayIndex = layers.indexOf(houseNumberOverlayLayer);
-        int overviewIndex = layers.indexOf(buildingOverviewLayer);
+        int overviewIndex = layers.indexOf(targetAbove);
         if (overlayIndex < 0 || overviewIndex < 0 || overlayIndex < overviewIndex) {
             return;
         }
 
         // In JOSM layer index ordering, lower index means visually above.
         layerManager.moveLayer(houseNumberOverlayLayer, Math.max(overviewIndex - 1, 0));
+    }
+
+    private Layer resolveTopMostOverviewLayer(LayerManager layerManager) {
+        List<Layer> layers = layerManager.getLayers();
+        Layer topMost = null;
+        int topMostIndex = Integer.MAX_VALUE;
+
+        if (buildingOverviewLayer != null && layerManager.containsLayer(buildingOverviewLayer)) {
+            int index = layers.indexOf(buildingOverviewLayer);
+            if (index >= 0 && index < topMostIndex) {
+                topMostIndex = index;
+                topMost = buildingOverviewLayer;
+            }
+        }
+
+        if (postcodeOverviewLayer != null && layerManager.containsLayer(postcodeOverviewLayer)) {
+            int index = layers.indexOf(postcodeOverviewLayer);
+            if (index >= 0 && index < topMostIndex) {
+                topMost = postcodeOverviewLayer;
+            }
+        }
+
+        return topMost;
     }
 
     private void ensureReferenceLayerBelowOverlay(LayerManager layerManager) {

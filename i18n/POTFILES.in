@@ -4,6 +4,7 @@ src/org/openstreetmap/josm/plugins/housenumberclick/BuildingTagApplier.java
 src/org/openstreetmap/josm/plugins/housenumberclick/BuildingOverviewLayer.java
 src/org/openstreetmap/josm/plugins/housenumberclick/ClickHandlerService.java
 src/org/openstreetmap/josm/plugins/housenumberclick/PostcodeCollector.java
+src/org/openstreetmap/josm/plugins/housenumberclick/PostcodeOverviewLayer.java
 src/org/openstreetmap/josm/plugins/housenumberclick/HouseNumberClickAction.java
 src/org/openstreetmap/josm/plugins/housenumberclick/HouseNumberClickPlugin.java
 src/org/openstreetmap/josm/plugins/housenumberclick/HouseNumberClickStreetMapMode.java

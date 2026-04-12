@@ -57,6 +57,7 @@ final class StreetSelectionDialog {
     private final JLabel modeStateLabel;
     private final JButton continueWorkingButton;
     private final JButton createOverviewButton;
+    private final JButton createPostcodeOverviewButton;
     private final JButton previousStreetButton;
     private final JButton nextStreetButton;
     private final KeyEventDispatcher streetNavigationKeyDispatcher;
@@ -95,8 +96,10 @@ final class StreetSelectionDialog {
     private static final int DIALOG_HEIGHT = 860;
     private static final int DIALOG_OFFSET_X = 66;
     private static final int DIALOG_OFFSET_Y = 80;
-    private static final String SHOW_OVERVIEW_BUTTON_TEXT = I18n.tr("Show overview");
-    private static final String HIDE_OVERVIEW_BUTTON_TEXT = I18n.tr("Hide overview");
+    private static final String SHOW_OVERVIEW_BUTTON_TEXT = I18n.tr("Show completeness");
+    private static final String HIDE_OVERVIEW_BUTTON_TEXT = I18n.tr("Hide completeness");
+    private static final String SHOW_POSTCODE_BUTTON_TEXT = I18n.tr("Show Postcode");
+    private static final String HIDE_POSTCODE_BUTTON_TEXT = I18n.tr("Hide Postcode");
     private static final List<String> COMMON_BUILDING_TYPES = Arrays.asList(
             "yes", "apartments", "residential", "house", "detached", "terrace", "garage", "garages",
             "retail", "commercial", "industrial", "warehouse", "office", "school", "hospital", "hotel",
@@ -165,6 +168,8 @@ final class StreetSelectionDialog {
         this.continueWorkingButton.addActionListener(e -> continueWorking());
         this.createOverviewButton = new JButton(SHOW_OVERVIEW_BUTTON_TEXT);
         this.createOverviewButton.addActionListener(e -> onCreateOverviewRequested());
+        this.createPostcodeOverviewButton = new JButton(SHOW_POSTCODE_BUTTON_TEXT);
+        this.createPostcodeOverviewButton.addActionListener(e -> onCreatePostcodeOverviewRequested());
         this.streetModeController.setModeStateListener(this::refreshModeStateUi);
         this.modeStateLabel.setFont(this.modeStateLabel.getFont().deriveFont(Font.BOLD));
 
@@ -392,6 +397,7 @@ final class StreetSelectionDialog {
         notifyZoomToSelectedStreetChanged();
         refreshModeStateUi(streetModeController.isActive());
         refreshOverviewButtonLabel();
+        refreshPostcodeOverviewButtonLabel();
 
         if (!dialog.isVisible()) {
             positionTopLeftInOwner(MainApplication.getMainFrame());
@@ -872,7 +878,11 @@ final class StreetSelectionDialog {
     private JPanel createAnalysisSection() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Analysis")));
-        panel.add(createOverviewButton, BorderLayout.WEST);
+
+        JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
+        buttons.add(createOverviewButton);
+        buttons.add(createPostcodeOverviewButton);
+        panel.add(buttons, BorderLayout.WEST);
         return panel;
     }
 
@@ -1019,6 +1029,14 @@ final class StreetSelectionDialog {
     private void onCreateOverviewRequested() {
         streetModeController.toggleBuildingOverviewLayer();
         refreshOverviewButtonLabel();
+        refreshPostcodeOverviewButtonLabel();
+        focusMapViewIfStreetModeActive();
+    }
+
+    private void onCreatePostcodeOverviewRequested() {
+        streetModeController.togglePostcodeOverviewLayer();
+        refreshOverviewButtonLabel();
+        refreshPostcodeOverviewButtonLabel();
         focusMapViewIfStreetModeActive();
     }
 
@@ -1030,6 +1048,17 @@ final class StreetSelectionDialog {
                 streetModeController.isBuildingOverviewLayerVisible()
                         ? HIDE_OVERVIEW_BUTTON_TEXT
                         : SHOW_OVERVIEW_BUTTON_TEXT
+        );
+    }
+
+    private void refreshPostcodeOverviewButtonLabel() {
+        if (createPostcodeOverviewButton == null) {
+            return;
+        }
+        createPostcodeOverviewButton.setText(
+                streetModeController.isPostcodeOverviewLayerVisible()
+                        ? HIDE_POSTCODE_BUTTON_TEXT
+                        : SHOW_POSTCODE_BUTTON_TEXT
         );
     }
 
