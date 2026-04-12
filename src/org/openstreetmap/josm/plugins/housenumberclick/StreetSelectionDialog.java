@@ -949,10 +949,10 @@ final class StreetSelectionDialog {
         actionGbc.insets = new Insets(0, 0, 2, 0);
 
         addHelpRow(panel, gbc, actionGbc, 0, I18n.tr("Left click"), I18n.tr("Apply address"));
-        addHelpRow(panel, gbc, actionGbc, 1, I18n.tr("Ctrl+Click"), I18n.tr("Read address"));
-        addHelpRow(panel, gbc, actionGbc, 2, I18n.tr("Alt+Right click"), I18n.tr("Row houses"));
-        addHelpRow(panel, gbc, actionGbc, 3, I18n.tr("Alt+Drag"), I18n.tr("Line split"));
-        addHelpRow(panel, gbc, actionGbc, 4, I18n.tr("Alt+1..9"), I18n.tr("Set parts"));
+        addHelpRow(panel, gbc, actionGbc, 1, I18n.tr("Ctrl+Left click"), I18n.tr("Read address"));
+        addHelpRow(panel, gbc, actionGbc, 3, I18n.tr("Alt+Left click+Drag"), I18n.tr("Split building"));
+        addHelpRow(panel, gbc, actionGbc, 2, I18n.tr("Alt+Right click"), I18n.tr("Split to row houses"));
+        addHelpRow(panel, gbc, actionGbc, 4, I18n.tr("Alt+1..9"), I18n.tr("Set number of parts"));
 
         return panel;
     }
