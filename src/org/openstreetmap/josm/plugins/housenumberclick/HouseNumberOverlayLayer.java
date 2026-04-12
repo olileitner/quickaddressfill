@@ -44,7 +44,7 @@ final class HouseNumberOverlayLayer extends Layer {
     private static final Color DUPLICATE_BUBBLE_FILL_COLOR = new Color(255, 175, 175, 235);
     private static final Color DUPLICATE_BUBBLE_BORDER_COLOR = new Color(195, 20, 20, 235);
     private static final Color TEXT_COLOR = new Color(10, 10, 10, 230);
-    private static final Color STREET_HIGHLIGHT_COLOR = new Color(135, 200, 255, 170);
+    private static final Color STREET_HIGHLIGHT_COLOR = new Color(245, 210, 45, 190);
     private static final float STREET_HIGHLIGHT_WIDTH = 14.0f;
     private static final long CACHE_REFRESH_INTERVAL_NANOS = 500_000_000L;
 
