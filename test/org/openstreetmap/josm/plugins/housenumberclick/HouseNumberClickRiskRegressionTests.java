@@ -76,11 +76,13 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Temporary Alt split exits on Alt release", HouseNumberClickRiskRegressionTests::testTemporaryAltSplitExitsOnAltRelease);
             run("Alt+digit sets row-house parts through controller", HouseNumberClickRiskRegressionTests::testAltDigitSetsTerracePartsShortcut);
             run("Alt+digit shortcut requires plain Alt", HouseNumberClickRiskRegressionTests::testAltDigitShortcutRequiresPlainAlt);
+            run("Primary apply restores map focus for undo shortcuts", HouseNumberClickRiskRegressionTests::testPrimaryApplyRestoresMapFocusForUndoShortcuts);
             run("Row-house parts dialog sync avoids document mutation during notifications", HouseNumberClickRiskRegressionTests::testRowHousePartsDialogSyncDefersDocumentMutation);
             run("Ctrl cursor uses custom magnifier without arrow asset fallback", HouseNumberClickRiskRegressionTests::testCtrlCursorUsesCustomMagnifier);
             run("Split cursor hotspot keeps scalp tip shifted left", HouseNumberClickRiskRegressionTests::testSplitCursorHotspotShiftedLeft);
             run("Split map mode is line-split only", HouseNumberClickRiskRegressionTests::testSplitMapModeIsLineSplitOnly);
             run("Reference cache is invalidated on data source changes", HouseNumberClickRiskRegressionTests::testReferenceCacheInvalidationOnDataSourceChange);
+            run("Undo queue changes trigger visual rescan refresh", HouseNumberClickRiskRegressionTests::testUndoQueueChangesTriggerVisualRescanRefresh);
             run("Rectangularize option is propagated to temporary line split mode", HouseNumberClickRiskRegressionTests::testRectangularizePreferencePropagation);
             run("Rectangularize skips triangle split results", HouseNumberClickRiskRegressionTests::testRectangularizeCandidateGuard);
             run("House-number cursor label depends on complete address inputs", HouseNumberClickRiskRegressionTests::testHouseNumberCursorLabelCompletenessGuard);
@@ -567,6 +569,14 @@ public final class HouseNumberClickRiskRegressionTests {
                 "secondary readback handling should happen only after Shift passthrough guard");
     }
 
+    private static void testPrimaryApplyRestoresMapFocusForUndoShortcuts() throws Exception {
+        String source = readPluginSource("HouseNumberClickStreetMapMode.java");
+        assertTrue(source.contains("requestMapFocusForUndoShortcuts();"),
+                "successful primary apply should restore map focus so Ctrl+Z reaches JOSM undo");
+        assertTrue(source.contains("map.mapView.requestFocusInWindow();"),
+                "map focus restore should request focus on mapView");
+    }
+
     private static void testRowHousePartsDialogSyncDefersDocumentMutation() throws Exception {
         String source = readPluginSource("StreetSelectionDialog.java");
         assertTrue(source.contains("updateRowHousePartsFromMode"),
@@ -637,6 +647,18 @@ public final class HouseNumberClickRiskRegressionTests {
                 "reference cache should be cleared on data source changes");
         assertTrue(source.contains("referenceStreetLoadsInProgress.clear();"),
                 "in-progress reference loads should be reset on data source changes");
+    }
+
+    private static void testUndoQueueChangesTriggerVisualRescanRefresh() throws Exception {
+        String source = readPluginSource("StreetModeController.java");
+        assertTrue(source.contains("addCommandQueueListener(commandQueueListener)"),
+                "controller should bind to undo/redo command queue changes while dialog workflow is active");
+        assertTrue(source.contains("onCommandQueueChanged"),
+                "controller should react to undo/redo queue changes");
+        assertTrue(source.contains("overlayManager.invalidateOverlayDataCache();"),
+                "undo/redo queue changes should invalidate overlay cache for immediate visual updates");
+        assertTrue(source.contains("rescanPluginData();"),
+                "undo/redo queue changes should trigger plugin rescan refresh");
     }
 
     private static void testRectangularizePreferencePropagation() throws Exception {

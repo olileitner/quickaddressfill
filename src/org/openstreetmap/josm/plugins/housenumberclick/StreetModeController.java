@@ -95,6 +95,8 @@ final class StreetModeController {
     private String lastReferenceSyncStreetKey = "";
     private DataSet observedDataSourceDataSet;
     private boolean dataSourceRescanQueued;
+    private boolean commandQueueRescanQueued;
+    private boolean commandQueueListenerRegistered;
     private HouseNumberUpdateListener houseNumberUpdateListener;
     private AddressValuesReadListener addressValuesReadListener;
     private BuildingTypeConsumedListener buildingTypeConsumedListener;
@@ -158,6 +160,7 @@ final class StreetModeController {
     }
 
     private final DataSourceListener dataSourceRefreshListener = event -> onDataSourceChanged();
+    private final UndoRedoHandler.CommandQueueListener commandQueueListener = (undoSize, redoSize) -> onCommandQueueChanged();
 
     boolean isActive() {
         MapFrame map = MainApplication.getMap();
@@ -176,6 +179,7 @@ final class StreetModeController {
 
         navigationService.updateFromSelection(selection);
         syncDataSourceListenerBinding();
+        registerCommandQueueListener();
         lastSelection = selection;
 
         MapFrame map = MainApplication.getMap();
@@ -506,7 +510,40 @@ final class StreetModeController {
         }
         lastReferenceSyncStreetKey = "";
         unbindDataSourceListener();
+        unregisterCommandQueueListener();
         deactivate();
+    }
+
+    private void registerCommandQueueListener() {
+        if (commandQueueListenerRegistered) {
+            return;
+        }
+        commandQueueListenerRegistered = UndoRedoHandler.getInstance().addCommandQueueListener(commandQueueListener);
+    }
+
+    private void unregisterCommandQueueListener() {
+        if (!commandQueueListenerRegistered) {
+            return;
+        }
+        UndoRedoHandler.getInstance().removeCommandQueueListener(commandQueueListener);
+        commandQueueListenerRegistered = false;
+        commandQueueRescanQueued = false;
+    }
+
+    private void onCommandQueueChanged() {
+        if (!commandQueueListenerRegistered || commandQueueRescanQueued) {
+            return;
+        }
+        commandQueueRescanQueued = true;
+        GuiHelper.runInEDT(() -> {
+            commandQueueRescanQueued = false;
+            overlayManager.invalidateOverlayDataCache();
+            rescanPluginData();
+            MapFrame map = MainApplication.getMap();
+            if (map != null && map.mapView != null) {
+                map.mapView.repaint();
+            }
+        });
     }
 
     private void onDataSourceChanged() {

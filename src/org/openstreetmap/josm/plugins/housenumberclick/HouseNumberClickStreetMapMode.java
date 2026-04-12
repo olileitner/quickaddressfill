@@ -652,6 +652,14 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
                 displayValue(result.getAppliedHouseNumber())
         );
         refreshModePresentation(appliedMessage);
+        requestMapFocusForUndoShortcuts();
+    }
+
+    private void requestMapFocusForUndoShortcuts() {
+        MapFrame map = MainApplication.getMap();
+        if (map != null && map.mapView != null) {
+            map.mapView.requestFocusInWindow();
+        }
     }
 
     private void handleSecondaryClick(MouseEvent e, ClickResolutionStats stats) {
