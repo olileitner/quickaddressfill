@@ -29,6 +29,7 @@ final class BuildingOverviewLayer extends Layer {
     private static final Color ADDRESSED_FILL_COLOR = new Color(86, 180, 233, 190);
     private static final Color UNADDRESSED_FILL_COLOR = new Color(230, 159, 0, 190);
     private static final Color MISPLACED_COLOR = new Color(204, 121, 167, 190);
+    private static final Color NO_ADDRESS_DATA_COLOR = new Color(135, 135, 135, 130);
     private static final Color LEGEND_BACKGROUND_COLOR = new Color(248, 248, 248, 215);
     private static final int LEGEND_PADDING = 8;
     private static final int LEGEND_ROW_HEIGHT = 16;
@@ -73,8 +74,9 @@ final class BuildingOverviewLayer extends Layer {
         String complete = I18n.tr("Address complete");
         String incomplete = I18n.tr("Address incomplete");
         String problematic = I18n.tr("Address problematic");
+        String noAddressData = I18n.tr("No Address Data");
 
-        int contentRows = 3;
+        int contentRows = 4;
         int legendHeight = LEGEND_PADDING * 2 + LEGEND_ROW_HEIGHT + (contentRows * LEGEND_ROW_HEIGHT);
         int legendWidth = Math.max(
                 250,
@@ -102,6 +104,9 @@ final class BuildingOverviewLayer extends Layer {
 
         rowY += LEGEND_ROW_HEIGHT;
         drawLegendRow(g, textBaseX, rowY, MISPLACED_COLOR, problematic);
+
+        rowY += LEGEND_ROW_HEIGHT;
+        drawLegendRow(g, textBaseX, rowY, NO_ADDRESS_DATA_COLOR, noAddressData);
     }
 
     private void drawLegendRow(Graphics2D g, int textBaseX, int rowY, Color swatchColor, String label) {
@@ -120,6 +125,7 @@ final class BuildingOverviewLayer extends Layer {
                     mapView,
                     (Way) primitive,
                     entry.hasHouseNumber(),
+                    entry.hasNoAddressData(),
                     entry.hasMissingRequiredAddressFields(),
                     entry.hasMisplacedHouseNumber(),
                     entry.hasDuplicateExactAddress()
@@ -132,6 +138,7 @@ final class BuildingOverviewLayer extends Layer {
                     mapView,
                     (Relation) primitive,
                     entry.hasHouseNumber(),
+                    entry.hasNoAddressData(),
                     entry.hasMissingRequiredAddressFields(),
                     entry.hasMisplacedHouseNumber(),
                     entry.hasDuplicateExactAddress()
@@ -140,6 +147,7 @@ final class BuildingOverviewLayer extends Layer {
     }
 
     private void drawRelation(Graphics2D g, MapView mapView, Relation relation, boolean hasHouseNumber,
+            boolean hasNoAddressData,
             boolean hasMissingRequiredAddressFields,
             boolean hasMisplacedHouseNumber, boolean hasDuplicateExactAddress) {
         if (relation == null || !relation.isUsable()) {
@@ -159,6 +167,7 @@ final class BuildingOverviewLayer extends Layer {
                     mapView,
                     member.getWay(),
                     hasHouseNumber,
+                    hasNoAddressData,
                     hasMissingRequiredAddressFields,
                     hasMisplacedHouseNumber,
                     hasDuplicateExactAddress
@@ -167,6 +176,7 @@ final class BuildingOverviewLayer extends Layer {
     }
 
     private void drawWay(Graphics2D g, MapView mapView, Way way, boolean hasHouseNumber,
+            boolean hasNoAddressData,
             boolean hasMissingRequiredAddressFields,
             boolean hasMisplacedHouseNumber, boolean hasDuplicateExactAddress) {
         Path2D polygon = buildScreenPolygon(mapView, way);
@@ -176,6 +186,7 @@ final class BuildingOverviewLayer extends Layer {
 
         g.setColor(resolveFillColor(
                 hasHouseNumber,
+                hasNoAddressData,
                 hasMissingRequiredAddressFields,
                 hasMisplacedHouseNumber,
                 hasDuplicateExactAddress
@@ -185,6 +196,7 @@ final class BuildingOverviewLayer extends Layer {
 
     private Color resolveFillColor(
             boolean hasHouseNumber,
+            boolean hasNoAddressData,
             boolean hasMissingRequiredAddressFields,
             boolean hasMisplacedHouseNumber,
             boolean hasDuplicateExactAddress) {
@@ -192,7 +204,10 @@ final class BuildingOverviewLayer extends Layer {
             return MISPLACED_COLOR;
         }
         if (hasMissingRequiredAddressFields) {
-            return MISPLACED_COLOR;
+            return UNADDRESSED_FILL_COLOR;
+        }
+        if (hasNoAddressData) {
+            return NO_ADDRESS_DATA_COLOR;
         }
         if (hasHouseNumber) {
             return ADDRESSED_FILL_COLOR;
@@ -243,7 +258,7 @@ final class BuildingOverviewLayer extends Layer {
 
     @Override
     public String getToolTipText() {
-        return I18n.tr("Completeness overview (bright colors: complete, incomplete, problematic)");
+        return I18n.tr("Completeness overview (bright colors: complete/incomplete/problematic, gray: no address data)");
     }
 
     @Override

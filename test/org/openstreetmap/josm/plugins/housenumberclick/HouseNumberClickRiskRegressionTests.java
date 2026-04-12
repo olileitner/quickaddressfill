@@ -718,6 +718,8 @@ public final class HouseNumberClickRiskRegressionTests {
                 "completeness legend should contain incomplete-address label");
         assertTrue(source.contains("Address problematic"),
                 "completeness legend should contain problematic-address label");
+        assertTrue(source.contains("No Address Data"),
+                "completeness legend should contain no-address-data label");
     }
 
     private static void testCompletenessLayerNameConsistency() throws Exception {
@@ -823,6 +825,7 @@ public final class HouseNumberClickRiskRegressionTests {
         boolean containsSameHouseMissingPostcode = false;
         boolean containsMissingRequiredAddressFields = false;
         boolean containsUnaddressedLarge = false;
+        boolean containsNoAddressData = false;
         boolean containsAddressedTiny = false;
         for (BuildingOverviewCollector.BuildingOverviewEntry entry : entries) {
             if (entry.getPrimitive() == addressedLarge
@@ -850,6 +853,9 @@ public final class HouseNumberClickRiskRegressionTests {
             }
             if (entry.getPrimitive() == unaddressedLarge && !entry.hasHouseNumber()) {
                 containsUnaddressedLarge = true;
+                if (entry.hasNoAddressData()) {
+                    containsNoAddressData = true;
+                }
             }
             if (entry.getPrimitive() == addressedTiny) {
                 containsAddressedTiny = true;
@@ -867,6 +873,8 @@ public final class HouseNumberClickRiskRegressionTests {
         assertTrue(containsMissingRequiredAddressFields,
                 "housenumber without postcode should be flagged as missing required address fields");
         assertTrue(containsUnaddressedLarge, "large unaddressed building should be included and marked unaddressed");
+        assertTrue(containsNoAddressData,
+                "building without street, postcode and housenumber should be flagged as no address data");
         assertFalse(containsAddressedTiny, "tiny building should be excluded by minimum area filter");
     }
 

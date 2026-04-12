@@ -109,7 +109,8 @@ This significantly reduces friction when mapping long streets or dense residenti
 - `Show completeness` / `Hide completeness`: `Completeness overview` layer:
   - `Address complete` (bright blue),
   - `Address incomplete` (bright orange),
-  - `Address problematic` (bright magenta).
+  - `Address problematic` (bright magenta),
+  - `No Address Data` (gray, intentionally less prominent for buildings without street/postcode/housenumber).
 - `Show Postcode` / `Hide Postcode`: postcode overview layer:
   - bright pink = no postcode,
   - same color = same postcode,
