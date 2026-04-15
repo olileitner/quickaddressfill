@@ -25,6 +25,7 @@ import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
 import javax.swing.event.DocumentEvent;
@@ -60,7 +61,11 @@ final class StreetSelectionDialog {
     private final JLabel modeStateLabel;
     private final JButton continueWorkingButton;
     private final JButton createOverviewButton;
+    private final JButton createDuplicateOverviewButton;
     private final JButton createPostcodeOverviewButton;
+    private final JRadioButton completenessPostcodeRadioButton;
+    private final JRadioButton completenessStreetRadioButton;
+    private final JRadioButton completenessHouseNumberRadioButton;
     private final JButton previousStreetButton;
     private final JButton nextStreetButton;
     private final KeyEventDispatcher streetNavigationKeyDispatcher;
@@ -96,11 +101,13 @@ final class StreetSelectionDialog {
     private Component lastFocusedDialogInput;
 
     private static final int DIALOG_WIDTH = 390;
-    private static final int DIALOG_HEIGHT = 860;
+    private static final int DIALOG_HEIGHT = 920;
     private static final int DIALOG_OFFSET_X = 66;
     private static final int DIALOG_OFFSET_Y = 80;
     private static final String SHOW_OVERVIEW_BUTTON_TEXT = I18n.tr("Show completeness");
     private static final String HIDE_OVERVIEW_BUTTON_TEXT = I18n.tr("Hide completeness");
+    private static final String SHOW_DUPLICATE_BUTTON_TEXT = I18n.tr("Show duplicates");
+    private static final String HIDE_DUPLICATE_BUTTON_TEXT = I18n.tr("Hide duplicates");
     private static final String SHOW_POSTCODE_BUTTON_TEXT = I18n.tr("Show Postcode");
     private static final String HIDE_POSTCODE_BUTTON_TEXT = I18n.tr("Hide Postcode");
     private static final List<String> COMMON_BUILDING_TYPES = Arrays.asList(
@@ -169,8 +176,23 @@ final class StreetSelectionDialog {
         this.modeStateLabel = new JLabel();
         this.continueWorkingButton = new JButton(I18n.tr("Resume"));
         this.continueWorkingButton.addActionListener(e -> continueWorking());
+
+        this.completenessPostcodeRadioButton = new JRadioButton(I18n.tr("Postcode"));
+        this.completenessStreetRadioButton = new JRadioButton(I18n.tr("Street"));
+        this.completenessHouseNumberRadioButton = new JRadioButton(I18n.tr("House number"));
+        ButtonGroup completenessFieldGroup = new ButtonGroup();
+        completenessFieldGroup.add(completenessPostcodeRadioButton);
+        completenessFieldGroup.add(completenessStreetRadioButton);
+        completenessFieldGroup.add(completenessHouseNumberRadioButton);
+        applyCompletenessRadioSelection(streetModeController.getCompletenessMissingField());
+        this.completenessPostcodeRadioButton.addActionListener(e -> onCompletenessMissingFieldChanged());
+        this.completenessStreetRadioButton.addActionListener(e -> onCompletenessMissingFieldChanged());
+        this.completenessHouseNumberRadioButton.addActionListener(e -> onCompletenessMissingFieldChanged());
+
         this.createOverviewButton = new JButton(SHOW_OVERVIEW_BUTTON_TEXT);
         this.createOverviewButton.addActionListener(e -> onCreateOverviewRequested());
+        this.createDuplicateOverviewButton = new JButton(SHOW_DUPLICATE_BUTTON_TEXT);
+        this.createDuplicateOverviewButton.addActionListener(e -> onCreateDuplicateOverviewRequested());
         this.createPostcodeOverviewButton = new JButton(SHOW_POSTCODE_BUTTON_TEXT);
         this.createPostcodeOverviewButton.addActionListener(e -> onCreatePostcodeOverviewRequested());
         this.streetModeController.setModeStateListener(this::refreshModeStateUi);
@@ -387,6 +409,7 @@ final class StreetSelectionDialog {
         zoomToSelectedStreetCheckbox.setSelected(rememberedZoomToSelectedStreetEnabled);
         splitMakeRectangularCheckbox.setSelected(rememberedSplitMakeRectangular);
         streetModeController.setRectangularizeAfterLineSplit(rememberedSplitMakeRectangular);
+        applyCompletenessRadioSelection(streetModeController.getCompletenessMissingField());
         rowHousePartsField.setText(Integer.toString(streetModeController.getConfiguredTerraceParts()));
         lastSelectedStreet = null;
         rememberedStreet = null;
@@ -400,6 +423,7 @@ final class StreetSelectionDialog {
         notifyZoomToSelectedStreetChanged();
         refreshModeStateUi(streetModeController.isActive());
         refreshOverviewButtonLabel();
+        refreshDuplicateOverviewButtonLabel();
         refreshPostcodeOverviewButtonLabel();
 
         if (!dialog.isVisible()) {
@@ -876,13 +900,20 @@ final class StreetSelectionDialog {
     }
 
     private JPanel createAnalysisSection() {
-        JPanel panel = new JPanel(new BorderLayout());
+        JPanel panel = new JPanel(new BorderLayout(0, 6));
         panel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Analysis")));
 
         JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
         buttons.add(createOverviewButton);
+        buttons.add(createDuplicateOverviewButton);
         buttons.add(createPostcodeOverviewButton);
-        panel.add(buttons, BorderLayout.WEST);
+        panel.add(buttons, BorderLayout.NORTH);
+
+        JPanel radios = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
+        radios.add(completenessPostcodeRadioButton);
+        radios.add(completenessStreetRadioButton);
+        radios.add(completenessHouseNumberRadioButton);
+        panel.add(radios, BorderLayout.CENTER);
         return panel;
     }
 
@@ -1029,6 +1060,15 @@ final class StreetSelectionDialog {
     private void onCreateOverviewRequested() {
         streetModeController.toggleBuildingOverviewLayer();
         refreshOverviewButtonLabel();
+        refreshDuplicateOverviewButtonLabel();
+        refreshPostcodeOverviewButtonLabel();
+        focusMapViewIfStreetModeActive();
+    }
+
+    private void onCreateDuplicateOverviewRequested() {
+        streetModeController.toggleDuplicateAddressOverviewLayer();
+        refreshOverviewButtonLabel();
+        refreshDuplicateOverviewButtonLabel();
         refreshPostcodeOverviewButtonLabel();
         focusMapViewIfStreetModeActive();
     }
@@ -1036,6 +1076,21 @@ final class StreetSelectionDialog {
     private void onCreatePostcodeOverviewRequested() {
         streetModeController.togglePostcodeOverviewLayer();
         refreshOverviewButtonLabel();
+        refreshDuplicateOverviewButtonLabel();
+        refreshPostcodeOverviewButtonLabel();
+        focusMapViewIfStreetModeActive();
+    }
+
+    private void onCompletenessMissingFieldChanged() {
+        if (updatingInputs) {
+            return;
+        }
+        streetModeController.setCompletenessMissingField(getSelectedCompletenessMissingField());
+        if (streetModeController.isBuildingOverviewLayerVisible()) {
+            streetModeController.createBuildingOverviewLayer();
+        }
+        refreshOverviewButtonLabel();
+        refreshDuplicateOverviewButtonLabel();
         refreshPostcodeOverviewButtonLabel();
         focusMapViewIfStreetModeActive();
     }
@@ -1060,6 +1115,46 @@ final class StreetSelectionDialog {
                         ? HIDE_POSTCODE_BUTTON_TEXT
                         : SHOW_POSTCODE_BUTTON_TEXT
         );
+    }
+
+    private void refreshDuplicateOverviewButtonLabel() {
+        if (createDuplicateOverviewButton == null) {
+            return;
+        }
+        createDuplicateOverviewButton.setText(
+                streetModeController.isDuplicateAddressOverviewLayerVisible()
+                        ? HIDE_DUPLICATE_BUTTON_TEXT
+                        : SHOW_DUPLICATE_BUTTON_TEXT
+        );
+    }
+
+    private BuildingOverviewLayer.MissingField getSelectedCompletenessMissingField() {
+        if (completenessStreetRadioButton.isSelected()) {
+            return BuildingOverviewLayer.MissingField.STREET;
+        }
+        if (completenessHouseNumberRadioButton.isSelected()) {
+            return BuildingOverviewLayer.MissingField.HOUSE_NUMBER;
+        }
+        return BuildingOverviewLayer.MissingField.POSTCODE;
+    }
+
+    private void applyCompletenessRadioSelection(BuildingOverviewLayer.MissingField missingField) {
+        BuildingOverviewLayer.MissingField normalized = missingField != null
+                ? missingField
+                : BuildingOverviewLayer.MissingField.POSTCODE;
+        switch (normalized) {
+            case STREET:
+                completenessStreetRadioButton.setSelected(true);
+                break;
+            case HOUSE_NUMBER:
+                completenessHouseNumberRadioButton.setSelected(true);
+                break;
+            case POSTCODE:
+            default:
+                completenessPostcodeRadioButton.setSelected(true);
+                break;
+        }
+        streetModeController.setCompletenessMissingField(normalized);
     }
 
     private void harmonizeNavigationButtonWidths() {

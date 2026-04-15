@@ -767,12 +767,18 @@ public final class HouseNumberClickRiskRegressionTests {
         String source = readPluginSource("BuildingOverviewLayer.java");
         assertTrue(source.contains("Address complete"),
                 "completeness legend should contain complete-address label");
-        assertTrue(source.contains("Address incomplete"),
-                "completeness legend should contain incomplete-address label");
-        assertTrue(source.contains("Duplicate address"),
-                "completeness legend should contain duplicate-address label");
+        assertTrue(source.contains("Postcode missing"),
+                "completeness legend should contain postcode-missing label");
+        assertTrue(source.contains("Street missing"),
+                "completeness legend should contain street-missing label");
+        assertTrue(source.contains("House number missing"),
+                "completeness legend should contain house-number-missing label");
         assertTrue(source.contains("No Address Data"),
                 "completeness legend should contain no-address-data label");
+
+        String duplicatesSource = readPluginSource("DuplicateAddressOverviewLayer.java");
+        assertTrue(duplicatesSource.contains("Duplicate address"),
+                "duplicate overview should contain duplicate-address label");
     }
 
     private static void testCompletenessLayerNameConsistency() throws Exception {
@@ -789,19 +795,38 @@ public final class HouseNumberClickRiskRegressionTests {
 
     private static void testOverviewLayerTogglesAreMutuallyExclusive() throws Exception {
         String source = readPluginSource("OverlayManager.java");
-        int createBuildingIndex = source.indexOf("void createBuildingOverviewLayer()");
+        int createBuildingIndex = source.indexOf("void createBuildingOverviewLayer(BuildingOverviewLayer.MissingField missingField)");
         int createPostcodeIndex = source.indexOf("void createPostcodeOverviewLayer()");
-        assertTrue(createBuildingIndex >= 0 && createPostcodeIndex > createBuildingIndex,
-                "overlay manager should expose both overview creation paths");
+        int createDuplicateIndex = source.indexOf("void createDuplicateAddressOverviewLayer()");
+        assertTrue(createBuildingIndex >= 0 && createPostcodeIndex >= 0 && createDuplicateIndex >= 0,
+                "overlay manager should expose completeness, postcode, and duplicate overview creation paths");
 
-        String createBuildingBody = source.substring(createBuildingIndex, createPostcodeIndex);
+        int createBuildingEnd = source.indexOf("void createPostcodeOverviewLayer()", createBuildingIndex);
+        assertTrue(createBuildingEnd > createBuildingIndex,
+                "completeness creation method should end before postcode creation method");
+        String createBuildingBody = source.substring(createBuildingIndex, createBuildingEnd);
         assertTrue(createBuildingBody.contains("removePostcodeOverviewLayer();"),
                 "enabling building overview should disable postcode overview");
+        assertTrue(createBuildingBody.contains("removeDuplicateAddressOverviewLayer();"),
+                "enabling building overview should disable duplicate overview");
 
-        int toggleBuildingIndex = source.indexOf("void toggleBuildingOverviewLayer()", createPostcodeIndex);
-        String createPostcodeBody = source.substring(createPostcodeIndex, toggleBuildingIndex);
+        int createPostcodeEnd = source.indexOf("void toggleBuildingOverviewLayer()", createPostcodeIndex);
+        assertTrue(createPostcodeEnd > createPostcodeIndex,
+                "postcode creation method should end before building toggle method");
+        String createPostcodeBody = source.substring(createPostcodeIndex, createPostcodeEnd);
         assertTrue(createPostcodeBody.contains("removeBuildingOverviewLayer();"),
                 "enabling postcode overview should disable building overview");
+        assertTrue(createPostcodeBody.contains("removeDuplicateAddressOverviewLayer();"),
+                "enabling postcode overview should disable duplicate overview");
+
+        int createDuplicateEnd = source.indexOf("void toggleDuplicateAddressOverviewLayer()", createDuplicateIndex);
+        assertTrue(createDuplicateEnd > createDuplicateIndex,
+                "duplicate creation method should end before duplicate toggle method");
+        String createDuplicateBody = source.substring(createDuplicateIndex, createDuplicateEnd);
+        assertTrue(createDuplicateBody.contains("removeBuildingOverviewLayer();"),
+                "enabling duplicate overview should disable building overview");
+        assertTrue(createDuplicateBody.contains("removePostcodeOverviewLayer();"),
+                "enabling duplicate overview should disable postcode overview");
     }
 
     private static void testTableClickContinueHookIsSafe() {

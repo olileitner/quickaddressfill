@@ -18,8 +18,10 @@ final class OverlayManager {
 
     private HouseNumberOverlayLayer houseNumberOverlayLayer;
     private BuildingOverviewLayer buildingOverviewLayer;
+    private DuplicateAddressOverviewLayer duplicateAddressOverviewLayer;
     private PostcodeOverviewLayer postcodeOverviewLayer;
     private ReferenceStreetLayer referenceStreetLayer;
+    private BuildingOverviewLayer.MissingField completenessMissingField = BuildingOverviewLayer.MissingField.POSTCODE;
 
     void refreshOverlayLayer(
             String currentStreet,
@@ -89,7 +91,15 @@ final class OverlayManager {
         }
     }
 
+    void setCompletenessMissingField(BuildingOverviewLayer.MissingField missingField) {
+        completenessMissingField = missingField != null ? missingField : BuildingOverviewLayer.MissingField.POSTCODE;
+    }
+
     void createBuildingOverviewLayer() {
+        createBuildingOverviewLayer(completenessMissingField);
+    }
+
+    void createBuildingOverviewLayer(BuildingOverviewLayer.MissingField missingField) {
         LayerManager layerManager = MainApplication.getLayerManager();
         if (layerManager == null) {
             return;
@@ -110,8 +120,9 @@ final class OverlayManager {
                 .show();
 
         removePostcodeOverviewLayer();
+        removeDuplicateAddressOverviewLayer();
         removeBuildingOverviewLayer();
-        buildingOverviewLayer = new BuildingOverviewLayer(editDataSet);
+        buildingOverviewLayer = new BuildingOverviewLayer(editDataSet, missingField);
         layerManager.addLayer(buildingOverviewLayer, false);
         ensureOverlayLayerAboveOverviewLayers(layerManager);
 
@@ -142,6 +153,7 @@ final class OverlayManager {
                 .show();
 
         removeBuildingOverviewLayer();
+        removeDuplicateAddressOverviewLayer();
         removePostcodeOverviewLayer();
         postcodeOverviewLayer = new PostcodeOverviewLayer(editDataSet);
         layerManager.addLayer(postcodeOverviewLayer, false);
@@ -154,6 +166,10 @@ final class OverlayManager {
     }
 
     void toggleBuildingOverviewLayer() {
+        toggleBuildingOverviewLayer(completenessMissingField);
+    }
+
+    void toggleBuildingOverviewLayer(BuildingOverviewLayer.MissingField missingField) {
         if (isBuildingOverviewLayerVisible()) {
             removeBuildingOverviewLayer();
             MapFrame map = MainApplication.getMap();
@@ -162,7 +178,52 @@ final class OverlayManager {
             }
             return;
         }
-        createBuildingOverviewLayer();
+        createBuildingOverviewLayer(missingField);
+    }
+
+    void createDuplicateAddressOverviewLayer() {
+        LayerManager layerManager = MainApplication.getLayerManager();
+        if (layerManager == null) {
+            return;
+        }
+
+        DataSet editDataSet = MainApplication.getLayerManager() != null
+                ? MainApplication.getLayerManager().getEditDataSet()
+                : null;
+        if (editDataSet == null) {
+            new Notification(I18n.tr("No active dataset available."))
+                    .setDuration(Notification.TIME_SHORT)
+                    .show();
+            return;
+        }
+
+        new Notification(I18n.tr("Please wait, this takes a moment."))
+                .setDuration(Notification.TIME_SHORT)
+                .show();
+
+        removeBuildingOverviewLayer();
+        removePostcodeOverviewLayer();
+        removeDuplicateAddressOverviewLayer();
+        duplicateAddressOverviewLayer = new DuplicateAddressOverviewLayer(editDataSet);
+        layerManager.addLayer(duplicateAddressOverviewLayer, false);
+        ensureOverlayLayerAboveOverviewLayers(layerManager);
+
+        MapFrame map = MainApplication.getMap();
+        if (map != null && map.mapView != null) {
+            map.mapView.repaint();
+        }
+    }
+
+    void toggleDuplicateAddressOverviewLayer() {
+        if (isDuplicateAddressOverviewLayerVisible()) {
+            removeDuplicateAddressOverviewLayer();
+            MapFrame map = MainApplication.getMap();
+            if (map != null && map.mapView != null) {
+                map.mapView.repaint();
+            }
+            return;
+        }
+        createDuplicateAddressOverviewLayer();
     }
 
     void togglePostcodeOverviewLayer() {
@@ -189,6 +250,13 @@ final class OverlayManager {
         return layerManager != null
                 && postcodeOverviewLayer != null
                 && layerManager.containsLayer(postcodeOverviewLayer);
+    }
+
+    boolean isDuplicateAddressOverviewLayerVisible() {
+        LayerManager layerManager = MainApplication.getLayerManager();
+        return layerManager != null
+                && duplicateAddressOverviewLayer != null
+                && layerManager.containsLayer(duplicateAddressOverviewLayer);
     }
 
     void removeOverlayLayer() {
@@ -234,6 +302,22 @@ final class OverlayManager {
         postcodeOverviewLayer = null;
     }
 
+    private void removeDuplicateAddressOverviewLayer() {
+        LayerManager layerManager = MainApplication.getLayerManager();
+        if (layerManager == null) {
+            duplicateAddressOverviewLayer = null;
+            return;
+        }
+
+        List<Layer> layers = new ArrayList<>(layerManager.getLayers());
+        for (Layer layer : layers) {
+            if (layer instanceof DuplicateAddressOverviewLayer && layerManager.containsLayer(layer)) {
+                layerManager.removeLayer(layer);
+            }
+        }
+        duplicateAddressOverviewLayer = null;
+    }
+
     private void ensureOverlayLayerAboveOverviewLayers(LayerManager layerManager) {
         if (layerManager == null || houseNumberOverlayLayer == null) {
             return;
@@ -274,7 +358,16 @@ final class OverlayManager {
         if (postcodeOverviewLayer != null && layerManager.containsLayer(postcodeOverviewLayer)) {
             int index = layers.indexOf(postcodeOverviewLayer);
             if (index >= 0 && index < topMostIndex) {
+                topMostIndex = index;
                 topMost = postcodeOverviewLayer;
+            }
+        }
+
+        if (duplicateAddressOverviewLayer != null && layerManager.containsLayer(duplicateAddressOverviewLayer)) {
+            int index = layers.indexOf(duplicateAddressOverviewLayer);
+            if (index >= 0 && index < topMostIndex) {
+                topMostIndex = index;
+                topMost = duplicateAddressOverviewLayer;
             }
         }
 

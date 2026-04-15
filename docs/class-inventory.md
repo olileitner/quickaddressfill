@@ -16,6 +16,7 @@ Core classes as defined in `AGENTS.md` are marked: `HouseNumberClickPlugin`, `Ho
 | `BuildingOverviewCollector.BuildingOverviewEntry` | `BuildingOverviewCollector.java` | No | Public entry used by overview layers to render completeness and diagnostics for one building. |
 | `BuildingOverviewCollector.CandidateEntry` | `BuildingOverviewCollector.java` | No | Internal collection-stage representation before duplicate-address evaluation is finalized. |
 | `BuildingOverviewLayer` | `BuildingOverviewLayer.java` | No | Map layer that visualizes building-level address status to support completeness inspection. |
+| `BuildingOverviewLayer.MissingField` | `BuildingOverviewLayer.java` | No | Selected required address field used to focus completeness-missing highlighting. |
 | `BuildingResolver` | `BuildingResolver.java` | No | Resolves the clicked building primitive with relation-first logic and bounded candidate scanning. |
 | `BuildingResolver.BuildingResolutionResult` | `BuildingResolver.java` | No | Full resolver diagnostics and selected building primitive for one click resolution. |
 | `BuildingResolver.RelationScanResult` | `BuildingResolver.java` | No | Internal relation-scan outcome with counters and limit state. |
@@ -32,6 +33,7 @@ Core classes as defined in `AGENTS.md` are marked: `HouseNumberClickPlugin`, `Ho
 | `CornerSnapService.SegmentIntersection` | `CornerSnapService.java` | No | Internal intersection result for two segments, including type and optional point. |
 | `DialogController` | `DialogController.java` | No | Keeps dialog-side configuration state normalized and synchronized with controller callbacks. |
 | `DialogState` | `DialogState.java` | No | Immutable snapshot of the dialog input values used to compare and restore UI state. |
+| `DuplicateAddressOverviewLayer` | `DuplicateAddressOverviewLayer.java` | No | Map layer that highlights buildings with duplicate exact address keys. |
 | `HouseNumberClickAction` | `HouseNumberClickAction.java` | Yes | Main toolbar/menu action that opens the street selection dialog and activates street mode. |
 | `HouseNumberClickPlugin` | `HouseNumberClickPlugin.java` | Yes | Plugin entry point that wires the menu action and performs one-time toolbar migration. |
 | `HouseNumberClickStreetMapMode` | `HouseNumberClickStreetMapMode.java` | Yes | Single active map mode that handles address apply/readback and temporary split gestures. |

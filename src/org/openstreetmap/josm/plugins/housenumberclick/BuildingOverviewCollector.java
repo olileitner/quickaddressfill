@@ -53,6 +53,9 @@ final class BuildingOverviewCollector {
                     candidate.hasHouseNumber,
                     candidate.hasNoAddressData,
                     candidate.hasMissingRequiredAddressFields,
+                    candidate.hasMissingStreet,
+                    candidate.hasMissingPostcode,
+                    candidate.hasMissingHouseNumber,
                     candidate.hasMisplacedHouseNumber,
                     hasDuplicateExactAddress
             ));
@@ -80,6 +83,9 @@ final class BuildingOverviewCollector {
         boolean hasNoAddressData = !hasStreet && !hasPostcode && !hasHouseNumber;
         boolean hasCompleteAddressData = hasStreet && hasPostcode && hasHouseNumber;
         boolean hasMissingRequiredAddressFields = !hasNoAddressData && !hasCompleteAddressData;
+        boolean hasMissingStreet = hasMissingRequiredAddressFields && !hasStreet;
+        boolean hasMissingPostcode = hasMissingRequiredAddressFields && !hasPostcode;
+        boolean hasMissingHouseNumber = hasMissingRequiredAddressFields && !hasHouseNumber;
         boolean hasMisplacedHouseNumber = !hasHouseNumber && hasMisplacedHouseNumber(primitive);
         String duplicateAddressKey = hasHouseNumber ? buildDuplicateAddressKey(primitive) : "";
         entries.add(new CandidateEntry(
@@ -87,6 +93,9 @@ final class BuildingOverviewCollector {
                 hasHouseNumber,
                 hasNoAddressData,
                 hasMissingRequiredAddressFields,
+                hasMissingStreet,
+                hasMissingPostcode,
+                hasMissingHouseNumber,
                 hasMisplacedHouseNumber,
                 duplicateAddressKey
         ));
@@ -231,6 +240,9 @@ final class BuildingOverviewCollector {
         private final boolean hasHouseNumber;
         private final boolean hasNoAddressData;
         private final boolean hasMissingRequiredAddressFields;
+        private final boolean hasMissingStreet;
+        private final boolean hasMissingPostcode;
+        private final boolean hasMissingHouseNumber;
         private final boolean hasMisplacedHouseNumber;
         private final boolean hasDuplicateExactAddress;
 
@@ -239,6 +251,9 @@ final class BuildingOverviewCollector {
                 boolean hasHouseNumber,
                 boolean hasNoAddressData,
                 boolean hasMissingRequiredAddressFields,
+                boolean hasMissingStreet,
+                boolean hasMissingPostcode,
+                boolean hasMissingHouseNumber,
                 boolean hasMisplacedHouseNumber,
                 boolean hasDuplicateExactAddress
         ) {
@@ -246,6 +261,9 @@ final class BuildingOverviewCollector {
             this.hasHouseNumber = hasHouseNumber;
             this.hasNoAddressData = hasNoAddressData;
             this.hasMissingRequiredAddressFields = hasMissingRequiredAddressFields;
+            this.hasMissingStreet = hasMissingStreet;
+            this.hasMissingPostcode = hasMissingPostcode;
+            this.hasMissingHouseNumber = hasMissingHouseNumber;
             this.hasMisplacedHouseNumber = hasMisplacedHouseNumber;
             this.hasDuplicateExactAddress = hasDuplicateExactAddress;
         }
@@ -266,6 +284,18 @@ final class BuildingOverviewCollector {
             return hasMissingRequiredAddressFields;
         }
 
+        boolean hasMissingStreet() {
+            return hasMissingStreet;
+        }
+
+        boolean hasMissingPostcode() {
+            return hasMissingPostcode;
+        }
+
+        boolean hasMissingHouseNumber() {
+            return hasMissingHouseNumber;
+        }
+
         boolean hasMisplacedHouseNumber() {
             return hasMisplacedHouseNumber;
         }
@@ -283,6 +313,9 @@ final class BuildingOverviewCollector {
         private final boolean hasHouseNumber;
         private final boolean hasNoAddressData;
         private final boolean hasMissingRequiredAddressFields;
+        private final boolean hasMissingStreet;
+        private final boolean hasMissingPostcode;
+        private final boolean hasMissingHouseNumber;
         private final boolean hasMisplacedHouseNumber;
         private final String duplicateAddressKey;
 
@@ -291,6 +324,9 @@ final class BuildingOverviewCollector {
                 boolean hasHouseNumber,
                 boolean hasNoAddressData,
                 boolean hasMissingRequiredAddressFields,
+                boolean hasMissingStreet,
+                boolean hasMissingPostcode,
+                boolean hasMissingHouseNumber,
                 boolean hasMisplacedHouseNumber,
                 String duplicateAddressKey
         ) {
@@ -298,6 +334,9 @@ final class BuildingOverviewCollector {
             this.hasHouseNumber = hasHouseNumber;
             this.hasNoAddressData = hasNoAddressData;
             this.hasMissingRequiredAddressFields = hasMissingRequiredAddressFields;
+            this.hasMissingStreet = hasMissingStreet;
+            this.hasMissingPostcode = hasMissingPostcode;
+            this.hasMissingHouseNumber = hasMissingHouseNumber;
             this.hasMisplacedHouseNumber = hasMisplacedHouseNumber;
             this.duplicateAddressKey = duplicateAddressKey;
         }

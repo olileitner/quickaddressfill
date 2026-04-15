@@ -25,22 +25,11 @@ import org.openstreetmap.josm.tools.I18n;
 import org.openstreetmap.josm.tools.ImageProvider;
 
 /**
- * Map layer that visualizes building-level address status to support completeness inspection.
+ * Map layer that highlights buildings with duplicate exact address keys.
  */
-final class BuildingOverviewLayer extends Layer {
+final class DuplicateAddressOverviewLayer extends Layer {
 
-    /**
-     * Selected required address field used to focus completeness-missing highlighting.
-     */
-    enum MissingField {
-        STREET,
-        POSTCODE,
-        HOUSE_NUMBER
-    }
-
-    private static final Color ADDRESSED_FILL_COLOR = new Color(86, 180, 233, 190);
-    private static final Color UNADDRESSED_FILL_COLOR = new Color(230, 159, 0, 190);
-    static final Color NO_ADDRESS_DATA_COLOR = new Color(135, 135, 135, 130);
+    private static final Color DUPLICATE_FILL_COLOR = new Color(204, 121, 167, 190);
     private static final Color LEGEND_BACKGROUND_COLOR = new Color(248, 248, 248, 215);
     private static final int LEGEND_PADDING = 8;
     private static final int LEGEND_ROW_HEIGHT = 16;
@@ -48,13 +37,11 @@ final class BuildingOverviewLayer extends Layer {
 
     private final DataSet dataSet;
     private final BuildingOverviewCollector collector;
-    private final MissingField missingField;
 
-    BuildingOverviewLayer(DataSet dataSet, MissingField missingField) {
-        super(I18n.tr("Completeness overview"));
+    DuplicateAddressOverviewLayer(DataSet dataSet) {
+        super(I18n.tr("Duplicate overview"));
         this.dataSet = dataSet;
         this.collector = new BuildingOverviewCollector();
-        this.missingField = missingField != null ? missingField : MissingField.POSTCODE;
     }
 
     @Override
@@ -72,30 +59,30 @@ final class BuildingOverviewLayer extends Layer {
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         for (BuildingOverviewCollector.BuildingOverviewEntry entry : entries) {
-            drawPrimitive(g, mapView, entry);
+            if (!entry.hasDuplicateExactAddress()) {
+                continue;
+            }
+            drawPrimitive(g, mapView, entry.getPrimitive());
         }
         drawLegend(g, mapView);
         g.dispose();
     }
 
     private void drawLegend(Graphics2D g, MapView mapView) {
-        if (mapView.getWidth() < 220 || mapView.getHeight() < 120) {
+        if (mapView.getWidth() < 220 || mapView.getHeight() < 100) {
             return;
         }
 
-        String title = I18n.tr("Completeness");
-        String complete = I18n.tr("Address complete");
-        String incomplete = missingLegendLabel();
-        String noAddressData = I18n.tr("No Address Data");
+        String title = I18n.tr("Duplicates");
+        String duplicate = I18n.tr("Duplicate address");
 
-        int contentRows = 3;
-        int legendHeight = LEGEND_PADDING * 2 + LEGEND_ROW_HEIGHT + (contentRows * LEGEND_ROW_HEIGHT);
+        int legendHeight = LEGEND_PADDING * 2 + LEGEND_ROW_HEIGHT + LEGEND_ROW_HEIGHT;
         int legendWidth = Math.max(
-                250,
+                220,
                 Math.max(
-                        g.getFontMetrics().stringWidth(incomplete),
-                        g.getFontMetrics().stringWidth(title)
-                ) + 60
+                        g.getFontMetrics().stringWidth(title),
+                        g.getFontMetrics().stringWidth(duplicate)
+                ) + 50
         );
         int legendX = Math.max(8, mapView.getWidth() - legendWidth - 10);
         int legendY = 10;
@@ -109,13 +96,7 @@ final class BuildingOverviewLayer extends Layer {
         g.drawString(title, textBaseX, rowY);
 
         rowY += LEGEND_ROW_HEIGHT;
-        drawLegendRow(g, textBaseX, rowY, ADDRESSED_FILL_COLOR, complete);
-
-        rowY += LEGEND_ROW_HEIGHT;
-        drawLegendRow(g, textBaseX, rowY, UNADDRESSED_FILL_COLOR, incomplete);
-
-        rowY += LEGEND_ROW_HEIGHT;
-        drawLegendRow(g, textBaseX, rowY, NO_ADDRESS_DATA_COLOR, noAddressData);
+        drawLegendRow(g, textBaseX, rowY, DUPLICATE_FILL_COLOR, duplicate);
     }
 
     private void drawLegendRow(Graphics2D g, int textBaseX, int rowY, Color swatchColor, String label) {
@@ -126,41 +107,17 @@ final class BuildingOverviewLayer extends Layer {
         g.drawString(label, textBaseX + LEGEND_SWATCH_SIZE + 6, rowY);
     }
 
-    private void drawPrimitive(Graphics2D g, MapView mapView, BuildingOverviewCollector.BuildingOverviewEntry entry) {
-        OsmPrimitive primitive = entry.getPrimitive();
+    private void drawPrimitive(Graphics2D g, MapView mapView, OsmPrimitive primitive) {
         if (primitive instanceof Way) {
-            drawWay(
-                    g,
-                    mapView,
-                    (Way) primitive,
-                    entry.hasNoAddressData(),
-                    entry.hasMissingStreet(),
-                    entry.hasMissingPostcode(),
-                    entry.hasMissingHouseNumber(),
-                    entry.hasMissingRequiredAddressFields()
-            );
+            drawWay(g, mapView, (Way) primitive);
             return;
         }
         if (primitive instanceof Relation) {
-            drawRelation(
-                    g,
-                    mapView,
-                    (Relation) primitive,
-                    entry.hasNoAddressData(),
-                    entry.hasMissingStreet(),
-                    entry.hasMissingPostcode(),
-                    entry.hasMissingHouseNumber(),
-                    entry.hasMissingRequiredAddressFields()
-            );
+            drawRelation(g, mapView, (Relation) primitive);
         }
     }
 
-    private void drawRelation(Graphics2D g, MapView mapView, Relation relation,
-            boolean hasNoAddressData,
-            boolean hasMissingStreet,
-            boolean hasMissingPostcode,
-            boolean hasMissingHouseNumber,
-            boolean hasMissingRequiredAddressFields) {
+    private void drawRelation(Graphics2D g, MapView mapView, Relation relation) {
         if (relation == null || !relation.isUsable()) {
             return;
         }
@@ -173,84 +130,18 @@ final class BuildingOverviewLayer extends Layer {
             if (!role.isEmpty() && !"outer".equals(role)) {
                 continue;
             }
-            drawWay(
-                    g,
-                    mapView,
-                    member.getWay(),
-                    hasNoAddressData,
-                    hasMissingStreet,
-                    hasMissingPostcode,
-                    hasMissingHouseNumber,
-                    hasMissingRequiredAddressFields
-            );
+            drawWay(g, mapView, member.getWay());
         }
     }
 
-    private void drawWay(Graphics2D g, MapView mapView, Way way,
-            boolean hasNoAddressData,
-            boolean hasMissingStreet,
-            boolean hasMissingPostcode,
-            boolean hasMissingHouseNumber,
-            boolean hasMissingRequiredAddressFields) {
+    private void drawWay(Graphics2D g, MapView mapView, Way way) {
         Path2D polygon = buildScreenPolygon(mapView, way);
         if (polygon == null) {
             return;
         }
 
-        Color fillColor = resolveFillColor(
-                hasNoAddressData,
-                hasMissingStreet,
-                hasMissingPostcode,
-                hasMissingHouseNumber,
-                hasMissingRequiredAddressFields
-        );
-        if (fillColor == null) {
-            return;
-        }
-        g.setColor(fillColor);
+        g.setColor(DUPLICATE_FILL_COLOR);
         g.fill(polygon);
-    }
-
-    private Color resolveFillColor(
-            boolean hasNoAddressData,
-            boolean hasMissingStreet,
-            boolean hasMissingPostcode,
-            boolean hasMissingHouseNumber,
-            boolean hasMissingRequiredAddressFields) {
-        if (hasNoAddressData) {
-            return NO_ADDRESS_DATA_COLOR;
-        }
-        if (hasMissingRequiredAddressFields && hasSelectedMissingField(hasMissingStreet, hasMissingPostcode, hasMissingHouseNumber)) {
-            return UNADDRESSED_FILL_COLOR;
-        }
-        if (!hasMissingRequiredAddressFields) {
-            return ADDRESSED_FILL_COLOR;
-        }
-        return null;
-    }
-
-    private boolean hasSelectedMissingField(boolean hasMissingStreet, boolean hasMissingPostcode, boolean hasMissingHouseNumber) {
-        switch (missingField) {
-            case STREET:
-                return hasMissingStreet;
-            case HOUSE_NUMBER:
-                return hasMissingHouseNumber;
-            case POSTCODE:
-            default:
-                return hasMissingPostcode;
-        }
-    }
-
-    private String missingLegendLabel() {
-        switch (missingField) {
-            case STREET:
-                return I18n.tr("Street missing");
-            case HOUSE_NUMBER:
-                return I18n.tr("House number missing");
-            case POSTCODE:
-            default:
-                return I18n.tr("Postcode missing");
-        }
     }
 
     private Path2D buildScreenPolygon(MapView mapView, Way way) {
@@ -293,7 +184,7 @@ final class BuildingOverviewLayer extends Layer {
 
     @Override
     public String getToolTipText() {
-        return I18n.tr("Completeness overview (complete / selected missing field / no address data)");
+        return I18n.tr("Duplicate exact addresses overview");
     }
 
     @Override
@@ -316,7 +207,7 @@ final class BuildingOverviewLayer extends Layer {
 
     @Override
     public Object getInfoComponent() {
-        return I18n.tr("Minimum building area: {0}", BuildingOverviewCollector.MIN_BUILDING_AREA);
+        return I18n.tr("Duplicate-address diagnostics (street+postcode+housenumber)");
     }
 
     @Override
@@ -335,3 +226,4 @@ final class BuildingOverviewLayer extends Layer {
         return value == null ? "" : value.trim();
     }
 }
+

@@ -90,6 +90,7 @@ final class StreetModeController {
     private final Set<ReferenceLoadKey> referenceStreetLoadsInProgress = new HashSet<>();
     private boolean rectangularizeAfterLineSplit;
     private int configuredTerraceParts = 2;
+    private BuildingOverviewLayer.MissingField completenessMissingField = BuildingOverviewLayer.MissingField.POSTCODE;
     private AddressSelection lastSelection = new AddressSelection("", "", "", "", 1);
     private boolean houseNumberOverlayEnabled;
     private boolean connectionLinesEnabled;
@@ -452,8 +453,25 @@ final class StreetModeController {
         overlayManager.togglePostcodeOverviewLayer();
     }
 
+    void toggleDuplicateAddressOverviewLayer() {
+        overlayManager.toggleDuplicateAddressOverviewLayer();
+    }
+
     boolean isPostcodeOverviewLayerVisible() {
         return overlayManager.isPostcodeOverviewLayerVisible();
+    }
+
+    boolean isDuplicateAddressOverviewLayerVisible() {
+        return overlayManager.isDuplicateAddressOverviewLayerVisible();
+    }
+
+    void setCompletenessMissingField(BuildingOverviewLayer.MissingField missingField) {
+        completenessMissingField = missingField != null ? missingField : BuildingOverviewLayer.MissingField.POSTCODE;
+        overlayManager.setCompletenessMissingField(completenessMissingField);
+    }
+
+    BuildingOverviewLayer.MissingField getCompletenessMissingField() {
+        return completenessMissingField;
     }
 
     private void refreshOverlayLayer() {
