@@ -177,6 +177,16 @@ Split behavior is fully inline:
   * `HouseNumberClickRiskRegressionTests`
   * NOT JUnit
 
+### Local Test + Deploy Workflow (Persistent)
+
+For every testable code change, agents MUST do all of the following:
+
+1. run tests (at minimum `ant test`)
+2. build deployable plugin jar (`ant dist`)
+3. deploy `dist/HouseNumberClick.jar` to `~/.josm/plugins/HouseNumberClick.jar`
+
+Agents MUST NOT deploy to `~/.local/share/JOSM/plugins`.
+
 ### Non-Interactive Release Rules
 
 * Never open interactive editors during release commands (`git`, `gh`, etc.).
