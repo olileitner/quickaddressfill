@@ -103,15 +103,15 @@ final class StreetSelectionDialog {
     private Component lastFocusedDialogInput;
 
     private static final int DIALOG_WIDTH = 390;
-    private static final int DIALOG_HEIGHT = 920;
+    private static final int DIALOG_HEIGHT = 980;
     private static final int DIALOG_OFFSET_X = 66;
     private static final int DIALOG_OFFSET_Y = 80;
     private static final String SHOW_OVERVIEW_BUTTON_TEXT = I18n.tr("Show completeness");
     private static final String HIDE_OVERVIEW_BUTTON_TEXT = I18n.tr("Hide completeness");
     private static final String SHOW_DUPLICATE_BUTTON_TEXT = I18n.tr("Show duplicates");
     private static final String HIDE_DUPLICATE_BUTTON_TEXT = I18n.tr("Hide duplicates");
-    private static final String SHOW_POSTCODE_BUTTON_TEXT = I18n.tr("Show Postcode");
-    private static final String HIDE_POSTCODE_BUTTON_TEXT = I18n.tr("Hide Postcode");
+    private static final String SHOW_POSTCODE_BUTTON_TEXT = I18n.tr("Show All Postcodes");
+    private static final String HIDE_POSTCODE_BUTTON_TEXT = I18n.tr("Hide All Postcodes");
     private static final List<String> COMMON_BUILDING_TYPES = Arrays.asList(
             "yes", "apartments", "residential", "house", "detached", "terrace", "garage", "garages",
             "retail", "commercial", "industrial", "warehouse", "office", "school", "hospital", "hotel",
@@ -922,7 +922,6 @@ final class StreetSelectionDialog {
         JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
         buttons.add(createOverviewButton);
         buttons.add(createDuplicateOverviewButton);
-        buttons.add(createPostcodeOverviewButton);
         panel.add(buttons, BorderLayout.NORTH);
 
         JPanel radios = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
@@ -930,6 +929,10 @@ final class StreetSelectionDialog {
         radios.add(completenessStreetRadioButton);
         radios.add(completenessHouseNumberRadioButton);
         panel.add(radios, BorderLayout.CENTER);
+
+        JPanel postcodeButtonRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
+        postcodeButtonRow.add(createPostcodeOverviewButton);
+        panel.add(postcodeButtonRow, BorderLayout.SOUTH);
         return panel;
     }
 
