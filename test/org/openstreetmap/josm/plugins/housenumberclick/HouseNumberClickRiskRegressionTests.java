@@ -714,10 +714,16 @@ public final class HouseNumberClickRiskRegressionTests {
 
         assertTrue(controllerSource.contains("StreetOption resolveStreetOptionForReadback(String streetName)"),
                 "controller should expose dedicated readback street-option resolution");
-        assertTrue(controllerSource.contains("streetIndex.findByWay(lastStreetSeedWayHint)"),
-                "readback disambiguation should first reuse the clicked street way when available");
+        int nearestLookupIndex = controllerSource.indexOf("streetIndex.findNearestOptionForBaseStreetName");
+        int seedLookupIndex = controllerSource.indexOf("streetIndex.findByWay(lastStreetSeedWayHint)");
+        assertTrue(nearestLookupIndex >= 0 && seedLookupIndex > nearestLookupIndex,
+                "readback disambiguation should prefer nearest-by-click lookup before any stale seed-way fallback");
         assertTrue(controllerSource.contains("findNearestOptionForBaseStreetName"),
                 "readback disambiguation should use nearest-option lookup for ambiguous base names");
+        assertTrue(controllerSource.contains("isExplicitDisplaySelection"),
+                "readback disambiguation should not treat ambiguous base-name display labels as explicit selection");
+        assertTrue(controllerSource.contains("lastStreetSeedWayHint = null;"),
+                "controller should clear stale seed-way hints when the current readback click has no usable street way");
 
         assertTrue(collectorSource.contains("StreetOption findNearestOptionForBaseStreetName(String baseStreetName, LatLon referencePoint)"),
                 "street index should support nearest-option lookup for base-name disambiguation");

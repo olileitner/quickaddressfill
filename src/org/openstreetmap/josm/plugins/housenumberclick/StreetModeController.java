@@ -290,7 +290,7 @@ final class StreetModeController {
         StreetNameCollector.StreetIndex streetIndex = getStreetIndex(editDataSet);
 
         StreetOption byDisplay = streetIndex.findByDisplayStreetName(normalizedStreet);
-        if (byDisplay != null && byDisplay.isValid()) {
+        if (isExplicitDisplaySelection(byDisplay, normalizedStreet)) {
             return byDisplay;
         }
 
@@ -300,6 +300,12 @@ final class StreetModeController {
         }
         if (options.size() == 1) {
             return options.get(0);
+        }
+
+        LatLon referencePoint = resolveStreetReferencePoint();
+        StreetOption nearestByPoint = streetIndex.findNearestOptionForBaseStreetName(normalizedStreet, referencePoint);
+        if (isMatchingBaseStreetOption(nearestByPoint, normalizedStreet)) {
+            return nearestByPoint;
         }
 
         if (lastStreetSeedWayHint != null && lastStreetSeedWayHint.isUsable()) {
@@ -312,12 +318,6 @@ final class StreetModeController {
             if (isMatchingBaseStreetOption(bySeedPrimitive, normalizedStreet)) {
                 return bySeedPrimitive;
             }
-        }
-
-        LatLon referencePoint = resolveStreetReferencePoint();
-        StreetOption nearestByPoint = streetIndex.findNearestOptionForBaseStreetName(normalizedStreet, referencePoint);
-        if (isMatchingBaseStreetOption(nearestByPoint, normalizedStreet)) {
-            return nearestByPoint;
         }
 
         StreetOption byBaseFallback = streetIndex.resolveForBaseStreetAndPrimitive(normalizedStreet, null);
@@ -391,6 +391,9 @@ final class StreetModeController {
     void rememberStreetInteraction(Way streetWay, LatLon interactionPoint) {
         if (streetWay != null && streetWay.isUsable()) {
             lastStreetSeedWayHint = streetWay;
+        } else {
+            // Prevent stale same-name way hints from biasing later readback in a different area.
+            lastStreetSeedWayHint = null;
         }
         if (interactionPoint != null) {
             lastStreetInteractionPoint = new LatLon(interactionPoint);
@@ -1274,6 +1277,13 @@ final class StreetModeController {
             return false;
         }
         return normalize(option.getBaseStreetName()).equalsIgnoreCase(normalize(baseStreetName));
+    }
+
+    private boolean isExplicitDisplaySelection(StreetOption option, String requestedStreet) {
+        if (option == null || !option.isValid()) {
+            return false;
+        }
+        return !normalize(option.getBaseStreetName()).equalsIgnoreCase(normalize(requestedStreet));
     }
 
     private void showReferenceLoadFailure(String streetName) {
