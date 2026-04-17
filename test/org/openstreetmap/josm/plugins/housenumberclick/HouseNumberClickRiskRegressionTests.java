@@ -102,6 +102,10 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Table click continue hook is safe", HouseNumberClickRiskRegressionTests::testTableClickContinueHookIsSafe);
             run("Street table click syncs main dialog selection", HouseNumberClickRiskRegressionTests::testStreetTableClickSyncsMainDialogSelection);
             run("Street navigation order matches street-count sorting", HouseNumberClickRiskRegressionTests::testStreetNavigationOrderMatchesStreetCountsSorting);
+            run("Street grouping bridges endpoint-to-segment gaps", HouseNumberClickRiskRegressionTests::testStreetGroupingBridgesEndpointToSegmentGaps);
+            run("Street grouping merges collinear components after raw split", HouseNumberClickRiskRegressionTests::testStreetGroupingMergesCollinearComponentsAfterRawSplit);
+            run("Street grouping keeps distant same-name roads separated", HouseNumberClickRiskRegressionTests::testStreetGroupingKeepsDistantSameNameRoadsSeparated);
+            run("Street grouping keeps parallel nearby roads separated", HouseNumberClickRiskRegressionTests::testStreetGroupingKeepsParallelNearbyRoadsSeparated);
             run("Street zoom fallback collects only usable named highway ways", HouseNumberClickRiskRegressionTests::testStreetZoomFallbackWayMatching);
             run("Building overview collector filters tiny buildings and keeps addressed state", HouseNumberClickRiskRegressionTests::testBuildingOverviewCollectorFilteringAndClassification);
             run("Building overview duplicate detection ignores relation/outer self-duplicates", HouseNumberClickRiskRegressionTests::testBuildingOverviewCollectorIgnoresRelationOuterSelfDuplicate);
@@ -695,6 +699,11 @@ public final class HouseNumberClickRiskRegressionTests {
         String zoomCurrentBody = source.substring(zoomCurrentStart, zoomCurrentEnd);
         assertFalse(zoomCurrentBody.contains("navigationService.getCurrentStreetOption()"),
                 "zoomToCurrentStreet must not directly use possibly stale stored StreetOption");
+
+        assertTrue(source.contains("findNearestWayForStreetOption"),
+                "seed resolution should prefer nearest way within the selected street option cluster");
+        assertTrue(source.contains("resolveDirectSeedWay(dataSet, baseStreetName, optionWays)"),
+                "direct seed hint should be validated against ways of the selected street option");
     }
 
     private static void testUndoQueueChangesTriggerVisualRescanRefresh() throws Exception {
@@ -921,6 +930,105 @@ public final class HouseNumberClickRiskRegressionTests {
         assertEquals("Zulu Street", ordered.get(3).getDisplayStreetName(), "highest counts should not override alphabetical order");
     }
 
+    private static void testStreetGroupingBridgesEndpointToSegmentGaps() {
+        DataSet dataSet = new DataSet();
+
+        // Long trunk segment so endpoint-to-endpoint proximity cannot connect the second way.
+        Way trunk = createOpenStreetWayWithCoordinates(
+                "Example Street",
+                new LatLon(0.0, 0.0),
+                new LatLon(0.0, 0.01)
+        );
+        // Starts near the middle of trunk but far from both trunk endpoints.
+        Way continuationGap = createOpenStreetWayWithCoordinates(
+                "Example Street",
+                new LatLon(0.0001, 0.0050),
+                new LatLon(0.0006, 0.0050)
+        );
+
+        dataSet.addPrimitiveRecursive(trunk);
+        dataSet.addPrimitiveRecursive(continuationGap);
+
+        StreetNameCollector.StreetIndex index = StreetNameCollector.collectStreetIndex(dataSet);
+        List<StreetOption> options = index.getOptionsForBaseStreetName("Example Street");
+        assertEquals(1, options.size(),
+                "small endpoint-to-segment gaps should not split one logical street into multiple options");
+    }
+
+    private static void testStreetGroupingKeepsDistantSameNameRoadsSeparated() {
+        DataSet dataSet = new DataSet();
+
+        Way firstArea = createOpenStreetWayWithCoordinates(
+                "Sample Road",
+                new LatLon(0.0, 0.0),
+                new LatLon(0.0, 0.0010)
+        );
+        Way secondArea = createOpenStreetWayWithCoordinates(
+                "Sample Road",
+                new LatLon(0.02, 0.02),
+                new LatLon(0.02, 0.0210)
+        );
+
+        dataSet.addPrimitiveRecursive(firstArea);
+        dataSet.addPrimitiveRecursive(secondArea);
+
+        StreetNameCollector.StreetIndex index = StreetNameCollector.collectStreetIndex(dataSet);
+        List<StreetOption> options = index.getOptionsForBaseStreetName("Sample Road");
+        assertEquals(2, options.size(),
+                "distant same-name roads should remain disambiguated as separate street options");
+        assertEquals("Sample Road", options.get(0).getDisplayStreetName(),
+                "first disambiguated option should keep base display name");
+        assertEquals("Sample Road [2]", options.get(1).getDisplayStreetName(),
+                "second disambiguated option should use suffix label");
+    }
+
+    private static void testStreetGroupingMergesCollinearComponentsAfterRawSplit() {
+        DataSet dataSet = new DataSet();
+
+        Way firstPart = createOpenStreetWayWithCoordinates(
+                "Linear Street",
+                new LatLon(0.0, 0.0000),
+                new LatLon(0.0, 0.0010)
+        );
+        // Intentional gap > endpoint and endpoint-to-segment thresholds; merge should happen in second stage.
+        Way secondPart = createOpenStreetWayWithCoordinates(
+                "Linear Street",
+                new LatLon(0.0, 0.0022),
+                new LatLon(0.0, 0.0032)
+        );
+
+        dataSet.addPrimitiveRecursive(firstPart);
+        dataSet.addPrimitiveRecursive(secondPart);
+
+        StreetNameCollector.StreetIndex index = StreetNameCollector.collectStreetIndex(dataSet);
+        List<StreetOption> options = index.getOptionsForBaseStreetName("Linear Street");
+        assertEquals(1, options.size(),
+                "second-stage merge should fuse collinear same-name raw components into one street option");
+    }
+
+    private static void testStreetGroupingKeepsParallelNearbyRoadsSeparated() {
+        DataSet dataSet = new DataSet();
+
+        Way firstParallel = createOpenStreetWayWithCoordinates(
+                "Parallel Street",
+                new LatLon(0.0000, 0.0000),
+                new LatLon(0.0020, 0.0000)
+        );
+        Way secondParallel = createOpenStreetWayWithCoordinates(
+                "Parallel Street",
+                new LatLon(0.0000, 0.0007),
+                new LatLon(0.0020, 0.0007)
+        );
+
+        dataSet.addPrimitiveRecursive(firstParallel);
+        dataSet.addPrimitiveRecursive(secondParallel);
+
+        StreetNameCollector.StreetIndex index = StreetNameCollector.collectStreetIndex(dataSet);
+        List<StreetOption> options = index.getOptionsForBaseStreetName("Parallel Street");
+        assertEquals(2, options.size(),
+                "conservative merge should not fuse nearby but clearly parallel separated streets");
+    }
+
     private static void testStreetZoomFallbackWayMatching() {
         DataSet dataSet = new DataSet();
 
@@ -1084,6 +1192,14 @@ public final class HouseNumberClickRiskRegressionTests {
         if (withHighwayTag) {
             way.put("highway", "residential");
         }
+        way.put("name", streetName);
+        return way;
+    }
+
+    private static Way createOpenStreetWayWithCoordinates(String streetName, LatLon first, LatLon second) {
+        Way way = new Way();
+        way.setNodes(List.of(new Node(first), new Node(second)));
+        way.put("highway", "residential");
         way.put("name", streetName);
         return way;
     }

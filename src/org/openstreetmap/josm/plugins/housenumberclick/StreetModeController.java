@@ -1022,14 +1022,16 @@ final class StreetModeController {
         }
 
         String baseStreetName = normalize(streetOption.getBaseStreetName());
-        Way directSeedWay = resolveDirectSeedWay(dataSet, baseStreetName);
+        List<Way> optionWays = streetIndex.getWaysForStreetOption(streetOption);
+
+        Way directSeedWay = resolveDirectSeedWay(dataSet, baseStreetName, optionWays);
         if (directSeedWay != null) {
             return new StreetSeedResolution(directSeedWay, "direct-way", "direct-selection");
         }
 
         LatLon referencePoint = resolveStreetReferencePoint();
         if (referencePoint != null) {
-            Way nearestSeedWay = streetIndex.findNearestWayForBaseStreetName(baseStreetName, referencePoint);
+            Way nearestSeedWay = streetIndex.findNearestWayForStreetOption(streetOption, referencePoint);
             if (nearestSeedWay != null) {
                 return new StreetSeedResolution(nearestSeedWay, "nearest-way", "nearest-search");
             }
@@ -1066,7 +1068,7 @@ final class StreetModeController {
         return best;
     }
 
-    private Way resolveDirectSeedWay(DataSet dataSet, String baseStreetName) {
+    private Way resolveDirectSeedWay(DataSet dataSet, String baseStreetName, List<Way> optionWays) {
         if (dataSet == null || lastStreetSeedWayHint == null || !lastStreetSeedWayHint.isUsable()) {
             return null;
         }
@@ -1076,7 +1078,22 @@ final class StreetModeController {
         if (!normalize(lastStreetSeedWayHint.get("name")).equalsIgnoreCase(normalize(baseStreetName))) {
             return null;
         }
+        if (optionWays == null || optionWays.isEmpty() || !containsWayByUniqueId(optionWays, lastStreetSeedWayHint)) {
+            return null;
+        }
         return lastStreetSeedWayHint;
+    }
+
+    private boolean containsWayByUniqueId(List<Way> ways, Way candidate) {
+        if (ways == null || ways.isEmpty() || candidate == null) {
+            return false;
+        }
+        for (Way way : ways) {
+            if (way != null && way.getUniqueId() == candidate.getUniqueId()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private LatLon resolveStreetReferencePoint() {

@@ -75,7 +75,10 @@ Core classes as defined in `AGENTS.md` are marked: `HouseNumberClickPlugin`, `Ho
 | `StreetModeController.ReferenceLoadKey` | `StreetModeController.java` | Yes | Cache/load key combining dataset identity and normalized street name. |
 | `StreetModeController.StreetSeedResolution` | `StreetModeController.java` | Yes | Resolved operational seed for local same-name street-chain expansion. |
 | `StreetModeController.SplitTargetScan` | `StreetModeController.java` | Yes | Scan result describing whether a temporary split line targets exactly one building. |
-| `StreetNameCollector` | `StreetNameCollector.java` | No | Utility for collecting and spatially disambiguating street names from highway ways in the current dataset, and for resolving local same-name street chains from a concrete seed way. |
+| `StreetNameCollector` | `StreetNameCollector.java` | No | Utility for collecting and spatially disambiguating street names from highway ways in the current dataset, using a two-stage grouping (raw connected components + conservative post-merge), and for resolving local same-name street chains from a concrete seed way. |
+| `StreetNameCollector.ComponentProfile` | `StreetNameCollector.java` | No | Lightweight merge-profile for one raw street component. |
+| `StreetNameCollector.DirectionVector` | `StreetNameCollector.java` | No | Normalized 2D direction vector in local meter space. |
+| `StreetNameCollector.MergeDecision` | `StreetNameCollector.java` | No | Decision payload for one merge evaluation, including metrics for debug logging. |
 | `StreetNameCollector.StreetIndex` | `StreetNameCollector.java` | No | Immutable lookup/index for disambiguated street clusters in the current dataset/view scope. |
 | `StreetOption` | `StreetOption.java` | No | Immutable street descriptor used to separate OSM base street names from UI disambiguation labels. |
 | `StreetSelectionDialog` | `StreetSelectionDialog.java` | No | Main configuration dialog where users pick street/address settings before working in map mode. |

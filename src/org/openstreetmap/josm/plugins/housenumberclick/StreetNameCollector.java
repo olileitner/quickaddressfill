@@ -32,12 +32,21 @@ import org.openstreetmap.josm.tools.Logging;
 
 /**
  * Utility for collecting and spatially disambiguating street names from highway ways in the current dataset,
+ * using a two-stage grouping (raw connected components + conservative post-merge),
  * and for resolving local same-name street chains from a concrete seed way.
  */
 final class StreetNameCollector {
 
     // Intentionally larger so short mapping gaps/junction splits do not fragment one logical street.
     private static final double COMPONENT_ENDPOINT_CONNECT_DISTANCE_METERS = 75.0;
+    private static final double COMPONENT_ENDPOINT_TO_SEGMENT_CONNECT_DISTANCE_METERS = 40.0;
+    private static final double COMPONENT_GROUP_MERGE_STRICT_LINK_DISTANCE_METERS = 75.0;
+    private static final double COMPONENT_GROUP_MERGE_MAX_LINK_DISTANCE_METERS = 240.0;
+    private static final double COMPONENT_GROUP_MERGE_MAX_CENTROID_DISTANCE_METERS = 700.0;
+    private static final double COMPONENT_GROUP_MERGE_DIRECTION_MIN_COS = 0.70;
+    private static final double COMPONENT_GROUP_MERGE_CONNECTOR_MIN_COS = 0.24;
+    private static final double COMPONENT_GROUP_MERGE_LONG_STREET_MAX_LINK_DISTANCE_METERS = 165.0;
+    private static final double COMPONENT_GROUP_MERGE_LONG_STREET_DIRECTION_MIN_COS = 0.86;
 
     private StreetNameCollector() {
         // Utility class
@@ -145,7 +154,7 @@ final class StreetNameCollector {
 
         private List<Way> getLocalStreetChainWays(String baseStreetName, Way preferredSeedWay, String fallbackClusterId) {
             String baseKey = normalize(baseStreetName).toLowerCase(Locale.ROOT);
-            List<Way> candidates = waysByBaseStreetName.get(baseKey);
+            List<Way> candidates = resolveCandidatesForLocalChain(baseKey, fallbackClusterId);
             if (candidates == null || candidates.isEmpty()) {
                 return List.of();
             }
@@ -179,6 +188,25 @@ final class StreetNameCollector {
             }
 
             return new ArrayList<>(visited);
+        }
+
+        private List<Way> resolveCandidatesForLocalChain(String baseKey, String fallbackClusterId) {
+            List<Way> baseCandidates = waysByBaseStreetName.get(baseKey);
+            if (baseCandidates == null || baseCandidates.isEmpty()) {
+                return List.of();
+            }
+            String normalizedClusterId = normalize(fallbackClusterId);
+            if (normalizedClusterId.isEmpty()) {
+                return baseCandidates;
+            }
+
+            StreetOption option = findByClusterId(normalizedClusterId);
+            if (option == null || !option.isValid()) {
+                return baseCandidates;
+            }
+
+            List<Way> optionWays = getWaysForStreetOption(option);
+            return optionWays.isEmpty() ? baseCandidates : optionWays;
         }
 
         Way findSeedWayForClusterId(String clusterId, String baseStreetName) {
@@ -219,6 +247,26 @@ final class StreetNameCollector {
             }
             List<Way> candidates = waysByBaseStreetName.get(baseKey);
             if (candidates == null || candidates.isEmpty()) {
+                return null;
+            }
+
+            return findNearestWay(referencePoint, candidates);
+        }
+
+        Way findNearestWayForStreetOption(StreetOption option, LatLon referencePoint) {
+            if (option == null || !option.isValid() || referencePoint == null || ProjectionRegistry.getProjection() == null) {
+                return null;
+            }
+            List<Way> candidates = getWaysForStreetOption(option);
+            if (candidates.isEmpty()) {
+                return null;
+            }
+
+            return findNearestWay(referencePoint, candidates);
+        }
+
+        private Way findNearestWay(LatLon referencePoint, List<Way> candidates) {
+            if (referencePoint == null || candidates == null || candidates.isEmpty() || ProjectionRegistry.getProjection() == null) {
                 return null;
             }
 
@@ -419,30 +467,33 @@ final class StreetNameCollector {
         for (String baseStreetName : sortedBaseStreetNames) {
             List<Way> namedWays = waysByBaseStreetName.getOrDefault(baseStreetName, List.of());
             waysByBaseStreetNameIndex.put(baseStreetName.toLowerCase(Locale.ROOT), List.copyOf(namedWays));
-            List<List<Way>> components = splitIntoConnectedComponents(namedWays);
-            components.sort(Comparator.comparing(StreetNameCollector::computeComponentSortKey));
-            if (components.size() > 1) {
+            List<List<Way>> rawComponents = splitIntoConnectedComponents(namedWays);
+            List<List<Way>> mergedComponents = mergeConnectedComponents(rawComponents);
+            mergedComponents.sort(Comparator.comparing(StreetNameCollector::computeComponentSortKey));
+            if (Logging.isDebugEnabled() && (rawComponents.size() > 1 || mergedComponents.size() > 1)) {
                 Logging.debug("HouseNumberClick cluster build: base='" + baseStreetName
-                        + "', clusters=" + components.size()
-                        + ", sizes=" + formatComponentSizes(components) + ".");
+                        + "', rawComponents=" + rawComponents.size()
+                        + ", mergedGroups=" + mergedComponents.size()
+                        + ", rawSizes=" + formatComponentSizes(rawComponents)
+                        + ", mergedSizes=" + formatComponentSizes(mergedComponents) + ".");
             }
 
             List<StreetOption> optionsForBaseStreet = new ArrayList<>();
-            for (int i = 0; i < components.size(); i++) {
+            for (int i = 0; i < mergedComponents.size(); i++) {
                 int clusterIndex = i + 1;
                 String clusterId = buildClusterId(baseStreetName, clusterIndex);
-                String displayStreetName = components.size() <= 1
+                String displayStreetName = mergedComponents.size() <= 1
                         ? baseStreetName
                         : (clusterIndex == 1 ? baseStreetName : baseStreetName + " [" + clusterIndex + "]");
                 StreetOption option = new StreetOption(baseStreetName, displayStreetName, clusterId);
                 streetOptions.add(option);
                 optionsForBaseStreet.add(option);
-                clusterCentroids.put(clusterId, computeComponentCentroid(components.get(i)));
-                Way seed = components.get(i).isEmpty() ? null : components.get(i).get(0);
+                clusterCentroids.put(clusterId, computeComponentCentroid(mergedComponents.get(i)));
+                Way seed = findDeterministicSeedWay(mergedComponents.get(i));
                 if (seed != null) {
                     seedWayByClusterId.put(clusterId, seed);
                 }
-                for (Way way : components.get(i)) {
+                for (Way way : mergedComponents.get(i)) {
                     optionByWay.put(way, option);
                 }
             }
@@ -494,6 +545,298 @@ final class StreetNameCollector {
         return components;
     }
 
+    private static List<List<Way>> mergeConnectedComponents(List<List<Way>> rawComponents) {
+        if (rawComponents == null || rawComponents.isEmpty()) {
+            return List.of();
+        }
+        if (rawComponents.size() == 1) {
+            List<List<Way>> single = new ArrayList<>();
+            single.add(new ArrayList<>(rawComponents.get(0)));
+            return single;
+        }
+
+        List<List<Way>> groups = new ArrayList<>();
+        for (List<Way> component : rawComponents) {
+            if (component != null && !component.isEmpty()) {
+                groups.add(new ArrayList<>(component));
+            }
+        }
+        if (groups.size() <= 1) {
+            return groups;
+        }
+
+        boolean mergedInPass;
+        do {
+            mergedInPass = false;
+            for (int i = 0; i < groups.size() && !mergedInPass; i++) {
+                for (int j = i + 1; j < groups.size(); j++) {
+                    MergeDecision mergeDecision = shouldMergeComponentGroups(groups.get(i), groups.get(j));
+                    logMergeDecision(groups.get(i), groups.get(j), mergeDecision);
+                    if (!mergeDecision.accepted) {
+                        continue;
+                    }
+                    groups.get(i).addAll(groups.get(j));
+                    groups.remove(j);
+                    mergedInPass = true;
+                    break;
+                }
+            }
+        } while (mergedInPass);
+
+        return groups;
+    }
+
+    private static MergeDecision shouldMergeComponentGroups(List<Way> firstGroup, List<Way> secondGroup) {
+        double linkDistanceMeters = computeComponentLinkDistanceMeters(firstGroup, secondGroup);
+        if (!Double.isFinite(linkDistanceMeters)) {
+            return MergeDecision.reject("invalid link distance", linkDistanceMeters,
+                    Double.NaN, Double.NaN, Double.NaN, Double.NaN);
+        }
+        if (linkDistanceMeters <= COMPONENT_GROUP_MERGE_STRICT_LINK_DISTANCE_METERS) {
+            return MergeDecision.accept("strong link distance", linkDistanceMeters,
+                    Double.NaN, Double.NaN, Double.NaN, Double.NaN);
+        }
+        if (linkDistanceMeters > COMPONENT_GROUP_MERGE_MAX_LINK_DISTANCE_METERS) {
+            return MergeDecision.reject("link distance too large", linkDistanceMeters,
+                    Double.NaN, Double.NaN, Double.NaN, Double.NaN);
+        }
+
+        ComponentProfile firstProfile = computeComponentProfile(firstGroup);
+        ComponentProfile secondProfile = computeComponentProfile(secondGroup);
+        if (firstProfile == null || secondProfile == null) {
+            return MergeDecision.reject("missing component profile", linkDistanceMeters,
+                    Double.NaN, Double.NaN, Double.NaN, Double.NaN);
+        }
+        if (firstProfile.centroid == null || secondProfile.centroid == null
+                || firstProfile.direction == null || secondProfile.direction == null) {
+            return MergeDecision.reject("incomplete component profile", linkDistanceMeters,
+                    Double.NaN, Double.NaN, Double.NaN, Double.NaN);
+        }
+
+        double centroidDistanceMeters = firstProfile.centroid.greatCircleDistance(secondProfile.centroid);
+        double directionAlignment = Math.abs(dot(firstProfile.direction, secondProfile.direction));
+        if (directionAlignment < COMPONENT_GROUP_MERGE_DIRECTION_MIN_COS) {
+            return MergeDecision.reject("direction mismatch", linkDistanceMeters,
+                    centroidDistanceMeters, directionAlignment, Double.NaN, Double.NaN);
+        }
+
+        DirectionVector connectorDirection = normalizeDirection(toMeterVector(firstProfile.centroid, secondProfile.centroid));
+        if (connectorDirection == null) {
+            return MergeDecision.reject("missing connector direction", linkDistanceMeters,
+                    centroidDistanceMeters, directionAlignment, Double.NaN, Double.NaN);
+        }
+        double connectorAlignmentFirst = Math.abs(dot(connectorDirection, firstProfile.direction));
+        double connectorAlignmentSecond = Math.abs(dot(connectorDirection, secondProfile.direction));
+        if (connectorAlignmentFirst < COMPONENT_GROUP_MERGE_CONNECTOR_MIN_COS
+                || connectorAlignmentSecond < COMPONENT_GROUP_MERGE_CONNECTOR_MIN_COS) {
+            return MergeDecision.reject("connector mismatch", linkDistanceMeters,
+                    centroidDistanceMeters, directionAlignment, connectorAlignmentFirst, connectorAlignmentSecond);
+        }
+
+        if (centroidDistanceMeters > COMPONENT_GROUP_MERGE_MAX_CENTROID_DISTANCE_METERS) {
+            boolean strongLongStreetSignal = linkDistanceMeters <= COMPONENT_GROUP_MERGE_LONG_STREET_MAX_LINK_DISTANCE_METERS
+                    && directionAlignment >= COMPONENT_GROUP_MERGE_LONG_STREET_DIRECTION_MIN_COS;
+            if (!strongLongStreetSignal) {
+                return MergeDecision.reject("centroid too large (weak link/direction)", linkDistanceMeters,
+                        centroidDistanceMeters, directionAlignment, connectorAlignmentFirst, connectorAlignmentSecond);
+            }
+            return MergeDecision.accept("long-range match (link + direction)", linkDistanceMeters,
+                    centroidDistanceMeters, directionAlignment, connectorAlignmentFirst, connectorAlignmentSecond);
+        }
+
+        return MergeDecision.accept("direction + connector match", linkDistanceMeters,
+                centroidDistanceMeters, directionAlignment, connectorAlignmentFirst, connectorAlignmentSecond);
+    }
+
+    private static ComponentProfile computeComponentProfile(List<Way> componentWays) {
+        if (componentWays == null || componentWays.isEmpty()) {
+            return null;
+        }
+        LatLon centroid = computeComponentCentroidLatLon(componentWays);
+        DirectionVector direction = computeComponentDirection(componentWays);
+        return new ComponentProfile(centroid, direction);
+    }
+
+    private static LatLon computeComponentCentroidLatLon(List<Way> componentWays) {
+        if (componentWays == null || componentWays.isEmpty()) {
+            return null;
+        }
+        double latSum = 0.0;
+        double lonSum = 0.0;
+        int count = 0;
+        for (Way way : componentWays) {
+            if (way == null) {
+                continue;
+            }
+            for (org.openstreetmap.josm.data.osm.Node node : way.getNodes()) {
+                if (node == null || node.getCoor() == null) {
+                    continue;
+                }
+                latSum += node.getCoor().lat();
+                lonSum += node.getCoor().lon();
+                count++;
+            }
+        }
+        if (count == 0) {
+            return null;
+        }
+        return new LatLon(latSum / count, lonSum / count);
+    }
+
+    private static DirectionVector computeComponentDirection(List<Way> componentWays) {
+        double bestLengthSquared = -1.0;
+        DirectionVector bestDirection = null;
+        for (Way way : componentWays) {
+            if (way == null) {
+                continue;
+            }
+            List<org.openstreetmap.josm.data.osm.Node> nodes = way.getNodes();
+            for (int i = 1; i < nodes.size(); i++) {
+                LatLon start = nodes.get(i - 1) == null ? null : nodes.get(i - 1).getCoor();
+                LatLon end = nodes.get(i) == null ? null : nodes.get(i).getCoor();
+                DirectionVector direction = toMeterVector(start, end);
+                if (direction == null) {
+                    continue;
+                }
+                double lengthSquared = (direction.dx * direction.dx) + (direction.dy * direction.dy);
+                if (lengthSquared <= bestLengthSquared) {
+                    continue;
+                }
+                DirectionVector normalized = normalizeDirection(direction);
+                if (normalized != null) {
+                    bestLengthSquared = lengthSquared;
+                    bestDirection = normalized;
+                }
+            }
+        }
+        return bestDirection;
+    }
+
+    private static double computeComponentLinkDistanceMeters(List<Way> firstGroup, List<Way> secondGroup) {
+        if (firstGroup == null || secondGroup == null || firstGroup.isEmpty() || secondGroup.isEmpty()) {
+            return Double.POSITIVE_INFINITY;
+        }
+        double best = Double.POSITIVE_INFINITY;
+        for (Way firstWay : firstGroup) {
+            if (firstWay == null) {
+                continue;
+            }
+            for (Way secondWay : secondGroup) {
+                if (secondWay == null) {
+                    continue;
+                }
+                best = Math.min(best, computeWayLinkDistanceMeters(firstWay, secondWay));
+                if (best <= 0.0) {
+                    return 0.0;
+                }
+            }
+        }
+        return best;
+    }
+
+    private static double computeWayLinkDistanceMeters(Way firstWay, Way secondWay) {
+        if (firstWay == null || secondWay == null) {
+            return Double.POSITIVE_INFINITY;
+        }
+        for (org.openstreetmap.josm.data.osm.Node firstNode : firstWay.getNodes()) {
+            if (firstNode != null && secondWay.getNodes().contains(firstNode)) {
+                return 0.0;
+            }
+        }
+
+        double best = Double.POSITIVE_INFINITY;
+        List<org.openstreetmap.josm.data.osm.Node> firstEndpoints = collectEndpoints(firstWay);
+        List<org.openstreetmap.josm.data.osm.Node> secondEndpoints = collectEndpoints(secondWay);
+        for (org.openstreetmap.josm.data.osm.Node firstEndpoint : firstEndpoints) {
+            LatLon firstCoor = firstEndpoint == null ? null : firstEndpoint.getCoor();
+            if (firstCoor == null) {
+                continue;
+            }
+            for (org.openstreetmap.josm.data.osm.Node secondEndpoint : secondEndpoints) {
+                LatLon secondCoor = secondEndpoint == null ? null : secondEndpoint.getCoor();
+                if (secondCoor == null) {
+                    continue;
+                }
+                best = Math.min(best, firstCoor.greatCircleDistance(secondCoor));
+            }
+        }
+
+        best = Math.min(best, computeEndpointToWaySegmentDistanceMeters(firstWay, secondWay));
+        best = Math.min(best, computeEndpointToWaySegmentDistanceMeters(secondWay, firstWay));
+        return best;
+    }
+
+    private static double computeEndpointToWaySegmentDistanceMeters(Way endpointWay, Way geometryWay) {
+        if (endpointWay == null || geometryWay == null) {
+            return Double.POSITIVE_INFINITY;
+        }
+        List<org.openstreetmap.josm.data.osm.Node> endpoints = collectEndpoints(endpointWay);
+        List<org.openstreetmap.josm.data.osm.Node> geometryNodes = geometryWay.getNodes();
+        if (endpoints.isEmpty() || geometryNodes.size() < 2) {
+            return Double.POSITIVE_INFINITY;
+        }
+
+        double best = Double.POSITIVE_INFINITY;
+        for (org.openstreetmap.josm.data.osm.Node endpoint : endpoints) {
+            LatLon endpointCoor = endpoint == null ? null : endpoint.getCoor();
+            if (endpointCoor == null) {
+                continue;
+            }
+            for (int i = 1; i < geometryNodes.size(); i++) {
+                LatLon start = geometryNodes.get(i - 1) == null ? null : geometryNodes.get(i - 1).getCoor();
+                LatLon end = geometryNodes.get(i) == null ? null : geometryNodes.get(i).getCoor();
+                if (start == null || end == null) {
+                    continue;
+                }
+                best = Math.min(best, distanceMetersToSegment(endpointCoor, start, end));
+            }
+        }
+        return best;
+    }
+
+    private static Way findDeterministicSeedWay(List<Way> ways) {
+        if (ways == null || ways.isEmpty()) {
+            return null;
+        }
+        Way best = null;
+        for (Way way : ways) {
+            if (way == null || !way.isUsable()) {
+                continue;
+            }
+            if (best == null || way.getUniqueId() < best.getUniqueId()) {
+                best = way;
+            }
+        }
+        return best;
+    }
+
+    private static void logMergeDecision(List<Way> firstGroup, List<Way> secondGroup, MergeDecision mergeDecision) {
+        if (!Logging.isDebugEnabled()) {
+            return;
+        }
+        if (mergeDecision == null) {
+            return;
+        }
+        Logging.debug("HouseNumberClick cluster merge: "
+                + (mergeDecision.accepted ? "accepted" : "rejected")
+                + " (" + mergeDecision.reason + "), sizes="
+                + (firstGroup == null ? 0 : firstGroup.size()) + "+"
+                + (secondGroup == null ? 0 : secondGroup.size())
+                + ", linkDistance=" + formatMetric(mergeDecision.linkDistanceMeters)
+                + "m, centroidDistance=" + formatMetric(mergeDecision.centroidDistanceMeters)
+                + "m, directionAlignment=" + formatMetric(mergeDecision.directionAlignment)
+                + ", connectorAlignment=" + formatMetric(mergeDecision.connectorAlignmentFirst)
+                + "/" + formatMetric(mergeDecision.connectorAlignmentSecond)
+                + ".");
+    }
+
+    private static String formatMetric(double value) {
+        if (!Double.isFinite(value)) {
+            return "n/a";
+        }
+        return String.format(Locale.ROOT, "%.1f", value);
+    }
+
     private static boolean areWaysSpatiallyConnected(Way first, Way second) {
         if (first == null || second == null) {
             return false;
@@ -527,7 +870,112 @@ final class StreetNameCollector {
                 }
             }
         }
+
+        // Bridges short mapper gaps where one segment endpoint lands near the middle of another segment.
+        return hasEndpointNearWaySegment(first, second)
+                || hasEndpointNearWaySegment(second, first);
+    }
+
+    private static boolean hasEndpointNearWaySegment(Way endpointWay, Way geometryWay) {
+        if (endpointWay == null || geometryWay == null) {
+            return false;
+        }
+        List<org.openstreetmap.josm.data.osm.Node> endpoints = collectEndpoints(endpointWay);
+        List<org.openstreetmap.josm.data.osm.Node> geometryNodes = geometryWay.getNodes();
+        if (endpoints.isEmpty() || geometryNodes.size() < 2) {
+            return false;
+        }
+
+        double maxDistanceSquared = COMPONENT_ENDPOINT_TO_SEGMENT_CONNECT_DISTANCE_METERS
+                * COMPONENT_ENDPOINT_TO_SEGMENT_CONNECT_DISTANCE_METERS;
+        for (org.openstreetmap.josm.data.osm.Node endpoint : endpoints) {
+            LatLon endpointCoor = endpoint == null ? null : endpoint.getCoor();
+            if (endpointCoor == null) {
+                continue;
+            }
+            for (int i = 1; i < geometryNodes.size(); i++) {
+                org.openstreetmap.josm.data.osm.Node startNode = geometryNodes.get(i - 1);
+                org.openstreetmap.josm.data.osm.Node endNode = geometryNodes.get(i);
+                LatLon segmentStart = startNode == null ? null : startNode.getCoor();
+                LatLon segmentEnd = endNode == null ? null : endNode.getCoor();
+                if (segmentStart == null || segmentEnd == null) {
+                    continue;
+                }
+                double distanceMeters = distanceMetersToSegment(endpointCoor, segmentStart, segmentEnd);
+                double distanceSquared = distanceMeters * distanceMeters;
+                if (distanceSquared <= maxDistanceSquared) {
+                    return true;
+                }
+            }
+        }
         return false;
+    }
+
+    private static double distanceMetersToSegment(LatLon point, LatLon segmentStart, LatLon segmentEnd) {
+        if (point == null || segmentStart == null || segmentEnd == null) {
+            return Double.POSITIVE_INFINITY;
+        }
+        double meanLatitudeRadians = Math.toRadians((point.lat() + segmentStart.lat() + segmentEnd.lat()) / 3.0);
+        double metersPerDegreeLat = 111_132.0;
+        double metersPerDegreeLon = 111_320.0 * Math.cos(meanLatitudeRadians);
+        if (Math.abs(metersPerDegreeLon) < 1e-9) {
+            return Double.POSITIVE_INFINITY;
+        }
+
+        double px = point.lon() * metersPerDegreeLon;
+        double py = point.lat() * metersPerDegreeLat;
+        double ax = segmentStart.lon() * metersPerDegreeLon;
+        double ay = segmentStart.lat() * metersPerDegreeLat;
+        double bx = segmentEnd.lon() * metersPerDegreeLon;
+        double by = segmentEnd.lat() * metersPerDegreeLat;
+        double dx = bx - ax;
+        double dy = by - ay;
+        double lengthSquared = (dx * dx) + (dy * dy);
+        if (lengthSquared <= 0.0) {
+            double ex = px - ax;
+            double ey = py - ay;
+            return Math.sqrt((ex * ex) + (ey * ey));
+        }
+        double t = ((px - ax) * dx + (py - ay) * dy) / lengthSquared;
+        t = Math.max(0.0, Math.min(1.0, t));
+        double projectionX = ax + (t * dx);
+        double projectionY = ay + (t * dy);
+        double ex = px - projectionX;
+        double ey = py - projectionY;
+        return Math.sqrt((ex * ex) + (ey * ey));
+    }
+
+    private static DirectionVector toMeterVector(LatLon start, LatLon end) {
+        if (start == null || end == null) {
+            return null;
+        }
+        double meanLatitudeRadians = Math.toRadians((start.lat() + end.lat()) / 2.0);
+        double metersPerDegreeLat = 111_132.0;
+        double metersPerDegreeLon = 111_320.0 * Math.cos(meanLatitudeRadians);
+        if (Math.abs(metersPerDegreeLon) < 1e-9) {
+            return null;
+        }
+        double dx = (end.lon() - start.lon()) * metersPerDegreeLon;
+        double dy = (end.lat() - start.lat()) * metersPerDegreeLat;
+        return new DirectionVector(dx, dy);
+    }
+
+    private static DirectionVector normalizeDirection(DirectionVector vector) {
+        if (vector == null) {
+            return null;
+        }
+        double length = Math.hypot(vector.dx, vector.dy);
+        if (length <= 1e-9) {
+            return null;
+        }
+        return new DirectionVector(vector.dx / length, vector.dy / length);
+    }
+
+    private static double dot(DirectionVector first, DirectionVector second) {
+        if (first == null || second == null) {
+            return 0.0;
+        }
+        return (first.dx * second.dx) + (first.dy * second.dy);
     }
 
     private static List<org.openstreetmap.josm.data.osm.Node> collectEndpoints(Way way) {
@@ -606,5 +1054,72 @@ final class StreetNameCollector {
 
     private static String normalize(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    /**
+     * Lightweight merge-profile for one raw street component.
+     */
+    private static final class ComponentProfile {
+        private final LatLon centroid;
+        private final DirectionVector direction;
+
+        private ComponentProfile(LatLon centroid, DirectionVector direction) {
+            this.centroid = centroid;
+            this.direction = direction;
+        }
+    }
+
+    /**
+     * Normalized 2D direction vector in local meter space.
+     */
+    private static final class DirectionVector {
+        private final double dx;
+        private final double dy;
+
+        private DirectionVector(double dx, double dy) {
+            this.dx = dx;
+            this.dy = dy;
+        }
+    }
+
+    /**
+     * Decision payload for one merge evaluation, including metrics for debug logging.
+     */
+    private static final class MergeDecision {
+        private final boolean accepted;
+        private final String reason;
+        private final double linkDistanceMeters;
+        private final double centroidDistanceMeters;
+        private final double directionAlignment;
+        private final double connectorAlignmentFirst;
+        private final double connectorAlignmentSecond;
+
+        private MergeDecision(boolean accepted, String reason, double linkDistanceMeters,
+                double centroidDistanceMeters, double directionAlignment,
+                double connectorAlignmentFirst, double connectorAlignmentSecond) {
+            this.accepted = accepted;
+            this.reason = reason;
+            this.linkDistanceMeters = linkDistanceMeters;
+            this.centroidDistanceMeters = centroidDistanceMeters;
+            this.directionAlignment = directionAlignment;
+            this.connectorAlignmentFirst = connectorAlignmentFirst;
+            this.connectorAlignmentSecond = connectorAlignmentSecond;
+        }
+
+        private static MergeDecision accept(String reason, double linkDistanceMeters,
+                double centroidDistanceMeters, double directionAlignment,
+                double connectorAlignmentFirst, double connectorAlignmentSecond) {
+            return new MergeDecision(true, reason, linkDistanceMeters,
+                    centroidDistanceMeters, directionAlignment,
+                    connectorAlignmentFirst, connectorAlignmentSecond);
+        }
+
+        private static MergeDecision reject(String reason, double linkDistanceMeters,
+                double centroidDistanceMeters, double directionAlignment,
+                double connectorAlignmentFirst, double connectorAlignmentSecond) {
+            return new MergeDecision(false, reason, linkDistanceMeters,
+                    centroidDistanceMeters, directionAlignment,
+                    connectorAlignmentFirst, connectorAlignmentSecond);
+        }
     }
 }
