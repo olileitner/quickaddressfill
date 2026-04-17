@@ -7,6 +7,8 @@ import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -48,13 +50,23 @@ final class HouseNumberOverviewDialog {
     private final DefaultTableModel tableModel;
     private final List<HouseNumberOverviewRow> currentRows = new ArrayList<>();
     private final Runnable rowClickListener;
+    private final Runnable closeListener;
     private boolean positionInitializedForSession;
 
-    HouseNumberOverviewDialog(Runnable rowClickListener) {
+    HouseNumberOverviewDialog(Runnable rowClickListener, Runnable closeListener) {
         this.rowClickListener = rowClickListener;
+        this.closeListener = closeListener;
         Frame owner = MainApplication.getMainFrame();
         this.dialog = new JDialog(owner, I18n.tr("House number overview"), false);
         this.dialog.setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);
+        this.dialog.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent event) {
+                if (HouseNumberOverviewDialog.this.closeListener != null) {
+                    HouseNumberOverviewDialog.this.closeListener.run();
+                }
+            }
+        });
 
         this.streetLabel = new JLabel();
         this.incompleteStreetWarningLabel = new JLabel(I18n.tr("Street may be incomplete in loaded data"));

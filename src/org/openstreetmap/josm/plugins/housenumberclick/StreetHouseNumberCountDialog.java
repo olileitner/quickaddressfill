@@ -6,6 +6,8 @@ import java.awt.Frame;
 import java.awt.Rectangle;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -44,6 +46,7 @@ final class StreetHouseNumberCountDialog {
     private final List<StreetHouseNumberCountRow> currentRows = new ArrayList<>();
     private final Consumer<StreetOption> streetClickListener;
     private final Runnable rescanListener;
+    private final Runnable closeListener;
     private boolean positionInitializedForSession;
 
     static List<StreetHouseNumberCountRow> sortRowsForDisplay(List<StreetHouseNumberCountRow> rows) {
@@ -76,13 +79,22 @@ final class StreetHouseNumberCountDialog {
         return orderedStreetOptions;
     }
 
-    StreetHouseNumberCountDialog(Consumer<StreetOption> streetClickListener, Runnable rescanListener) {
+    StreetHouseNumberCountDialog(Consumer<StreetOption> streetClickListener, Runnable rescanListener, Runnable closeListener) {
         this.streetClickListener = streetClickListener;
         this.rescanListener = rescanListener;
+        this.closeListener = closeListener;
 
         Frame owner = MainApplication.getMainFrame();
         this.dialog = new JDialog(owner, I18n.tr("Street house number counts"), false);
         this.dialog.setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);
+        this.dialog.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent event) {
+                if (StreetHouseNumberCountDialog.this.closeListener != null) {
+                    StreetHouseNumberCountDialog.this.closeListener.run();
+                }
+            }
+        });
 
         this.tableModel = new DefaultTableModel(
                 new Object[] {I18n.tr("Street"), I18n.tr("Count")},

@@ -103,6 +103,7 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Table click continue hook is safe", HouseNumberClickRiskRegressionTests::testTableClickContinueHookIsSafe);
             run("Street table click syncs main dialog selection", HouseNumberClickRiskRegressionTests::testStreetTableClickSyncsMainDialogSelection);
             run("Street table selection respects AutoZoom option", HouseNumberClickRiskRegressionTests::testStreetTableSelectionRespectsAutoZoomOption);
+            run("Closing overview dialogs updates main dialog checkboxes", HouseNumberClickRiskRegressionTests::testOverviewDialogCloseUpdatesMainDialogCheckboxes);
             run("Previous/Next street navigation clears postcode and house number", HouseNumberClickRiskRegressionTests::testStreetNavigationClearsPostcodeAndHouseNumber);
             run("Street navigation order matches street-count sorting", HouseNumberClickRiskRegressionTests::testStreetNavigationOrderMatchesStreetCountsSorting);
             run("Street grouping bridges endpoint-to-segment gaps", HouseNumberClickRiskRegressionTests::testStreetGroupingBridgesEndpointToSegmentGaps);
@@ -950,6 +951,32 @@ public final class HouseNumberClickRiskRegressionTests {
                 "street-table selection should only zoom when AutoZoom option is enabled");
         assertTrue(controllerSource.contains("zoomToStreet(selectedStreetOption);"),
                 "street-table selection should still zoom to selected street when AutoZoom is enabled");
+    }
+
+    private static void testOverviewDialogCloseUpdatesMainDialogCheckboxes() throws Exception {
+        String dialogSource = readPluginSource("StreetSelectionDialog.java");
+        String controllerSource = readPluginSource("StreetModeController.java");
+        String houseOverviewDialogSource = readPluginSource("HouseNumberOverviewDialog.java");
+        String streetCountDialogSource = readPluginSource("StreetHouseNumberCountDialog.java");
+
+        assertTrue(dialogSource.contains("setHouseNumberOverviewVisibilityListener"),
+                "main dialog should register house-number overview visibility callback");
+        assertTrue(dialogSource.contains("setStreetHouseNumberCountsVisibilityListener"),
+                "main dialog should register street-count overview visibility callback");
+        assertTrue(dialogSource.contains("updateHouseNumberOverviewCheckboxFromController"),
+                "main dialog should expose checkbox sync hook for house-number overview close events");
+        assertTrue(dialogSource.contains("updateStreetHouseNumberCountsCheckboxFromController"),
+                "main dialog should expose checkbox sync hook for street-count close events");
+
+        assertTrue(controllerSource.contains("onHouseNumberOverviewDialogClosedByUser"),
+                "controller should disable house-number overview when the overview dialog is closed by user");
+        assertTrue(controllerSource.contains("onStreetHouseNumberCountsDialogClosedByUser"),
+                "controller should disable street-count overview when the counts dialog is closed by user");
+
+        assertTrue(houseOverviewDialogSource.contains("windowClosing"),
+                "house-number overview dialog should react to window closing events");
+        assertTrue(streetCountDialogSource.contains("windowClosing"),
+                "street-count dialog should react to window closing events");
     }
 
     private static void testStreetNavigationOrderMatchesStreetCountsSorting() {

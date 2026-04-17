@@ -23,7 +23,8 @@ final class OverviewManager {
             StreetOption currentStreet,
             DataSet editDataSet,
             StreetNameCollector.StreetIndex streetIndex,
-            Runnable continueWorkingCallback
+            Runnable continueWorkingCallback,
+            Runnable closeCallback
     ) {
         if (!enabled || editDataSet == null) {
             hideHouseNumberOverview();
@@ -31,7 +32,7 @@ final class OverviewManager {
         }
 
         if (houseNumberOverviewDialog == null) {
-            houseNumberOverviewDialog = new HouseNumberOverviewDialog(continueWorkingCallback);
+            houseNumberOverviewDialog = new HouseNumberOverviewDialog(continueWorkingCallback, closeCallback);
         }
 
         houseNumberOverviewDialog.updateData(
@@ -55,7 +56,8 @@ final class OverviewManager {
             StreetNameCollector.StreetIndex streetIndex,
             Consumer<StreetOption> onStreetSelected,
             Runnable onRescanRequested,
-            StreetOption currentStreet
+            StreetOption currentStreet,
+            Runnable closeCallback
     ) {
         if (!enabled || editDataSet == null) {
             hideStreetHouseNumberCounts();
@@ -63,7 +65,7 @@ final class OverviewManager {
         }
 
         if (streetHouseNumberCountDialog == null) {
-            streetHouseNumberCountDialog = new StreetHouseNumberCountDialog(onStreetSelected, onRescanRequested);
+            streetHouseNumberCountDialog = new StreetHouseNumberCountDialog(onStreetSelected, onRescanRequested, closeCallback);
         }
 
         List<StreetHouseNumberCountRow> rows = streetHouseNumberCountCollector.collectRows(editDataSet, streetIndex);

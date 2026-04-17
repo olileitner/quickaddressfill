@@ -135,6 +135,8 @@ final class StreetModeController {
     private ModeStateListener modeStateListener;
     private TerracePartsUpdateListener terracePartsUpdateListener;
     private StreetSelectionRequestListener streetSelectionRequestListener;
+    private HouseNumberOverviewVisibilityListener houseNumberOverviewVisibilityListener;
+    private StreetHouseNumberCountsVisibilityListener streetHouseNumberCountsVisibilityListener;
 
     interface HouseNumberUpdateListener {
         void onHouseNumberUpdated(String houseNumber);
@@ -158,6 +160,14 @@ final class StreetModeController {
 
     interface StreetSelectionRequestListener {
         void onStreetSelectionRequested(StreetOption streetOption);
+    }
+
+    interface HouseNumberOverviewVisibilityListener {
+        void onHouseNumberOverviewVisibilityChanged(boolean enabled);
+    }
+
+    interface StreetHouseNumberCountsVisibilityListener {
+        void onStreetHouseNumberCountsVisibilityChanged(boolean enabled);
     }
 
     /**
@@ -360,6 +370,14 @@ final class StreetModeController {
 
     void setStreetSelectionRequestListener(StreetSelectionRequestListener listener) {
         this.streetSelectionRequestListener = listener;
+    }
+
+    void setHouseNumberOverviewVisibilityListener(HouseNumberOverviewVisibilityListener listener) {
+        this.houseNumberOverviewVisibilityListener = listener;
+    }
+
+    void setStreetHouseNumberCountsVisibilityListener(StreetHouseNumberCountsVisibilityListener listener) {
+        this.streetHouseNumberCountsVisibilityListener = listener;
     }
 
     void updateOverlaySettings(boolean overlayEnabled, boolean connectionLinesEnabled, boolean separateEvenOddLinesEnabled) {
@@ -700,7 +718,8 @@ final class StreetModeController {
                 selectedStreetOption,
                 editDataSet,
                 streetIndex,
-                this::continueWorkingFromTableInteraction
+                this::continueWorkingFromTableInteraction,
+                this::onHouseNumberOverviewDialogClosedByUser
         );
     }
 
@@ -715,10 +734,35 @@ final class StreetModeController {
                         streetIndex,
                         this::onStreetHouseNumberCountSelected,
                         this::rescanPluginData,
-                        currentStreetOption
+                        currentStreetOption,
+                        this::onStreetHouseNumberCountsDialogClosedByUser
                 )
         );
         highlightCurrentStreetInStreetCountDialog();
+    }
+
+    private void onHouseNumberOverviewDialogClosedByUser() {
+        if (!houseNumberOverviewEnabled) {
+            return;
+        }
+        houseNumberOverviewEnabled = false;
+        syncDataSourceListenerBinding();
+        refreshHouseNumberOverview();
+        if (houseNumberOverviewVisibilityListener != null) {
+            houseNumberOverviewVisibilityListener.onHouseNumberOverviewVisibilityChanged(false);
+        }
+    }
+
+    private void onStreetHouseNumberCountsDialogClosedByUser() {
+        if (!streetHouseNumberCountsEnabled) {
+            return;
+        }
+        streetHouseNumberCountsEnabled = false;
+        syncDataSourceListenerBinding();
+        refreshStreetHouseNumberCounts();
+        if (streetHouseNumberCountsVisibilityListener != null) {
+            streetHouseNumberCountsVisibilityListener.onStreetHouseNumberCountsVisibilityChanged(false);
+        }
     }
 
     private void hideHouseNumberOverview() {

@@ -170,6 +170,8 @@ final class StreetSelectionDialog {
         this.streetModeController.setAddressValuesReadListener(this::updateAddressValuesFromMode);
         this.streetModeController.setBuildingTypeConsumedListener(this::consumeBuildingTypeFromMode);
         this.streetModeController.setStreetSelectionRequestListener(this::applyStreetSelectionFromOverview);
+        this.streetModeController.setHouseNumberOverviewVisibilityListener(this::updateHouseNumberOverviewCheckboxFromController);
+        this.streetModeController.setStreetHouseNumberCountsVisibilityListener(this::updateStreetHouseNumberCountsCheckboxFromController);
 
         JButton closeButton = new JButton(I18n.tr("Close"));
         closeButton.addActionListener(e -> closeDialog());
@@ -1316,6 +1318,28 @@ final class StreetSelectionDialog {
 
     private void notifyStreetHouseNumberCountsChanged() {
         streetModeController.setStreetHouseNumberCountsEnabled(showStreetHouseNumberCountsCheckbox.isSelected());
+    }
+
+    private void updateHouseNumberOverviewCheckboxFromController(boolean enabled) {
+        if (showHouseNumberOverviewCheckbox == null) {
+            return;
+        }
+        boolean wasUpdatingInputs = updatingInputs;
+        updatingInputs = true;
+        showHouseNumberOverviewCheckbox.setSelected(enabled);
+        updatingInputs = wasUpdatingInputs;
+        rememberCurrentValues();
+    }
+
+    private void updateStreetHouseNumberCountsCheckboxFromController(boolean enabled) {
+        if (showStreetHouseNumberCountsCheckbox == null) {
+            return;
+        }
+        boolean wasUpdatingInputs = updatingInputs;
+        updatingInputs = true;
+        showStreetHouseNumberCountsCheckbox.setSelected(enabled);
+        updatingInputs = wasUpdatingInputs;
+        rememberCurrentValues();
     }
 
     private void notifyZoomToSelectedStreetChanged() {
