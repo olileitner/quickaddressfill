@@ -40,7 +40,8 @@ import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.tools.I18n;
 
 /**
- * Main configuration dialog where users pick street/address settings and receive disambiguated readback updates.
+ * Main configuration dialog where users pick street/address settings and receive disambiguated readback updates,
+ * while street auto-zoom is limited to explicit street-selection actions.
  */
 final class StreetSelectionDialog {
 
@@ -468,7 +469,7 @@ final class StreetSelectionDialog {
         }
 
         String selectedStreet = getSelectedStreet();
-        boolean streetChanged = selectedStreet != null && !selectedStreet.equals(lastSelectedStreet);
+        boolean streetChanged = hasStreetSelectionChanged(lastSelectedStreet, selectedStreet);
         boolean changedByNavigation = consumeStreetSelectionChangedByNavigation();
         if (streetChanged) {
             boolean wasUpdatingInputs = updatingInputs;
@@ -593,6 +594,7 @@ final class StreetSelectionDialog {
     }
 
     private void updateAddressValuesFromMode(String streetName, String postcode, String buildingType, String houseNumber) {
+        String previousSelectedStreet = getSelectedStreet();
         updatingInputs = true;
         StreetOption resolvedReadbackStreet = streetModeController.resolveStreetOptionForReadback(streetName);
         setStreetSelection(resolvedReadbackStreet != null ? resolvedReadbackStreet.getDisplayStreetName() : streetName);
@@ -608,9 +610,15 @@ final class StreetSelectionDialog {
         if (!normalizedHouseNumber.isEmpty()) {
             houseNumberField.setText(normalizedHouseNumber);
         }
-        lastSelectedStreet = getSelectedStreet();
+        String readbackSelectedStreet = getSelectedStreet();
+        boolean streetChangedByReadback = hasStreetSelectionChanged(previousSelectedStreet, readbackSelectedStreet);
+        lastSelectedStreet = readbackSelectedStreet;
         updatingInputs = false;
         notifyAddressChanged();
+        if (streetChangedByReadback && zoomToSelectedStreetCheckbox.isSelected()) {
+            streetModeController.zoomToCurrentStreet();
+        }
+        updateStreetNavigationButtonState();
     }
 
     private void consumeBuildingTypeFromMode() {
@@ -713,9 +721,6 @@ final class StreetSelectionDialog {
         }
         rememberCurrentValues();
         notifyZoomToSelectedStreetChanged();
-        if (zoomToSelectedStreetCheckbox.isSelected()) {
-            streetModeController.zoomToCurrentStreet();
-        }
         focusMapViewIfStreetModeActive();
     }
 
@@ -1524,6 +1529,12 @@ final class StreetSelectionDialog {
         }
         previousStreetButton.setEnabled(canNavigateStreet(-1));
         nextStreetButton.setEnabled(canNavigateStreet(1));
+    }
+
+    private boolean hasStreetSelectionChanged(String previousStreet, String selectedStreet) {
+        String previous = normalize(previousStreet);
+        String selected = normalize(selectedStreet);
+        return !selected.isEmpty() && !selected.equals(previous);
     }
 
     private boolean handleGlobalStreetNavigationKeyEvent(KeyEvent event) {

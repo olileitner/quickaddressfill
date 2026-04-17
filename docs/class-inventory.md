@@ -70,7 +70,7 @@ Core classes as defined in `AGENTS.md` are marked: `HouseNumberClickPlugin`, `Ho
 | `StreetHouseNumberCountCollector` | `StreetHouseNumberCountCollector.java` | No | Collects per-street address counts and completeness indicators across the current dataset. |
 | `StreetHouseNumberCountDialog` | `StreetHouseNumberCountDialog.java` | No | Dialog that lists streets with address counts, selection shortcuts, and rescan controls. |
 | `StreetHouseNumberCountRow` | `StreetHouseNumberCountRow.java` | No | Row model for per-street house-number counts, including duplicate marker information. |
-| `StreetModeController` | `StreetModeController.java` | Yes | Orchestrates Street Mode state, dialog synchronization, seed-aware street highlighting/overlays, spatially disambiguated street readback selection, and split/address operations. |
+| `StreetModeController` | `StreetModeController.java` | Yes | Orchestrates Street Mode state, dialog synchronization, seed-aware street highlighting/overlays, explicit street-selection zoom behavior, spatially disambiguated street readback selection, and split/address operations. |
 | `StreetModeController.AddressSelection` | `StreetModeController.java` | Yes | Immutable current address selection transferred from dialog to map mode. |
 | `StreetModeController.ReferenceLoadKey` | `StreetModeController.java` | Yes | Cache/load key combining dataset identity and normalized street name. |
 | `StreetModeController.StreetSeedResolution` | `StreetModeController.java` | Yes | Resolved operational seed for local same-name street-chain expansion. |
@@ -81,7 +81,7 @@ Core classes as defined in `AGENTS.md` are marked: `HouseNumberClickPlugin`, `Ho
 | `StreetNameCollector.MergeDecision` | `StreetNameCollector.java` | No | Decision payload for one merge evaluation, including metrics for debug logging. |
 | `StreetNameCollector.StreetIndex` | `StreetNameCollector.java` | No | Immutable lookup/index for disambiguated street clusters in the current dataset/view scope. |
 | `StreetOption` | `StreetOption.java` | No | Immutable street descriptor used to separate OSM base street names from UI disambiguation labels. |
-| `StreetSelectionDialog` | `StreetSelectionDialog.java` | No | Main configuration dialog where users pick street/address settings and receive disambiguated readback updates. |
+| `StreetSelectionDialog` | `StreetSelectionDialog.java` | No | Main configuration dialog where users pick street/address settings and receive disambiguated readback updates, while street auto-zoom is limited to explicit street-selection actions. |
 | `TerraceSplitRequest` | `TerraceSplitRequest.java` | No | Input object for row-house splitting that currently carries the requested part count. |
 | `TerraceSplitResult` | `TerraceSplitResult.java` | No | Result object for row-house split execution with status message and resulting ways. |
 | `TerraceSplitService` | `TerraceSplitService.java` | No | Splits row-house buildings into configured parts based on click position and geometry orientation. |

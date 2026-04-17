@@ -34,7 +34,8 @@ import org.openstreetmap.josm.tools.Logging;
 
 /**
  * Orchestrates Street Mode state, dialog synchronization, seed-aware street highlighting/overlays,
- * spatially disambiguated street readback selection, and split/address operations.
+ * explicit street-selection zoom behavior, spatially disambiguated street readback selection,
+ * and split/address operations.
  */
 final class StreetModeController {
 
@@ -526,6 +527,8 @@ final class StreetModeController {
             return;
         }
 
+        StreetOption previousStreetOption = navigationService.getCurrentStreetOption();
+
         // Keep optional street-based overlays in sync with the row the user clicked.
         navigationService.setCurrentStreetOption(selectedStreetOption);
         lastSelection = new AddressSelection(
@@ -543,7 +546,9 @@ final class StreetModeController {
         refreshHouseNumberOverview();
         syncReferenceStreetVisibilityForCurrentStreet();
         if (zoomToSelectedStreetEnabled) {
-            zoomToStreet(selectedStreetOption);
+            if (!isSameStreetOptionIdentity(previousStreetOption, selectedStreetOption)) {
+                zoomToStreet(selectedStreetOption);
+            }
         }
         continueWorkingFromTableInteraction();
     }
