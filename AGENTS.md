@@ -203,17 +203,19 @@ Agents MUST NOT deploy to `~/.local/share/JOSM/plugins`.
 
 * Always use annotated tags:
 
-  * `git tag -a <version> -m "Release <version>"`
+  * `git tag -a v<version> -m "Release v<version>"`
 
 * Never run lightweight tags:
 
-  * `git tag <version>`
+  * `git tag v<version>`
 
 #### GitHub Release
 
-* Always create releases non-interactively:
+* Preferred path: push `v<version>` tag and let `.github/workflows/release.yml` publish the release artifact.
+* Manual fallback is allowed only when automation is unavailable, and must stay non-interactive:
 
-  * `gh release create <tag> <artifact> --title "HouseNumberClick <tag>" --notes-file RELEASE_NOTES.md`
+  * `gh release create v<version> dist/HouseNumberClick-<version>.jar --title "HouseNumberClick v<version>" --notes-file RELEASE_NOTES.md`
+* Never publish twice for the same tag (automation + manual).
 
 #### Hard Rule
 

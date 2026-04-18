@@ -35,6 +35,19 @@ Check the built jar contains:
 
 ## 4) GitHub Release
 
+Preferred publisher:
+
+- Push annotated tag `v<version>` and let `.github/workflows/release.yml` create/update the release.
+
+```bash
+cd /home/oliver/IdeaProjects/housenumberclick
+git tag -a v<version> -m "Release v<version>"
+git push origin main
+git push origin v<version>
+```
+
+Manual fallback (only when workflow automation is unavailable):
+
 ```bash
 cd /home/oliver/IdeaProjects/housenumberclick
 git tag -a v<version> -m "Release v<version>"
@@ -47,6 +60,7 @@ gh release create v<version> dist/HouseNumberClick-<version>.jar \
 
 Hard rule:
 - If a command would open an editor, stop and rerun with explicit non-interactive flags.
+- Do not publish twice for the same tag (automation + manual).
 
 ## 5) PluginsSource URL Pattern
 
