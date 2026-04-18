@@ -132,7 +132,21 @@ final class CountryDetectionService {
     }
 
     private String normalize(String value) {
-        return value == null ? "" : value.trim();
+        if (value == null) {
+            return "";
+        }
+        String v = value.trim();
+
+        // Minimal umlaut normalization (sufficient for country names)
+        v = v.replace("Ä", "AE")
+                .replace("Ö", "OE")
+                .replace("Ü", "UE")
+                .replace("ä", "ae")
+                .replace("ö", "oe")
+                .replace("ü", "ue")
+                .replace("ß", "ss");
+
+        return v;
     }
 }
 
