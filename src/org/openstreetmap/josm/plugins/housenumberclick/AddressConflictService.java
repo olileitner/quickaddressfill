@@ -7,7 +7,8 @@ import java.util.List;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 
 /**
- * Detects address/tag conflicts between existing building tags and the values selected for apply.
+ * Detects address/tag conflicts between existing building tags and the values selected for apply,
+ * including city-aware overwrite detection.
  */
 final class AddressConflictService {
 
@@ -45,16 +46,23 @@ final class AddressConflictService {
 		private final boolean hasConflict;
 		private final String overwrittenStreet;
 		private final String overwrittenPostcode;
+		private final String overwrittenCity;
 		private final List<ConflictField> differingFields;
 
 		ConflictAnalysis(boolean hasConflict, String overwrittenStreet, List<ConflictField> differingFields) {
-			this(hasConflict, overwrittenStreet, "", differingFields);
+			this(hasConflict, overwrittenStreet, "", "", differingFields);
 		}
 
 		ConflictAnalysis(boolean hasConflict, String overwrittenStreet, String overwrittenPostcode, List<ConflictField> differingFields) {
+			this(hasConflict, overwrittenStreet, overwrittenPostcode, "", differingFields);
+		}
+
+		ConflictAnalysis(boolean hasConflict, String overwrittenStreet, String overwrittenPostcode,
+				String overwrittenCity, List<ConflictField> differingFields) {
 			this.hasConflict = hasConflict;
 			this.overwrittenStreet = normalize(overwrittenStreet);
 			this.overwrittenPostcode = normalize(overwrittenPostcode);
+			this.overwrittenCity = normalize(overwrittenCity);
 			this.differingFields = differingFields == null ? List.of() : Collections.unmodifiableList(differingFields);
 		}
 
@@ -70,6 +78,10 @@ final class AddressConflictService {
 			return overwrittenPostcode;
 		}
 
+		String getOverwrittenCity() {
+			return overwrittenCity;
+		}
+
 		List<ConflictField> getDifferingFields() {
 			return differingFields;
 		}
@@ -79,17 +91,20 @@ final class AddressConflictService {
 			OsmPrimitive building,
 			String proposedStreet,
 			String proposedPostcode,
+			String proposedCity,
 			String proposedHouseNumber,
 			String proposedBuildingType
 	) {
 		String normalizedProposedStreet = normalize(proposedStreet);
 		String normalizedProposedPostcode = normalize(proposedPostcode);
+		String normalizedProposedCity = normalize(proposedCity);
 		if (building == null) {
-			return new ConflictAnalysis(false, normalizedProposedStreet, normalizedProposedPostcode, List.of());
+			return new ConflictAnalysis(false, normalizedProposedStreet, normalizedProposedPostcode, normalizedProposedCity, List.of());
 		}
 
 		String existingStreet = normalize(building.get("addr:street"));
 		String existingPostcode = normalize(building.get("addr:postcode"));
+		String existingCity = normalize(building.get("addr:city"));
 		String existingHouseNumber = normalize(building.get("addr:housenumber"));
 		String existingBuildingType = normalize(building.get("building"));
 
@@ -102,6 +117,11 @@ final class AddressConflictService {
 		boolean postcodeConflict = !normalizedProposedPostcode.isEmpty()
 				&& !existingPostcode.isEmpty()
 				&& !existingPostcode.equals(normalizedProposedPostcode);
+
+		// City conflict only matters when a new city is explicitly provided.
+		boolean cityConflict = !normalizedProposedCity.isEmpty()
+				&& !existingCity.isEmpty()
+				&& !existingCity.equals(normalizedProposedCity);
 
 		boolean houseNumberDiff = !normalizedProposedHouseNumber.isEmpty()
 				&& !existingHouseNumber.isEmpty()
@@ -119,6 +139,9 @@ final class AddressConflictService {
 		if (postcodeConflict) {
 			differingFields.add(new ConflictField("addr:postcode", existingPostcode, normalizedProposedPostcode));
 		}
+		if (cityConflict) {
+			differingFields.add(new ConflictField("addr:city", existingCity, normalizedProposedCity));
+		}
 		if (houseNumberDiff) {
 			differingFields.add(new ConflictField("addr:housenumber", existingHouseNumber, normalizedProposedHouseNumber));
 		}
@@ -128,10 +151,12 @@ final class AddressConflictService {
 
 		String overwrittenStreet = existingStreet.isEmpty() ? normalizedProposedStreet : existingStreet;
 		String overwrittenPostcode = existingPostcode.isEmpty() ? normalizedProposedPostcode : existingPostcode;
+		String overwrittenCity = existingCity.isEmpty() ? normalizedProposedCity : existingCity;
 		return new ConflictAnalysis(
-				streetConflict || postcodeConflict || buildingTypeConflict,
+				streetConflict || postcodeConflict || cityConflict || buildingTypeConflict,
 				overwrittenStreet,
 				overwrittenPostcode,
+				overwrittenCity,
 				differingFields
 		);
 	}

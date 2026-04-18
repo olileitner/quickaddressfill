@@ -6,11 +6,11 @@ Core classes as defined in `AGENTS.md` are marked: `HouseNumberClickPlugin`, `Ho
 
 | Class | File | Core class | Class comment |
 |---|---|---|---|
-| `AddressConflictService` | `AddressConflictService.java` | No | Detects address/tag conflicts between existing building tags and the values selected for apply. |
+| `AddressConflictService` | `AddressConflictService.java` | No | Detects address/tag conflicts between existing building tags and the values selected for apply, including city-aware overwrite detection. |
 | `AddressConflictService.ConflictAnalysis` | `AddressConflictService.java` | No | Structured outcome of conflict detection used by overwrite-warning UI. |
 | `AddressConflictService.ConflictField` | `AddressConflictService.java` | No | One differing tag field between existing and proposed address/building values. |
 | `AddressedBuildingMatcher` | `AddressedBuildingMatcher.java` | No | Shared predicate helper for identifying addressable buildings, optionally filtered by street. |
-| `AddressReadbackService` | `AddressReadbackService.java` | No | Reads street, postcode, house number, and building type from clicked buildings or fallback street ways. |
+| `AddressReadbackService` | `AddressReadbackService.java` | No | Reads street, postcode, city, house number, and building type from clicked buildings or fallback street ways. |
 | `AddressReadbackService.AddressReadbackResult` | `AddressReadbackService.java` | No | Readback payload containing street/address values and the source category. |
 | `BuildingOverviewCollector` | `BuildingOverviewCollector.java` | No | Collects building diagnostics used by completeness and postcode overview layers, canonicalizing relation/outer-way representations of the same real building. |
 | `BuildingOverviewCollector.BuildingOverviewEntry` | `BuildingOverviewCollector.java` | No | Public entry used by overview layers to render completeness and diagnostics for one building. |
@@ -21,8 +21,8 @@ Core classes as defined in `AGENTS.md` are marked: `HouseNumberClickPlugin`, `Ho
 | `BuildingResolver.BuildingResolutionResult` | `BuildingResolver.java` | No | Full resolver diagnostics and selected building primitive for one click resolution. |
 | `BuildingResolver.RelationScanResult` | `BuildingResolver.java` | No | Internal relation-scan outcome with counters and limit state. |
 | `BuildingResolver.WayScanResult` | `BuildingResolver.java` | No | Internal way-scan outcome with counters and limit state. |
-| `BuildingTagApplier` | `BuildingTagApplier.java` | No | Applies address and building tags via JOSM commands, including relation-aware write targets. |
-| `ClickHandlerService` | `ClickHandlerService.java` | No | Encapsulates click interaction flow for applying tags, reading addresses, and conflict handling. |
+| `BuildingTagApplier` | `BuildingTagApplier.java` | No | Applies address (including optional city) and building tags via JOSM commands, including relation-aware write targets. |
+| `ClickHandlerService` | `ClickHandlerService.java` | No | Encapsulates click interaction flow for applying tags (including optional city), reading addresses, and conflict handling. |
 | `ClickHandlerService.ClickResult` | `ClickHandlerService.java` | No | Lightweight result of non-primary click flows with outcome and resolver diagnostics. |
 | `ClickHandlerService.PrimaryClickResult` | `ClickHandlerService.java` | No | Result of a primary (apply) click, including outcome, resolution stats, and next UI state. |
 | `ConflictDialogModelBuilder` | `ConflictDialogModelBuilder.java` | No | Converts conflict analysis into table-oriented dialog rows for overwrite confirmation UI. |
@@ -36,7 +36,7 @@ Core classes as defined in `AGENTS.md` are marked: `HouseNumberClickPlugin`, `Ho
 | `DuplicateAddressOverviewLayer` | `DuplicateAddressOverviewLayer.java` | No | Map layer that highlights buildings with duplicate exact address keys. |
 | `HouseNumberClickAction` | `HouseNumberClickAction.java` | Yes | Main toolbar/menu action that opens the street selection dialog and activates street mode. |
 | `HouseNumberClickPlugin` | `HouseNumberClickPlugin.java` | Yes | Plugin entry point that wires the menu action and performs one-time toolbar migration. |
-| `HouseNumberClickStreetMapMode` | `HouseNumberClickStreetMapMode.java` | Yes | Single active map mode that handles address apply/readback and temporary split gestures. |
+| `HouseNumberClickStreetMapMode` | `HouseNumberClickStreetMapMode.java` | Yes | Single active map mode that handles address apply/readback (including city-aware apply values) and temporary split gestures. |
 | `HouseNumberClickStreetMapMode.ClickResolutionStats` | `HouseNumberClickStreetMapMode.java` | Yes | Captures per-click diagnostics for debug logging of resolver and interaction paths. |
 | `HouseNumberOverlayCollector` | `HouseNumberOverlayCollector.java` | No | Collects and normalizes addressed buildings near the locally resolved selected street segment, canonicalizing relation/outer-way representations of the same real building. |
 | `HouseNumberOverlayCollector.CollectionStats` | `HouseNumberOverlayCollector.java` | No | Aggregated rejection counters used for overlay collection diagnostics. |
@@ -70,8 +70,8 @@ Core classes as defined in `AGENTS.md` are marked: `HouseNumberClickPlugin`, `Ho
 | `StreetHouseNumberCountCollector` | `StreetHouseNumberCountCollector.java` | No | Collects per-street address counts and completeness indicators across the current dataset. |
 | `StreetHouseNumberCountDialog` | `StreetHouseNumberCountDialog.java` | No | Dialog that lists streets with address counts, selection shortcuts, and rescan controls. |
 | `StreetHouseNumberCountRow` | `StreetHouseNumberCountRow.java` | No | Row model for per-street house-number counts, including duplicate marker information. |
-| `StreetModeController` | `StreetModeController.java` | Yes | Orchestrates Street Mode state, dialog synchronization, seed-aware street highlighting/overlays, explicit street-selection zoom behavior with full selected-street framing, spatially disambiguated street readback selection, and split/address operations. |
-| `StreetModeController.AddressSelection` | `StreetModeController.java` | Yes | Immutable current address selection transferred from dialog to map mode. |
+| `StreetModeController` | `StreetModeController.java` | Yes | Orchestrates Street Mode state, dialog synchronization, seed-aware street highlighting/overlays, explicit street-selection zoom behavior with full selected-street framing, spatially disambiguated street readback selection, and split/address operations including city-aware address propagation. |
+| `StreetModeController.AddressSelection` | `StreetModeController.java` | Yes | Immutable current address selection transferred from dialog to map mode, including optional city. |
 | `StreetModeController.ReferenceLoadKey` | `StreetModeController.java` | Yes | Cache/load key combining dataset identity and normalized street name. |
 | `StreetModeController.StreetSeedResolution` | `StreetModeController.java` | Yes | Resolved operational seed for local same-name street-chain expansion. |
 | `StreetModeController.SplitTargetScan` | `StreetModeController.java` | Yes | Scan result describing whether a temporary split line targets exactly one building. |
@@ -81,7 +81,7 @@ Core classes as defined in `AGENTS.md` are marked: `HouseNumberClickPlugin`, `Ho
 | `StreetNameCollector.MergeDecision` | `StreetNameCollector.java` | No | Decision payload for one merge evaluation, including metrics for debug logging. |
 | `StreetNameCollector.StreetIndex` | `StreetNameCollector.java` | No | Immutable lookup/index for disambiguated street clusters in the current dataset/view scope. |
 | `StreetOption` | `StreetOption.java` | No | Immutable street descriptor used to separate OSM base street names from UI disambiguation labels. |
-| `StreetSelectionDialog` | `StreetSelectionDialog.java` | No | Main configuration dialog where users pick street/address settings and receive disambiguated readback updates, while street auto-zoom is limited to explicit street-selection actions. |
+| `StreetSelectionDialog` | `StreetSelectionDialog.java` | No | Main configuration dialog where users pick street/address settings (street, postcode, house number, city, building type) and receive disambiguated readback updates, while street auto-zoom is limited to explicit street-selection actions. |
 | `TerraceSplitRequest` | `TerraceSplitRequest.java` | No | Input object for row-house splitting that currently carries the requested part count. |
 | `TerraceSplitResult` | `TerraceSplitResult.java` | No | Result object for row-house split execution with status message and resulting ways. |
 | `TerraceSplitService` | `TerraceSplitService.java` | No | Splits row-house buildings into configured parts based on click position and geometry orientation. |

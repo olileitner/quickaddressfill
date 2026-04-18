@@ -161,11 +161,13 @@ public final class HouseNumberClickRiskRegressionTests {
         Way building = new Way();
         building.put("addr:street", " Example Street ");
         building.put("addr:postcode", " 12345 ");
+        building.put("addr:city", " Sampletown ");
         building.put("addr:housenumber", " 77b ");
 
         AddressReadbackService.AddressReadbackResult result = service.readFromBuilding(building, "house");
         assertEquals("Example Street", result.getStreet(), "street should be trimmed from building tag");
         assertEquals("12345", result.getPostcode(), "postcode should be trimmed from building tag");
+        assertEquals("Sampletown", result.getCity(), "city should be trimmed from building tag");
         assertEquals("house", result.getBuildingType(), "building type should pass through unchanged");
         assertEquals("77b", result.getHouseNumber(), "house number should be trimmed from building tag");
         assertEquals("address-tags", result.getSource(), "source should mark address-tag readback");
@@ -177,6 +179,7 @@ public final class HouseNumberClickRiskRegressionTests {
 
         assertEquals("Example Avenue", result.getStreet(), "street fallback should be trimmed");
         assertEquals("", result.getPostcode(), "street fallback should not provide a postcode override");
+        assertEquals("", result.getCity(), "street fallback should not provide a city override");
         assertEquals("", result.getBuildingType(), "street fallback should not provide a building-type override");
         assertEquals("", result.getHouseNumber(), "street fallback should not provide a house-number override");
         assertEquals("street-fallback", result.getSource(), "source should mark street fallback");
@@ -218,18 +221,21 @@ public final class HouseNumberClickRiskRegressionTests {
         Way building = new Way();
         building.put("addr:street", "Old Street");
         building.put("addr:postcode", "12345");
+        building.put("addr:city", "Old City");
         building.put("addr:housenumber", "12");
         building.put("building", "residential");
 
-        AddressConflictService.ConflictAnalysis analysis = service.analyze(building, "New Street", "54321", "34", "house");
+        AddressConflictService.ConflictAnalysis analysis = service.analyze(building, "New Street", "54321", "New City", "34", "house");
         assertTrue(analysis.hasConflict(), "different street/postcode should trigger overwrite conflict");
         assertEquals("Old Street", analysis.getOverwrittenStreet(), "existing street should be used as overwritten street");
         assertEquals("12345", analysis.getOverwrittenPostcode(), "existing postcode should be used as overwritten postcode");
-        assertEquals(4, analysis.getDifferingFields().size(), "street, postcode, housenumber and building diffs should be listed");
+        assertEquals("Old City", analysis.getOverwrittenCity(), "existing city should be used as overwritten city");
+        assertEquals(5, analysis.getDifferingFields().size(), "street, postcode, city, housenumber and building diffs should be listed");
         assertEquals("addr:street", analysis.getDifferingFields().get(0).getKey(), "street diff should appear first");
         assertEquals("addr:postcode", analysis.getDifferingFields().get(1).getKey(), "postcode diff should appear second");
-        assertEquals("addr:housenumber", analysis.getDifferingFields().get(2).getKey(), "housenumber diff should appear third");
-        assertEquals("building", analysis.getDifferingFields().get(3).getKey(), "building diff should appear fourth");
+        assertEquals("addr:city", analysis.getDifferingFields().get(2).getKey(), "city diff should appear third");
+        assertEquals("addr:housenumber", analysis.getDifferingFields().get(3).getKey(), "housenumber diff should appear fourth");
+        assertEquals("building", analysis.getDifferingFields().get(4).getKey(), "building diff should appear fifth");
     }
 
     private static void testPostcodeCollectorCollectsSortedVisiblePostcodes() {
@@ -264,14 +270,14 @@ public final class HouseNumberClickRiskRegressionTests {
 
         Way buildingWithoutStreet = new Way();
         buildingWithoutStreet.put("addr:postcode", "12345");
-        AddressConflictService.ConflictAnalysis noStreetConflict = service.analyze(buildingWithoutStreet, "Any Street", "", "", "");
+        AddressConflictService.ConflictAnalysis noStreetConflict = service.analyze(buildingWithoutStreet, "Any Street", "", "", "", "");
         assertFalse(noStreetConflict.hasConflict(), "missing existing street should not trigger street conflict");
         assertEquals("Any Street", noStreetConflict.getOverwrittenStreet(), "fallback overwritten street should use proposed street");
         assertEquals("12345", noStreetConflict.getOverwrittenPostcode(), "existing postcode should remain overwritten postcode fallback");
 
         Way buildingWithOnlyHouseNumber = new Way();
         buildingWithOnlyHouseNumber.put("addr:housenumber", "10");
-        AddressConflictService.ConflictAnalysis onlyHouseDiff = service.analyze(buildingWithOnlyHouseNumber, "", "", "11", "");
+        AddressConflictService.ConflictAnalysis onlyHouseDiff = service.analyze(buildingWithOnlyHouseNumber, "", "", "", "11", "");
         assertFalse(onlyHouseDiff.hasConflict(), "house number difference alone should not trigger conflict dialog");
         assertEquals(1, onlyHouseDiff.getDifferingFields().size(), "house number difference should still be listed");
         assertEquals("addr:housenumber", onlyHouseDiff.getDifferingFields().get(0).getKey(), "listed diff should be housenumber");
@@ -280,13 +286,15 @@ public final class HouseNumberClickRiskRegressionTests {
         identical.put("addr:street", "Same");
         identical.put("addr:postcode", "11111");
         identical.put("addr:housenumber", "3");
-        AddressConflictService.ConflictAnalysis identicalAnalysis = service.analyze(identical, "Same", "11111", "3", "");
+        AddressConflictService.ConflictAnalysis identicalAnalysis = service.analyze(identical, "Same", "11111", "", "3", "");
         assertFalse(identicalAnalysis.hasConflict(), "identical values should not trigger conflict");
         assertEquals(0, identicalAnalysis.getDifferingFields().size(), "identical values should produce no differing fields");
 
-        AddressConflictService.ConflictAnalysis missingBuilding = service.analyze(null, "Street", "77777", "", "");
+        AddressConflictService.ConflictAnalysis missingBuilding = service.analyze(null, "Street", "77777", "City", "", "");
         assertEquals("77777", missingBuilding.getOverwrittenPostcode(),
                 "missing building should expose proposed postcode as overwrite context fallback");
+        assertEquals("City", missingBuilding.getOverwrittenCity(),
+                "missing building should expose proposed city as overwrite context fallback");
     }
 
     private static void testAddressConflictBuildingTypeYesOverwriteIgnored() {
@@ -295,13 +303,13 @@ public final class HouseNumberClickRiskRegressionTests {
         Way building = new Way();
         building.put("building", "yes");
         AddressConflictService.ConflictAnalysis ignoredYesOverwrite =
-                service.analyze(building, "", "", "", "house");
+                service.analyze(building, "", "", "", "", "house");
         assertFalse(ignoredYesOverwrite.hasConflict(), "overwriting building=yes should not trigger warning");
         assertEquals(0, ignoredYesOverwrite.getDifferingFields().size(), "building=yes overwrite should not add dialog rows");
 
         building.put("building", "residential");
         AddressConflictService.ConflictAnalysis realTypeOverwrite =
-                service.analyze(building, "", "", "", "house");
+                service.analyze(building, "", "", "", "", "house");
         assertTrue(realTypeOverwrite.hasConflict(), "overwriting a specific building type should trigger warning");
         assertEquals(1, realTypeOverwrite.getDifferingFields().size(), "specific building-type overwrite should add one dialog row");
         assertEquals("building", realTypeOverwrite.getDifferingFields().get(0).getKey(), "building overwrite row should use building key");
@@ -314,8 +322,12 @@ public final class HouseNumberClickRiskRegressionTests {
                 "overwrite dialog should offer a street-specific suppression option");
         assertTrue(source.contains("Do not warn again for postcode:"),
                 "overwrite dialog should offer a postcode-specific suppression option");
+        assertTrue(source.contains("Do not warn again for city:"),
+                "overwrite dialog should offer a city-specific suppression option");
         assertTrue(source.contains("shouldShowOverwriteWarning"),
                 "warning decision should be derived from field-specific suppression checks");
+        assertTrue(source.contains("isCityWarningSuppressed"),
+                "warning decision should include city-specific suppression checks");
     }
 
     private static void testConflictDialogModelBuilderMapping() {
@@ -325,15 +337,17 @@ public final class HouseNumberClickRiskRegressionTests {
         Way building = new Way();
         building.put("addr:street", "Old Street");
         building.put("addr:postcode", "12345");
+        building.put("addr:city", "Old City");
         building.put("addr:housenumber", "9");
 
-        AddressConflictService.ConflictAnalysis analysis = service.analyze(building, "New Street", "54321", "10", "");
+        AddressConflictService.ConflictAnalysis analysis = service.analyze(building, "New Street", "54321", "New City", "10", "");
         ConflictDialogModelBuilder.DialogModel model = builder.build(analysis, value -> "[" + value + "]");
 
-        assertEquals(3, model.getRows().size(), "all differing fields should be present in dialog model");
+        assertEquals(4, model.getRows().size(), "all differing fields should be present in dialog model");
         assertEquals("addr:street", model.getRows().get(0).getField(), "street row should be first");
         assertEquals("addr:postcode", model.getRows().get(1).getField(), "postcode row should be second");
-        assertEquals("addr:housenumber", model.getRows().get(2).getField(), "housenumber row should be third");
+        assertEquals("addr:city", model.getRows().get(2).getField(), "city row should be third");
+        assertEquals("addr:housenumber", model.getRows().get(3).getField(), "housenumber row should be fourth");
         assertEquals("[Old Street]", model.getRows().get(0).getExisting(), "existing value should map to dialog row");
         assertEquals("[New Street]", model.getRows().get(0).getProposed(), "proposed value should map to dialog row");
     }
@@ -399,10 +413,22 @@ public final class HouseNumberClickRiskRegressionTests {
 
     private static void testAddressSelectionNormalization() {
         StreetModeController.AddressSelection selection =
-                new StreetModeController.AddressSelection("  Main Street  ", " 12345 ", " house ", " 12a ", 99);
+                new StreetModeController.AddressSelection(
+                        "  Main Street  ",
+                        " Main Street ",
+                        " cluster-1 ",
+                        " 12345 ",
+                        "  Sample City  ",
+                        " house ",
+                        " 12a ",
+                        99
+                );
 
         assertEquals("Main Street", selection.getStreetName(), "street should be trimmed");
+        assertEquals("Main Street", selection.getDisplayStreetName(), "display street should be trimmed");
+        assertEquals("cluster-1", selection.getStreetClusterId(), "street cluster id should be trimmed");
         assertEquals("12345", selection.getPostcode(), "postcode should be trimmed");
+        assertEquals("Sample City", selection.getCity(), "city should be trimmed");
         assertEquals("house", selection.getBuildingType(), "building type should be trimmed");
         assertEquals("12a", selection.getHouseNumber(), "house number should be trimmed");
         assertEquals(1, selection.getHouseNumberIncrementStep(), "invalid step should normalize to +1");

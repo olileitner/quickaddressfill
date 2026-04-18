@@ -8,7 +8,8 @@ import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.MapFrame;
 
 /**
- * Reads street, postcode, house number, and building type from clicked buildings or fallback street ways.
+ * Reads street, postcode, city, house number, and building type from clicked buildings
+ * or fallback street ways.
  */
 final class AddressReadbackService {
 
@@ -18,13 +19,15 @@ final class AddressReadbackService {
     static final class AddressReadbackResult {
         private final String street;
         private final String postcode;
+        private final String city;
         private final String buildingType;
         private final String houseNumber;
         private final String source;
 
-        AddressReadbackResult(String street, String postcode, String buildingType, String houseNumber, String source) {
+        AddressReadbackResult(String street, String postcode, String city, String buildingType, String houseNumber, String source) {
             this.street = normalize(street);
             this.postcode = normalize(postcode);
+            this.city = normalize(city);
             this.buildingType = normalize(buildingType);
             this.houseNumber = normalize(houseNumber);
             this.source = normalize(source);
@@ -36,6 +39,10 @@ final class AddressReadbackService {
 
         String getPostcode() {
             return postcode;
+        }
+
+        String getCity() {
+            return city;
         }
 
         String getBuildingType() {
@@ -58,6 +65,7 @@ final class AddressReadbackService {
         return new AddressReadbackResult(
                 building.get("addr:street"),
                 building.get("addr:postcode"),
+                building.get("addr:city"),
                 currentBuildingType,
                 building.get("addr:housenumber"),
                 "address-tags"
@@ -69,7 +77,7 @@ final class AddressReadbackService {
         if (normalizedStreet.isEmpty()) {
             return null;
         }
-        return new AddressReadbackResult(normalizedStreet, "", "", "", "street-fallback");
+        return new AddressReadbackResult(normalizedStreet, "", "", "", "", "street-fallback");
     }
 
     String resolveStreetNameAtClick(MapFrame map, MouseEvent e) {

@@ -40,8 +40,9 @@ import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.tools.I18n;
 
 /**
- * Main configuration dialog where users pick street/address settings and receive disambiguated readback updates,
- * while street auto-zoom is limited to explicit street-selection actions.
+ * Main configuration dialog where users pick street/address settings (street, postcode, house number, city,
+ * building type) and receive disambiguated readback updates, while street auto-zoom is limited to explicit
+ * street-selection actions.
  */
 final class StreetSelectionDialog {
 
@@ -55,6 +56,7 @@ final class StreetSelectionDialog {
     private final JComboBox<String> buildingTypeCombo;
     private final JComboBox<String> postcodeCombo;
     private final JTextField houseNumberField;
+    private final JTextField cityField;
     private final JCheckBox applyTypeToAllCheckbox;
     private JToggleButton minusTwoIncrementButton;
     private JToggleButton minusOneIncrementButton;
@@ -87,6 +89,7 @@ final class StreetSelectionDialog {
     private String lastSelectedStreet;
     private String rememberedStreet;
     private String rememberedPostcode;
+    private String rememberedCity;
     private String rememberedBuildingType;
     private String rememberedHouseNumber = INITIAL_HOUSE_NUMBER;
     private int rememberedIncrementStep = 1;
@@ -152,6 +155,24 @@ final class StreetSelectionDialog {
             @Override
             public void changedUpdate(DocumentEvent e) {
                 enforcePlusOneForLetterHouseNumbers();
+                notifyAddressChanged();
+            }
+        });
+
+        this.cityField = new JTextField();
+        this.cityField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                notifyAddressChanged();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                notifyAddressChanged();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
                 notifyAddressChanged();
             }
         });
@@ -414,6 +435,7 @@ final class StreetSelectionDialog {
         setSelectedPostcode(rememberedPostcode);
         buildingTypeCombo.getEditor().setItem(firstNonEmpty(rememberedBuildingType, ""));
         houseNumberField.setText(firstNonEmpty(rememberedHouseNumber, INITIAL_HOUSE_NUMBER));
+        cityField.setText(firstNonEmpty(rememberedCity, ""));
         applyIncrementStep(rememberedIncrementStep);
         applyOverlaySettings(
                 rememberedHouseNumberLayerEnabled,
@@ -595,7 +617,7 @@ final class StreetSelectionDialog {
         updatingInputs = wasUpdatingInputs;
     }
 
-    private void updateAddressValuesFromMode(String streetName, String postcode, String buildingType, String houseNumber) {
+    private void updateAddressValuesFromMode(String streetName, String postcode, String city, String buildingType, String houseNumber) {
         String previousSelectedStreet = getSelectedStreet();
         updatingInputs = true;
         StreetOption resolvedReadbackStreet = streetModeController.resolveStreetOptionForReadback(streetName);
@@ -607,6 +629,10 @@ final class StreetSelectionDialog {
         String normalizedBuildingType = normalize(buildingType);
         if (!normalizedBuildingType.isEmpty()) {
             buildingTypeCombo.getEditor().setItem(normalizedBuildingType);
+        }
+        String normalizedCity = normalize(city);
+        if (!normalizedCity.isEmpty()) {
+            cityField.setText(normalizedCity);
         }
         String normalizedHouseNumber = normalize(houseNumber);
         if (!normalizedHouseNumber.isEmpty()) {
@@ -872,6 +898,19 @@ final class StreetSelectionDialog {
         gbc.weightx = 0.0;
         gbc.fill = GridBagConstraints.NONE;
         gbc.insets = new Insets(2, 0, 2, 8);
+        panel.add(new JLabel(I18n.tr("City:")), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(2, 0, 2, 0);
+        panel.add(cityField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        gbc.weightx = 0.0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.insets = new Insets(2, 0, 2, 8);
         panel.add(new JLabel(I18n.tr("Building type:")), gbc);
 
         gbc.gridx = 1;
@@ -881,14 +920,14 @@ final class StreetSelectionDialog {
         panel.add(buildingTypeCombo, gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 4;
+        gbc.gridy = 5;
         gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(2, 0, 2, 0);
         panel.add(applyTypeToAllCheckbox, gbc);
 
         gbc.gridx = 0;
-        gbc.gridy = 5;
+        gbc.gridy = 6;
         gbc.weightx = 0.0;
         gbc.fill = GridBagConstraints.NONE;
         gbc.insets = new Insets(2, 0, 2, 8);
@@ -1246,6 +1285,7 @@ final class StreetSelectionDialog {
     private void rememberCurrentValues() {
         rememberedStreet = getSelectedStreet();
         rememberedPostcode = getSelectedPostcode();
+        rememberedCity = normalize(cityField.getText());
         rememberedBuildingType = normalize(getSelectedBuildingType());
         rememberedHouseNumber = normalize(houseNumberField.getText());
         rememberedIncrementStep = houseNumberIncrementStep;
@@ -1360,6 +1400,7 @@ final class StreetSelectionDialog {
                 displayStreetName,
                 clusterId,
                 getSelectedPostcode(),
+                cityField.getText(),
                 getSelectedBuildingType(),
                 houseNumberField.getText(),
                 houseNumberIncrementStep
@@ -1446,6 +1487,7 @@ final class StreetSelectionDialog {
     private void resetRememberedValuesForDataSetChange() {
         rememberedStreet = null;
         rememberedPostcode = null;
+        rememberedCity = null;
         rememberedBuildingType = null;
         rememberedHouseNumber = INITIAL_HOUSE_NUMBER;
         rememberedIncrementStep = 1;
@@ -1622,6 +1664,7 @@ final class StreetSelectionDialog {
         }
         return component instanceof JTextComponent
                 || component == houseNumberField
+                || component == cityField
                 || component == rowHousePartsField
                 || component == postcodeCombo
                 || component == streetCombo

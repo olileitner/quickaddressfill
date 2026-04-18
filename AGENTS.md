@@ -64,13 +64,14 @@ Important:
 
 * resolve building (`BuildingResolver`)
 * conflict detection (`AddressConflictService`)
-* apply tags (`BuildingTagApplier`, `ChangePropertyCommand`)
+* apply tags (`BuildingTagApplier`, `ChangePropertyCommand`) including `addr:city` when configured
 * auto-increment (`HouseNumberService`)
 * controller refresh
 
 ### Ctrl + Click (Readback)
 
 * `AddressReadbackService.readFromBuilding(...)`
+* reads street/postcode/house number/building type and `addr:city` from building tags
 * fallback: street detection via highways
 
 ### Line Split (Alt + Drag)
@@ -275,11 +276,18 @@ Agents must be careful with:
 
   * `HouseNumberClickStreetMapMode`
   * `ClickHandlerService`
+  * `AddressReadbackService`
+  * `AddressConflictService`
   * regression tests
 * verify shortcut safety:
 
   * `Ctrl+Shift+*` still reaches JOSM core actions
   * plugin only reacts to intended standalone modifiers
+* verify city-specific behavior:
+
+  * Ctrl+Click readback propagates `addr:city` back into dialog state
+  * overwrite warning includes `addr:city` conflicts
+  * suppression for street/postcode/city stays independently selectable
 
 ---
 

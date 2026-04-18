@@ -35,34 +35,37 @@ import org.openstreetmap.josm.tools.Logging;
 /**
  * Orchestrates Street Mode state, dialog synchronization, seed-aware street highlighting/overlays,
  * explicit street-selection zoom behavior with full selected-street framing,
- * spatially disambiguated street readback selection, and split/address operations.
+ * spatially disambiguated street readback selection, and split/address operations including city-aware
+ * address propagation.
  */
 final class StreetModeController {
 
     private static final String LOG_PREFIX = "HouseNumberClick street diagnostics";
 
     /**
-     * Immutable current address selection transferred from dialog to map mode.
+     * Immutable current address selection transferred from dialog to map mode, including optional city.
      */
     static final class AddressSelection {
         private final String streetName;
         private final String displayStreetName;
         private final String streetClusterId;
         private final String postcode;
+        private final String city;
         private final String buildingType;
         private final String houseNumber;
         private final int houseNumberIncrementStep;
 
         AddressSelection(String streetName, String postcode, String buildingType, String houseNumber, int houseNumberIncrementStep) {
-            this(streetName, streetName, "", postcode, buildingType, houseNumber, houseNumberIncrementStep);
+            this(streetName, streetName, "", postcode, "", buildingType, houseNumber, houseNumberIncrementStep);
         }
 
         AddressSelection(String streetName, String displayStreetName, String streetClusterId,
-                String postcode, String buildingType, String houseNumber, int houseNumberIncrementStep) {
+                String postcode, String city, String buildingType, String houseNumber, int houseNumberIncrementStep) {
             this.streetName = normalize(streetName);
             this.displayStreetName = normalize(displayStreetName);
             this.streetClusterId = normalize(streetClusterId);
             this.postcode = normalize(postcode);
+            this.city = normalize(city);
             this.buildingType = normalize(buildingType);
             this.houseNumber = normalize(houseNumber);
             this.houseNumberIncrementStep = normalizeIncrementStep(houseNumberIncrementStep);
@@ -82,6 +85,10 @@ final class StreetModeController {
 
         String getPostcode() {
             return postcode;
+        }
+
+        String getCity() {
+            return city;
         }
 
         String getBuildingType() {
@@ -143,7 +150,7 @@ final class StreetModeController {
     }
 
     interface AddressValuesReadListener {
-        void onAddressValuesRead(String streetName, String postcode, String buildingType, String houseNumber);
+        void onAddressValuesRead(String streetName, String postcode, String city, String buildingType, String houseNumber);
     }
 
     interface BuildingTypeConsumedListener {
@@ -260,6 +267,7 @@ final class StreetModeController {
         streetMapMode.setAddressValues(
                 selection.getStreetName(),
                 selection.getPostcode(),
+                selection.getCity(),
                 selection.getBuildingType(),
                 selection.getHouseNumber(),
                 selection.getHouseNumberIncrementStep()
@@ -285,9 +293,9 @@ final class StreetModeController {
         this.addressValuesReadListener = listener;
     }
 
-    void updateAddressValues(String streetName, String postcode, String buildingType, String houseNumber) {
+    void updateAddressValues(String streetName, String postcode, String city, String buildingType, String houseNumber) {
         if (addressValuesReadListener != null) {
-            addressValuesReadListener.onAddressValuesRead(streetName, postcode, buildingType, houseNumber);
+            addressValuesReadListener.onAddressValuesRead(streetName, postcode, city, buildingType, houseNumber);
         }
     }
 
@@ -588,6 +596,7 @@ final class StreetModeController {
                 navigationService.getCurrentStreetDisplay(),
                 navigationService.getCurrentStreetClusterId(),
                 navigationService.getCurrentPostcode(),
+                lastSelection.getCity(),
                 lastSelection.getBuildingType(),
                 lastSelection.getHouseNumber(),
                 lastSelection.getHouseNumberIncrementStep()

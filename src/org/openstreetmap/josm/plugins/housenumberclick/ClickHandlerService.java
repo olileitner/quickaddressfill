@@ -15,7 +15,8 @@ import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
 
 /**
- * Encapsulates click interaction flow for applying tags, reading addresses, and conflict handling.
+ * Encapsulates click interaction flow for applying tags (including optional city),
+ * reading addresses, and conflict handling.
  */
 final class ClickHandlerService {
 
@@ -25,13 +26,15 @@ final class ClickHandlerService {
         boolean shouldShowOverwriteWarning(
                 AddressConflictService.ConflictAnalysis conflictAnalysis,
                 String overwrittenStreet,
-                String overwrittenPostcode
+                String overwrittenPostcode,
+                String overwrittenCity
         );
 
         boolean confirmOverwrite(
                 AddressConflictService.ConflictAnalysis conflictAnalysis,
                 String overwrittenStreet,
-                String overwrittenPostcode
+                String overwrittenPostcode,
+                String overwrittenCity
         );
 
         void notifyUser(String message);
@@ -45,7 +48,7 @@ final class ClickHandlerService {
 
         void notifyBuildingTypeConsumed();
 
-        void updateAddressValues(String streetName, String postcode, String buildingType, String houseNumber);
+        void updateAddressValues(String streetName, String postcode, String city, String buildingType, String houseNumber);
 
         void rememberStreetInteraction(Way streetWay, LatLon interactionPoint);
     }
@@ -145,6 +148,7 @@ final class ClickHandlerService {
             MouseEvent e,
             String streetName,
             String postcode,
+            String city,
             String buildingType,
             String houseNumber,
             InteractionPort port
@@ -181,11 +185,13 @@ final class ClickHandlerService {
         }
 
         AddressConflictService.ConflictAnalysis conflictAnalysis =
-                addressConflictService.analyze(building, streetName, postcode, houseNumber, buildingType);
+                addressConflictService.analyze(building, streetName, postcode, city, houseNumber, buildingType);
         String overwrittenStreet = conflictAnalysis.getOverwrittenStreet();
         String overwrittenPostcode = conflictAnalysis.getOverwrittenPostcode();
-        if (conflictAnalysis.hasConflict() && port.shouldShowOverwriteWarning(conflictAnalysis, overwrittenStreet, overwrittenPostcode)) {
-            if (!port.confirmOverwrite(conflictAnalysis, overwrittenStreet, overwrittenPostcode)) {
+        String overwrittenCity = conflictAnalysis.getOverwrittenCity();
+        if (conflictAnalysis.hasConflict()
+                && port.shouldShowOverwriteWarning(conflictAnalysis, overwrittenStreet, overwrittenPostcode, overwrittenCity)) {
+            if (!port.confirmOverwrite(conflictAnalysis, overwrittenStreet, overwrittenPostcode, overwrittenCity)) {
                 port.updateStatusLine(org.openstreetmap.josm.tools.I18n.tr("Overwrite cancelled."));
                 e.consume();
                 return rejectedPrimary("overwrite-cancelled", resolution, buildingType, streetName, houseNumber);
@@ -196,7 +202,7 @@ final class ClickHandlerService {
         String appliedHouseNumber = normalize(houseNumber);
         boolean buildingTypeWasUsed = !normalize(buildingType).isEmpty();
         OsmPrimitive writeTarget = resolveWriteTargetForApply(building);
-        BuildingTagApplier.applyAddress(writeTarget, streetName, postcode, buildingType, houseNumber);
+        BuildingTagApplier.applyAddress(writeTarget, streetName, postcode, city, buildingType, houseNumber);
         port.notifyAddressApplied();
 
         DataSet dataSet = MainApplication.getLayerManager() != null
@@ -247,6 +253,7 @@ final class ClickHandlerService {
                 port.updateAddressValues(
                         readback.getStreet(),
                         readback.getPostcode(),
+                        "",
                         readback.getBuildingType(),
                         streetPickedHouseNumber
                 );
@@ -278,6 +285,7 @@ final class ClickHandlerService {
         port.updateAddressValues(
                 readback.getStreet(),
                 readback.getPostcode(),
+                readback.getCity(),
                 readback.getBuildingType(),
                 readback.getHouseNumber()
         );
@@ -353,6 +361,7 @@ final class ClickHandlerService {
         }
         return normalize(readback.getStreet()).isEmpty()
                 && normalize(readback.getPostcode()).isEmpty()
+                && normalize(readback.getCity()).isEmpty()
                 && normalize(readback.getHouseNumber()).isEmpty();
     }
 

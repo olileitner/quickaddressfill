@@ -46,7 +46,8 @@ import org.openstreetmap.josm.tools.I18n;
 import org.openstreetmap.josm.tools.Logging;
 
 /**
- * Single active map mode that handles address apply/readback and temporary split gestures.
+ * Single active map mode that handles address apply/readback (including city-aware apply values)
+ * and temporary split gestures.
  */
 final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPaintable {
 
@@ -66,11 +67,13 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
     private final WindowAdapter appFocusListener;
     private String streetName;
     private String postcode;
+    private String city;
     private String buildingType;
     private String houseNumber;
     private int houseNumberIncrementStep = 1;
     private String warningSuppressedStreet;
     private String warningSuppressedPostcode;
+    private String warningSuppressedCity;
     private boolean ctrlDispatcherRegistered;
     private boolean ctrlPressedForCursor;
     private boolean shiftPressedForCursor;
@@ -136,7 +139,7 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
         };
     }
 
-    void setAddressValues(String streetName, String postcode, String buildingType, String houseNumber, int houseNumberIncrementStep) {
+    void setAddressValues(String streetName, String postcode, String city, String buildingType, String houseNumber, int houseNumberIncrementStep) {
         String normalizedStreet = normalize(streetName);
         String normalizedPostcode = normalize(postcode);
         if (!normalizedStreet.equals(this.streetName)) {
@@ -146,8 +149,13 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
         if (!normalizedPostcode.equals(this.postcode)) {
             warningSuppressedPostcode = null;
         }
+        String normalizedCity = normalize(city);
+        if (!normalizedCity.equals(this.city)) {
+            warningSuppressedCity = null;
+        }
         this.streetName = normalizedStreet;
         this.postcode = normalizedPostcode;
+        this.city = normalizedCity;
         this.buildingType = normalize(buildingType);
         this.houseNumber = houseNumberService.normalize(houseNumber);
         this.houseNumberIncrementStep = houseNumberService.sanitizeIncrementStepForHouseNumber(this.houseNumber, houseNumberIncrementStep);
@@ -640,6 +648,7 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
                 e,
                 streetName,
                 postcode,
+                city,
                 buildingType,
                 houseNumber,
                 interactionPort
@@ -697,12 +706,14 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
             public boolean shouldShowOverwriteWarning(
                     AddressConflictService.ConflictAnalysis conflictAnalysis,
                     String overwrittenStreet,
-                    String overwrittenPostcode
+                    String overwrittenPostcode,
+                    String overwrittenCity
             ) {
                 return HouseNumberClickStreetMapMode.this.shouldShowOverwriteWarning(
                         conflictAnalysis,
                         overwrittenStreet,
-                        overwrittenPostcode
+                        overwrittenPostcode,
+                        overwrittenCity
                 );
             }
 
@@ -710,12 +721,14 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
             public boolean confirmOverwrite(
                     AddressConflictService.ConflictAnalysis conflictAnalysis,
                     String overwrittenStreet,
-                    String overwrittenPostcode
+                    String overwrittenPostcode,
+                    String overwrittenCity
             ) {
                 return HouseNumberClickStreetMapMode.this.confirmOverwrite(
                         conflictAnalysis,
                         overwrittenStreet,
-                        overwrittenPostcode
+                        overwrittenPostcode,
+                        overwrittenCity
                 );
             }
 
@@ -750,8 +763,8 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
             }
 
             @Override
-            public void updateAddressValues(String streetName, String postcode, String buildingType, String houseNumber) {
-                controller.updateAddressValues(streetName, postcode, buildingType, houseNumber);
+            public void updateAddressValues(String streetName, String postcode, String city, String buildingType, String houseNumber) {
+                controller.updateAddressValues(streetName, postcode, city, buildingType, houseNumber);
             }
 
             @Override
@@ -764,7 +777,8 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
     private boolean confirmOverwrite(
             AddressConflictService.ConflictAnalysis conflictAnalysis,
             String overwrittenStreet,
-            String overwrittenPostcode
+            String overwrittenPostcode,
+            String overwrittenCity
     ) {
         ConflictDialogModelBuilder.DialogModel dialogModel =
                 conflictDialogModelBuilder.build(conflictAnalysis, this::displayValue);
@@ -816,11 +830,15 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
 
         boolean streetConflict = hasDifferingField(conflictAnalysis, "addr:street");
         boolean postcodeConflict = hasDifferingField(conflictAnalysis, "addr:postcode");
+        boolean cityConflict = hasDifferingField(conflictAnalysis, "addr:city");
         JCheckBox suppressStreetCheckbox = streetConflict
                 ? new JCheckBox(I18n.tr("Do not warn again for street: {0}.", displayValue(overwrittenStreet)))
                 : null;
         JCheckBox suppressPostcodeCheckbox = postcodeConflict
                 ? new JCheckBox(I18n.tr("Do not warn again for postcode: {0}.", displayValue(overwrittenPostcode)))
+                : null;
+        JCheckBox suppressCityCheckbox = cityConflict
+                ? new JCheckBox(I18n.tr("Do not warn again for city: {0}.", displayValue(overwrittenCity)))
                 : null;
 
         List<Object> content = new ArrayList<>();
@@ -832,6 +850,9 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
         }
         if (suppressPostcodeCheckbox != null) {
             content.add(suppressPostcodeCheckbox);
+        }
+        if (suppressCityCheckbox != null) {
+            content.add(suppressCityCheckbox);
         }
 
         JOptionPane optionPane = new JOptionPane(content.toArray(new Object[0]), JOptionPane.WARNING_MESSAGE, JOptionPane.YES_NO_OPTION);
@@ -849,6 +870,9 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
             if (suppressPostcodeCheckbox != null && suppressPostcodeCheckbox.isSelected()) {
                 warningSuppressedPostcode = normalize(overwrittenPostcode);
             }
+            if (suppressCityCheckbox != null && suppressCityCheckbox.isSelected()) {
+                warningSuppressedCity = normalize(overwrittenCity);
+            }
         }
         return result == JOptionPane.YES_OPTION;
     }
@@ -856,14 +880,17 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
     private boolean shouldShowOverwriteWarning(
             AddressConflictService.ConflictAnalysis conflictAnalysis,
             String overwrittenStreet,
-            String overwrittenPostcode
+            String overwrittenPostcode,
+            String overwrittenCity
     ) {
         boolean streetNeedsWarning = hasDifferingField(conflictAnalysis, "addr:street")
                 && !isStreetWarningSuppressed(overwrittenStreet);
         boolean postcodeNeedsWarning = hasDifferingField(conflictAnalysis, "addr:postcode")
                 && !isPostcodeWarningSuppressed(overwrittenPostcode);
+        boolean cityNeedsWarning = hasDifferingField(conflictAnalysis, "addr:city")
+                && !isCityWarningSuppressed(overwrittenCity);
         boolean buildingNeedsWarning = hasDifferingField(conflictAnalysis, "building");
-        return streetNeedsWarning || postcodeNeedsWarning || buildingNeedsWarning;
+        return streetNeedsWarning || postcodeNeedsWarning || cityNeedsWarning || buildingNeedsWarning;
     }
 
     private boolean hasDifferingField(AddressConflictService.ConflictAnalysis conflictAnalysis, String key) {
@@ -888,6 +915,12 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
         String normalizedOverwrittenPostcode = normalize(overwrittenPostcode);
         return !normalizedOverwrittenPostcode.isEmpty()
                 && normalizedOverwrittenPostcode.equals(normalize(warningSuppressedPostcode));
+    }
+
+    private boolean isCityWarningSuppressed(String overwrittenCity) {
+        String normalizedOverwrittenCity = normalize(overwrittenCity);
+        return !normalizedOverwrittenCity.isEmpty()
+                && normalizedOverwrittenCity.equals(normalize(warningSuppressedCity));
     }
 
 
