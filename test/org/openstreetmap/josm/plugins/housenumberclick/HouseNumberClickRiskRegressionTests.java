@@ -40,6 +40,7 @@ public final class HouseNumberClickRiskRegressionTests {
             run("CountryDetectionService detects confident single-country datasets", HouseNumberClickRiskRegressionTests::testCountryDetectionServiceConfidentDetection);
             run("AddressConflictService detects street and postcode conflicts", HouseNumberClickRiskRegressionTests::testAddressConflictDetection);
             run("AddressConflictService handles missing tags and partial differences", HouseNumberClickRiskRegressionTests::testAddressConflictEdgeCases);
+            run("Empty city/country do not trigger overwrite warnings", HouseNumberClickRiskRegressionTests::testEmptyCityCountryDoNotTriggerOverwriteWarning);
             run("AddressConflictService building-type yes overwrite is ignored", HouseNumberClickRiskRegressionTests::testAddressConflictBuildingTypeYesOverwriteIgnored);
             run("ConflictDialogModelBuilder keeps field order and value mapping", HouseNumberClickRiskRegressionTests::testConflictDialogModelBuilderMapping);
             run("ConflictDialogModelBuilder handles empty analysis", HouseNumberClickRiskRegressionTests::testConflictDialogModelBuilderEmpty);
@@ -396,6 +397,41 @@ public final class HouseNumberClickRiskRegressionTests {
                 "missing building should expose proposed city as overwrite context fallback");
         assertEquals("DE", missingBuilding.getOverwrittenCountry(),
                 "missing building should expose proposed country as overwrite context fallback");
+    }
+
+    private static void testEmptyCityCountryDoNotTriggerOverwriteWarning() throws Exception {
+        AddressConflictService service = new AddressConflictService();
+
+        Way building = new Way();
+        building.put("addr:city", "Old City");
+        building.put("addr:country", "DE");
+
+        AddressConflictService.ConflictAnalysis analysis =
+                service.analyze(building, "", "", "", "", "", "");
+        assertFalse(analysis.hasConflict(),
+                "empty city/country proposals must not trigger overwrite warning conflicts");
+        assertFalse(containsConflictKey(analysis, "addr:city"),
+                "empty city proposal must not produce addr:city differing field");
+        assertFalse(containsConflictKey(analysis, "addr:country"),
+                "empty country proposal must not produce addr:country differing field");
+
+        String applierSource = readPluginSource("BuildingTagApplier.java");
+        assertTrue(applierSource.contains("if (!normalizedCity.isEmpty())"),
+                "city should only be written when a non-empty value is provided");
+        assertTrue(applierSource.contains("if (!normalizedCountry.isEmpty())"),
+                "country should only be written when a non-empty value is provided");
+    }
+
+    private static boolean containsConflictKey(AddressConflictService.ConflictAnalysis analysis, String key) {
+        if (analysis == null || key == null) {
+            return false;
+        }
+        for (AddressConflictService.ConflictField field : analysis.getDifferingFields()) {
+            if (field != null && key.equals(field.getKey())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void testAddressConflictBuildingTypeYesOverwriteIgnored() {
