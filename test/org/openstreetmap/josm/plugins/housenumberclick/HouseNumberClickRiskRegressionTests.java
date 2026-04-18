@@ -46,6 +46,7 @@ public final class HouseNumberClickRiskRegressionTests {
             run("ConflictDialogModelBuilder handles empty analysis", HouseNumberClickRiskRegressionTests::testConflictDialogModelBuilderEmpty);
             run("HouseNumberOverview duplicate marker ignores mixed variants", HouseNumberClickRiskRegressionTests::testOverviewDuplicateMarkerIgnoresMixedVariants);
             run("HouseNumberOverview duplicate marker tracks exact repeats", HouseNumberClickRiskRegressionTests::testOverviewDuplicateMarkerTracksExactRepeats);
+            run("HouseNumberOverview local duplicate marker stays city-agnostic", HouseNumberClickRiskRegressionTests::testOverviewDuplicateMarkerIsCityAgnostic);
             run("HouseNumberOverview duplicate rows expose grouped primitives", HouseNumberClickRiskRegressionTests::testOverviewDuplicateRowCarriesGroupedPrimitives);
             run("DataSet transition detection is stable", HouseNumberClickRiskRegressionTests::testDataSetChangeDetection);
             run("Single split fails without dataset", HouseNumberClickRiskRegressionTests::testSingleSplitFailsWithoutDataset);
@@ -119,6 +120,7 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Building overview duplicate detection ignores relation/outer self-duplicates", HouseNumberClickRiskRegressionTests::testBuildingOverviewCollectorIgnoresRelationOuterSelfDuplicate);
             run("House-number overlay collector ignores relation/outer self-duplicates", HouseNumberClickRiskRegressionTests::testHouseNumberOverlayCollectorIgnoresRelationOuterSelfDuplicate);
             run("House-number overlay collector keeps duplicates across distinct real buildings", HouseNumberClickRiskRegressionTests::testHouseNumberOverlayCollectorKeepsDistinctBuildingDuplicates);
+            run("House-number overlay duplicate key remains city-agnostic", HouseNumberClickRiskRegressionTests::testHouseNumberOverlayDuplicateKeyRemainsCityAgnostic);
             System.out.println("All HouseNumberClick risk regression tests passed.");
         } catch (Throwable t) {
             exitCode = 1;
@@ -392,6 +394,26 @@ public final class HouseNumberClickRiskRegressionTests {
         List<HouseNumberOverviewRow> rows = collector.collectRows(dataSet, selectedStreet, streetIndex);
         String oddValue = firstNonEmptyOddValue(rows);
         assertEquals("1 (dup)", oddValue, "exact duplicate values should show compact duplicate marker");
+    }
+
+    private static void testOverviewDuplicateMarkerIsCityAgnostic() {
+        DataSet dataSet = new DataSet();
+        dataSet.addPrimitiveRecursive(createOpenStreetWay("Example Street", true));
+
+        Way first = createClosedBuilding("Example Street", "1");
+        first.put("addr:city", "Alpha City");
+        Way second = createClosedBuilding("Example Street", "1");
+        second.put("addr:city", "Beta City");
+        dataSet.addPrimitiveRecursive(first);
+        dataSet.addPrimitiveRecursive(second);
+
+        HouseNumberOverviewCollector collector = new HouseNumberOverviewCollector();
+        StreetNameCollector.StreetIndex streetIndex = StreetNameCollector.collectStreetIndex(dataSet);
+        StreetOption selectedStreet = resolveStreetOptionForBaseName(streetIndex, "Example Street");
+        List<HouseNumberOverviewRow> rows = collector.collectRows(dataSet, selectedStreet, streetIndex);
+        String oddValue = firstNonEmptyOddValue(rows);
+        assertEquals("1 (dup)", oddValue,
+                "selected-street duplicate marker should stay city-agnostic and still mark exact house-number duplicates");
     }
 
     private static void testOverviewDuplicateRowCarriesGroupedPrimitives() {
@@ -1434,6 +1456,14 @@ public final class HouseNumberClickRiskRegressionTests {
                 "overlay collector should add exactly one entry for each canonical primitive");
         assertTrue(layerSource.contains("collectDuplicateAddressKeys"),
                 "duplicate detection should remain in the overlay layer and use the collected entries unchanged");
+    }
+
+    private static void testHouseNumberOverlayDuplicateKeyRemainsCityAgnostic() throws Exception {
+        String source = readPluginSource("HouseNumberOverlayLayer.java");
+        assertTrue(source.contains("private String normalizeAddressKey(String street, String postcode, String houseNumber)"),
+                "local selected-street duplicate key should remain based on street, postcode and house number only");
+        assertFalse(source.contains("addr:city"),
+                "local selected-street duplicate detection must not include addr:city in its key");
     }
 
     private static Way createOpenStreetWay(String streetName, boolean withHighwayTag) {
