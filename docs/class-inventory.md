@@ -29,13 +29,14 @@ Core classes as defined in `AGENTS.md` are marked: `HouseNumberClickPlugin`, `Ho
 | `ConflictDialogModelBuilder` | `ConflictDialogModelBuilder.java` | No | Converts conflict analysis into table-oriented dialog rows for overwrite confirmation UI. |
 | `ConflictDialogModelBuilder.DialogModel` | `ConflictDialogModelBuilder.java` | No | Immutable dialog data model containing all rows shown in overwrite confirmation. |
 | `ConflictDialogModelBuilder.DialogRow` | `ConflictDialogModelBuilder.java` | No | One row in the conflict confirmation table (field, existing value, proposed value). |
+| `CountryDetectionService` | `CountryDetectionService.java` | No | Detects a confidently known country for the active dataset to prefill addr:country. |
 | `CornerSnapService` | `CornerSnapService.java` | No | Computes robust split-line intersections against building edges, including corner snapping logic. |
 | `CornerSnapService.IntersectionType` | `CornerSnapService.java` | No | Segment intersection classification used by split-line edge intersection logic. |
 | `CornerSnapService.SegmentIntersection` | `CornerSnapService.java` | No | Internal intersection result for two segments, including type and optional point. |
 | `DialogController` | `DialogController.java` | No | Keeps dialog-side configuration state normalized and synchronized with controller callbacks. |
 | `DialogState` | `DialogState.java` | No | Immutable snapshot of the dialog input values used to compare and restore UI state. |
 | `DuplicateAddressOverviewLayer` | `DuplicateAddressOverviewLayer.java` | No | Map layer that highlights buildings with duplicate exact address keys. |
-| `HouseNumberClickAction` | `HouseNumberClickAction.java` | Yes | Main toolbar/menu action that follows JOSM tool availability (enabled only with an editable dataset/layer), opens the street selection dialog, and activates street mode. |
+| `HouseNumberClickAction` | `HouseNumberClickAction.java` | Yes | Main toolbar/menu action that follows JOSM tool availability (enabled only with an editable dataset/layer), opens the street selection dialog (including optional country prefill), and activates street mode. |
 | `HouseNumberClickPlugin` | `HouseNumberClickPlugin.java` | Yes | Plugin entry point that wires the menu action and performs one-time toolbar migration. |
 | `HouseNumberClickStreetMapMode` | `HouseNumberClickStreetMapMode.java` | Yes | Single active map mode that handles address apply/readback (including city/country-aware apply values), temporary split gestures, and interaction-time overlay self-healing checks. |
 | `HouseNumberClickStreetMapMode.ClickResolutionStats` | `HouseNumberClickStreetMapMode.java` | Yes | Captures per-click outcome metadata for interaction flow handling. |

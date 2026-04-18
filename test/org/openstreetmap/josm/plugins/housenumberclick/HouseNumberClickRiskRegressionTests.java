@@ -37,6 +37,7 @@ public final class HouseNumberClickRiskRegressionTests {
             run("AddressReadbackService street fallback only returns street", HouseNumberClickRiskRegressionTests::testAddressReadbackStreetFallback);
             run("AddressReadbackService candidate fallback order", HouseNumberClickRiskRegressionTests::testAddressReadbackCandidateOrderAndMissingTags);
             run("PostcodeCollector collects sorted visible postcodes", HouseNumberClickRiskRegressionTests::testPostcodeCollectorCollectsSortedVisiblePostcodes);
+            run("CountryDetectionService detects confident single-country datasets", HouseNumberClickRiskRegressionTests::testCountryDetectionServiceConfidentDetection);
             run("AddressConflictService detects street and postcode conflicts", HouseNumberClickRiskRegressionTests::testAddressConflictDetection);
             run("AddressConflictService handles missing tags and partial differences", HouseNumberClickRiskRegressionTests::testAddressConflictEdgeCases);
             run("AddressConflictService building-type yes overwrite is ignored", HouseNumberClickRiskRegressionTests::testAddressConflictBuildingTypeYesOverwriteIgnored);
@@ -244,6 +245,97 @@ public final class HouseNumberClickRiskRegressionTests {
         List<String> postcodes = PostcodeCollector.collectVisiblePostcodes(dataSet);
         assertEquals(List.of("10000", "20000", "30000"), postcodes,
                 "postcode collector should return distinct, sorted visible building postcodes");
+    }
+
+    private static void testCountryDetectionServiceConfidentDetection() throws Exception {
+        CountryDetectionService service = new CountryDetectionService();
+
+        DataSet deDataSet = new DataSet();
+        Way deBuildingA = createClosedBuilding("Example Street", "1");
+        deBuildingA.put("addr:country", "de");
+        Way deBuildingB = createClosedBuilding("Example Street", "2");
+        deBuildingB.put("addr:country", " DE ");
+        Way deBuildingC = createClosedBuilding("Example Street", "3");
+        deBuildingC.put("addr:country", "Deutschland");
+        deDataSet.addPrimitiveRecursive(deBuildingA);
+        deDataSet.addPrimitiveRecursive(deBuildingB);
+        deDataSet.addPrimitiveRecursive(deBuildingC);
+        assertEquals("DE", service.detectConfidentCountry(deDataSet),
+                "consistent country values should be normalized and detected as confident country");
+
+        DataSet gbDataSet = new DataSet();
+        Way gbBuildingA = createClosedBuilding("Example Road", "1");
+        gbBuildingA.put("addr:country", "GB");
+        Way gbBuildingB = createClosedBuilding("Example Road", "2");
+        gbBuildingB.put("addr:country", "gb");
+        Way gbBuildingC = createClosedBuilding("Example Road", "3");
+        gbBuildingC.put("addr:country", "UK");
+        gbDataSet.addPrimitiveRecursive(gbBuildingA);
+        gbDataSet.addPrimitiveRecursive(gbBuildingB);
+        gbDataSet.addPrimitiveRecursive(gbBuildingC);
+        assertEquals("GB", service.detectConfidentCountry(gbDataSet),
+                "GB, gb and UK should normalize to GB");
+
+        DataSet atDataSet = new DataSet();
+        Way atBuildingA = createClosedBuilding("Example Gasse", "1");
+        atBuildingA.put("addr:country", "Austria");
+        Way atBuildingB = createClosedBuilding("Example Gasse", "2");
+        atBuildingB.put("addr:country", "Oesterreich");
+        Way atBuildingC = createClosedBuilding("Example Gasse", "3");
+        atBuildingC.put("addr:country", "AT");
+        atDataSet.addPrimitiveRecursive(atBuildingA);
+        atDataSet.addPrimitiveRecursive(atBuildingB);
+        atDataSet.addPrimitiveRecursive(atBuildingC);
+        assertEquals("AT", service.detectConfidentCountry(atDataSet),
+                "known country names should map to ISO alpha-2 when unambiguous");
+
+        DataSet unknownNameDataSet = new DataSet();
+        Way unknownBuildingA = createClosedBuilding("Unknown Street", "1");
+        unknownBuildingA.put("addr:country", "Neverland");
+        Way unknownBuildingB = createClosedBuilding("Unknown Street", "2");
+        unknownBuildingB.put("addr:country", "Neverland");
+        Way unknownBuildingC = createClosedBuilding("Unknown Street", "3");
+        unknownBuildingC.put("addr:country", "Neverland");
+        unknownNameDataSet.addPrimitiveRecursive(unknownBuildingA);
+        unknownNameDataSet.addPrimitiveRecursive(unknownBuildingB);
+        unknownNameDataSet.addPrimitiveRecursive(unknownBuildingC);
+        assertEquals("", service.detectConfidentCountry(unknownNameDataSet),
+                "unknown long country names must not be returned as raw addr:country values");
+
+        DataSet mixedCountryDataSet = new DataSet();
+        Way deBuilding = createClosedBuilding("Mixed Street", "1");
+        deBuilding.put("addr:country", "DE");
+        Way atBuilding = createClosedBuilding("Mixed Street", "2");
+        atBuilding.put("addr:country", "AT");
+        mixedCountryDataSet.addPrimitiveRecursive(deBuilding);
+        mixedCountryDataSet.addPrimitiveRecursive(atBuilding);
+        assertEquals("", service.detectConfidentCountry(mixedCountryDataSet),
+                "ambiguous country values must not be auto-detected");
+
+        DataSet boundaryFallbackDataSet = new DataSet();
+        Relation deBoundary = new Relation();
+        deBoundary.put("boundary", "administrative");
+        deBoundary.put("admin_level", "2");
+        deBoundary.put("ISO3166-1:alpha2", "DE");
+        boundaryFallbackDataSet.addPrimitive(deBoundary);
+        assertEquals("DE", service.detectConfidentCountry(boundaryFallbackDataSet),
+                "national admin boundary ISO tag should provide fallback country detection");
+
+        DataSet invalidBoundaryCountryDataSet = new DataSet();
+        Relation invalidBoundary = new Relation();
+        invalidBoundary.put("boundary", "administrative");
+        invalidBoundary.put("admin_level", "2");
+        invalidBoundary.put("country", "Neverland");
+        invalidBoundaryCountryDataSet.addPrimitive(invalidBoundary);
+        assertEquals("", service.detectConfidentCountry(invalidBoundaryCountryDataSet),
+                "unknown long boundary country tags must not be used as raw detected country");
+
+        String actionSource = readPluginSource("HouseNumberClickAction.java");
+        assertTrue(actionSource.contains("detectConfidentCountry"),
+                "main action should use country detection before opening the dialog");
+        String dialogSource = readPluginSource("StreetSelectionDialog.java");
+        assertTrue(dialogSource.contains("firstNonEmpty(rememberedCountry, detectedCountry)"),
+                "dialog country field should fall back to detected country when remembered value is empty");
     }
 
     private static void testAddressConflictEdgeCases() {

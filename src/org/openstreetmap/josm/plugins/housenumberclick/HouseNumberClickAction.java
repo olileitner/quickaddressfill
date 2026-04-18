@@ -10,17 +10,20 @@ import org.openstreetmap.josm.tools.I18n;
 
 /**
  * Main toolbar/menu action that follows JOSM tool availability (enabled only with an editable
- * dataset/layer), opens the street selection dialog, and activates street mode.
+ * dataset/layer), opens the street selection dialog (including optional country prefill),
+ * and activates street mode.
  */
 public class HouseNumberClickAction extends JosmAction {
 
     private final StreetModeController streetModeController;
     private final StreetSelectionDialog streetSelectionDialog;
+    private final CountryDetectionService countryDetectionService;
 
     public HouseNumberClickAction() {
         super(I18n.tr("HouseNumberClick"), "housenumberclick", I18n.tr("Open HouseNumberClick street dialog"), null, true);
         this.streetModeController = new StreetModeController();
         this.streetSelectionDialog = new StreetSelectionDialog(streetModeController);
+        this.countryDetectionService = new CountryDetectionService();
         updateEnabledState();
     }
 
@@ -53,6 +56,7 @@ public class HouseNumberClickAction extends JosmAction {
 
         List<StreetOption> streetOptions = StreetNameCollector.collectStreetIndex(dataSet).getStreetOptions();
         List<String> detectedPostcodes = PostcodeCollector.collectVisiblePostcodes(dataSet);
-        streetSelectionDialog.showDialog(dataSet, streetOptions, detectedPostcodes);
+        String detectedCountry = countryDetectionService.detectConfidentCountry(dataSet);
+        streetSelectionDialog.showDialog(dataSet, streetOptions, detectedPostcodes, detectedCountry);
     }
 }

@@ -429,7 +429,8 @@ final class StreetSelectionDialog {
         streetModeController.onMainDialogClosed();
     }
 
-    void showDialog(DataSet activeDataSet, List<StreetOption> streetOptions, List<String> detectedPostcodes) {
+    void showDialog(DataSet activeDataSet, List<StreetOption> streetOptions, List<String> detectedPostcodes,
+            String detectedCountry) {
         if (streetOptions == null || streetOptions.isEmpty()) {
             JOptionPane.showMessageDialog(
                     MainApplication.getMainFrame(),
@@ -468,7 +469,7 @@ final class StreetSelectionDialog {
         buildingTypeCombo.getEditor().setItem(firstNonEmpty(rememberedBuildingType, ""));
         houseNumberField.setText(firstNonEmpty(rememberedHouseNumber, INITIAL_HOUSE_NUMBER));
         cityField.setText(firstNonEmpty(rememberedCity, ""));
-        countryField.setText(firstNonEmpty(rememberedCountry, ""));
+        countryField.setText(firstNonEmpty(rememberedCountry, detectedCountry));
         applyIncrementStep(rememberedIncrementStep);
         applyOverlaySettings(
                 rememberedHouseNumberLayerEnabled,
