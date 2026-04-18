@@ -126,6 +126,7 @@ public final class HouseNumberClickRiskRegressionTests {
         building.put("addr:street", " Example Street ");
         building.put("addr:postcode", " 12345 ");
         building.put("addr:city", " Sampletown ");
+        building.put("addr:country", " DE ");
         building.put("addr:housenumber", " 77b ");
         building.put("building", " garage ");
 
@@ -133,6 +134,7 @@ public final class HouseNumberClickRiskRegressionTests {
         assertEquals("Example Street", result.getStreet(), "street should be trimmed from building tag");
         assertEquals("12345", result.getPostcode(), "postcode should be trimmed from building tag");
         assertEquals("Sampletown", result.getCity(), "city should be trimmed from building tag");
+        assertEquals("DE", result.getCountry(), "country should be trimmed from building tag");
         assertEquals("garage", result.getBuildingType(), "building type should be read from clicked building tag");
         assertEquals("77b", result.getHouseNumber(), "house number should be trimmed from building tag");
         assertEquals("address-tags", result.getSource(), "source should mark address-tag readback");
@@ -155,6 +157,7 @@ public final class HouseNumberClickRiskRegressionTests {
         assertEquals("Example Avenue", result.getStreet(), "street fallback should be trimmed");
         assertEquals("", result.getPostcode(), "street fallback should not provide a postcode override");
         assertEquals("", result.getCity(), "street fallback should not provide a city override");
+        assertEquals("", result.getCountry(), "street fallback should not provide a country override");
         assertEquals("", result.getBuildingType(), "street fallback should not provide a building-type override");
         assertEquals("", result.getHouseNumber(), "street fallback should not provide a house-number override");
         assertEquals("street-fallback", result.getSource(), "source should mark street fallback");
@@ -197,20 +200,23 @@ public final class HouseNumberClickRiskRegressionTests {
         building.put("addr:street", "Old Street");
         building.put("addr:postcode", "12345");
         building.put("addr:city", "Old City");
+        building.put("addr:country", "DE");
         building.put("addr:housenumber", "12");
         building.put("building", "residential");
 
-        AddressConflictService.ConflictAnalysis analysis = service.analyze(building, "New Street", "54321", "New City", "34", "house");
+        AddressConflictService.ConflictAnalysis analysis = service.analyze(building, "New Street", "54321", "New City", "AT", "34", "house");
         assertTrue(analysis.hasConflict(), "different street/postcode should trigger overwrite conflict");
         assertEquals("Old Street", analysis.getOverwrittenStreet(), "existing street should be used as overwritten street");
         assertEquals("12345", analysis.getOverwrittenPostcode(), "existing postcode should be used as overwritten postcode");
         assertEquals("Old City", analysis.getOverwrittenCity(), "existing city should be used as overwritten city");
-        assertEquals(5, analysis.getDifferingFields().size(), "street, postcode, city, housenumber and building diffs should be listed");
+        assertEquals("DE", analysis.getOverwrittenCountry(), "existing country should be used as overwritten country");
+        assertEquals(6, analysis.getDifferingFields().size(), "street, postcode, city, country, housenumber and building diffs should be listed");
         assertEquals("addr:street", analysis.getDifferingFields().get(0).getKey(), "street diff should appear first");
         assertEquals("addr:postcode", analysis.getDifferingFields().get(1).getKey(), "postcode diff should appear second");
         assertEquals("addr:city", analysis.getDifferingFields().get(2).getKey(), "city diff should appear third");
-        assertEquals("addr:housenumber", analysis.getDifferingFields().get(3).getKey(), "housenumber diff should appear fourth");
-        assertEquals("building", analysis.getDifferingFields().get(4).getKey(), "building diff should appear fifth");
+        assertEquals("addr:country", analysis.getDifferingFields().get(3).getKey(), "country diff should appear fourth");
+        assertEquals("addr:housenumber", analysis.getDifferingFields().get(4).getKey(), "housenumber diff should appear fifth");
+        assertEquals("building", analysis.getDifferingFields().get(5).getKey(), "building diff should appear sixth");
     }
 
     private static void testPostcodeCollectorCollectsSortedVisiblePostcodes() {
@@ -245,14 +251,14 @@ public final class HouseNumberClickRiskRegressionTests {
 
         Way buildingWithoutStreet = new Way();
         buildingWithoutStreet.put("addr:postcode", "12345");
-        AddressConflictService.ConflictAnalysis noStreetConflict = service.analyze(buildingWithoutStreet, "Any Street", "", "", "", "");
+        AddressConflictService.ConflictAnalysis noStreetConflict = service.analyze(buildingWithoutStreet, "Any Street", "", "", "", "", "");
         assertFalse(noStreetConflict.hasConflict(), "missing existing street should not trigger street conflict");
         assertEquals("Any Street", noStreetConflict.getOverwrittenStreet(), "fallback overwritten street should use proposed street");
         assertEquals("12345", noStreetConflict.getOverwrittenPostcode(), "existing postcode should remain overwritten postcode fallback");
 
         Way buildingWithOnlyHouseNumber = new Way();
         buildingWithOnlyHouseNumber.put("addr:housenumber", "10");
-        AddressConflictService.ConflictAnalysis onlyHouseDiff = service.analyze(buildingWithOnlyHouseNumber, "", "", "", "11", "");
+        AddressConflictService.ConflictAnalysis onlyHouseDiff = service.analyze(buildingWithOnlyHouseNumber, "", "", "", "", "11", "");
         assertFalse(onlyHouseDiff.hasConflict(), "house number difference alone should not trigger conflict dialog");
         assertEquals(1, onlyHouseDiff.getDifferingFields().size(), "house number difference should still be listed");
         assertEquals("addr:housenumber", onlyHouseDiff.getDifferingFields().get(0).getKey(), "listed diff should be housenumber");
@@ -261,15 +267,17 @@ public final class HouseNumberClickRiskRegressionTests {
         identical.put("addr:street", "Same");
         identical.put("addr:postcode", "11111");
         identical.put("addr:housenumber", "3");
-        AddressConflictService.ConflictAnalysis identicalAnalysis = service.analyze(identical, "Same", "11111", "", "3", "");
+        AddressConflictService.ConflictAnalysis identicalAnalysis = service.analyze(identical, "Same", "11111", "", "", "3", "");
         assertFalse(identicalAnalysis.hasConflict(), "identical values should not trigger conflict");
         assertEquals(0, identicalAnalysis.getDifferingFields().size(), "identical values should produce no differing fields");
 
-        AddressConflictService.ConflictAnalysis missingBuilding = service.analyze(null, "Street", "77777", "City", "", "");
+        AddressConflictService.ConflictAnalysis missingBuilding = service.analyze(null, "Street", "77777", "City", "DE", "", "");
         assertEquals("77777", missingBuilding.getOverwrittenPostcode(),
                 "missing building should expose proposed postcode as overwrite context fallback");
         assertEquals("City", missingBuilding.getOverwrittenCity(),
                 "missing building should expose proposed city as overwrite context fallback");
+        assertEquals("DE", missingBuilding.getOverwrittenCountry(),
+                "missing building should expose proposed country as overwrite context fallback");
     }
 
     private static void testAddressConflictBuildingTypeYesOverwriteIgnored() {
@@ -278,13 +286,13 @@ public final class HouseNumberClickRiskRegressionTests {
         Way building = new Way();
         building.put("building", "yes");
         AddressConflictService.ConflictAnalysis ignoredYesOverwrite =
-                service.analyze(building, "", "", "", "", "house");
+                service.analyze(building, "", "", "", "", "", "house");
         assertFalse(ignoredYesOverwrite.hasConflict(), "overwriting building=yes should not trigger warning");
         assertEquals(0, ignoredYesOverwrite.getDifferingFields().size(), "building=yes overwrite should not add dialog rows");
 
         building.put("building", "residential");
         AddressConflictService.ConflictAnalysis realTypeOverwrite =
-                service.analyze(building, "", "", "", "", "house");
+                service.analyze(building, "", "", "", "", "", "house");
         assertTrue(realTypeOverwrite.hasConflict(), "overwriting a specific building type should trigger warning");
         assertEquals(1, realTypeOverwrite.getDifferingFields().size(), "specific building-type overwrite should add one dialog row");
         assertEquals("building", realTypeOverwrite.getDifferingFields().get(0).getKey(), "building overwrite row should use building key");
@@ -299,10 +307,14 @@ public final class HouseNumberClickRiskRegressionTests {
                 "overwrite dialog should offer a postcode-specific suppression option");
         assertTrue(source.contains("Do not warn again for city:"),
                 "overwrite dialog should offer a city-specific suppression option");
+        assertTrue(source.contains("Do not warn again for country:"),
+                "overwrite dialog should offer a country-specific suppression option");
         assertTrue(source.contains("shouldShowOverwriteWarning"),
                 "warning decision should be derived from field-specific suppression checks");
         assertTrue(source.contains("isCityWarningSuppressed"),
                 "warning decision should include city-specific suppression checks");
+        assertTrue(source.contains("isCountryWarningSuppressed"),
+                "warning decision should include country-specific suppression checks");
     }
 
     private static void testConflictDialogModelBuilderMapping() {
@@ -313,16 +325,18 @@ public final class HouseNumberClickRiskRegressionTests {
         building.put("addr:street", "Old Street");
         building.put("addr:postcode", "12345");
         building.put("addr:city", "Old City");
+        building.put("addr:country", "DE");
         building.put("addr:housenumber", "9");
 
-        AddressConflictService.ConflictAnalysis analysis = service.analyze(building, "New Street", "54321", "New City", "10", "");
+        AddressConflictService.ConflictAnalysis analysis = service.analyze(building, "New Street", "54321", "New City", "AT", "10", "");
         ConflictDialogModelBuilder.DialogModel model = builder.build(analysis, value -> "[" + value + "]");
 
-        assertEquals(4, model.getRows().size(), "all differing fields should be present in dialog model");
+        assertEquals(5, model.getRows().size(), "all differing fields should be present in dialog model");
         assertEquals("addr:street", model.getRows().get(0).getField(), "street row should be first");
         assertEquals("addr:postcode", model.getRows().get(1).getField(), "postcode row should be second");
         assertEquals("addr:city", model.getRows().get(2).getField(), "city row should be third");
-        assertEquals("addr:housenumber", model.getRows().get(3).getField(), "housenumber row should be fourth");
+        assertEquals("addr:country", model.getRows().get(3).getField(), "country row should be fourth");
+        assertEquals("addr:housenumber", model.getRows().get(4).getField(), "housenumber row should be fifth");
         assertEquals("[Old Street]", model.getRows().get(0).getExisting(), "existing value should map to dialog row");
         assertEquals("[New Street]", model.getRows().get(0).getProposed(), "proposed value should map to dialog row");
     }
@@ -414,6 +428,7 @@ public final class HouseNumberClickRiskRegressionTests {
                         " cluster-1 ",
                         " 12345 ",
                         "  Sample City  ",
+                        "  DE  ",
                         " house ",
                         " 12a ",
                         99
@@ -424,6 +439,7 @@ public final class HouseNumberClickRiskRegressionTests {
         assertEquals("cluster-1", selection.getStreetClusterId(), "street cluster id should be trimmed");
         assertEquals("12345", selection.getPostcode(), "postcode should be trimmed");
         assertEquals("Sample City", selection.getCity(), "city should be trimmed");
+        assertEquals("DE", selection.getCountry(), "country should be trimmed");
         assertEquals("house", selection.getBuildingType(), "building type should be trimmed");
         assertEquals("12a", selection.getHouseNumber(), "house number should be trimmed");
         assertEquals(1, selection.getHouseNumberIncrementStep(), "invalid step should normalize to +1");
@@ -917,12 +933,14 @@ public final class HouseNumberClickRiskRegressionTests {
 
     private static void testCompletenessLegendLabelsPresent() throws Exception {
         String source = readPluginSource("BuildingOverviewLayer.java");
-        assertTrue(source.contains("All address keys present"),
+        assertTrue(source.contains("All address keys present (incl. country)"),
                 "completeness legend should contain the All-mode present label");
         assertTrue(source.contains("Address incomplete"),
                 "completeness legend should contain the All-mode incomplete label");
-        assertTrue(source.contains("hasMissingStreet || hasMissingPostcode || hasMissingHouseNumber || hasMissingCity"),
-                "all-mode completeness should treat missing city as incomplete");
+        assertTrue(source.contains("hasMissingStreet || hasMissingPostcode || hasMissingHouseNumber || hasMissingCity || hasMissingCountry"),
+                "all-mode completeness should treat missing city/country as incomplete");
+        assertTrue(source.contains("Only country missing"),
+                "completeness legend should expose dedicated only-country-missing category");
         assertTrue(source.contains("Postcode present"),
                 "completeness legend should contain postcode-present label");
         assertTrue(source.contains("Postcode missing"),

@@ -46,7 +46,7 @@ import org.openstreetmap.josm.tools.I18n;
 import org.openstreetmap.josm.tools.Logging;
 
 /**
- * Single active map mode that handles address apply/readback (including city-aware apply values),
+ * Single active map mode that handles address apply/readback (including city/country-aware apply values),
  * temporary split gestures, and interaction-time overlay self-healing checks.
  */
 final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPaintable {
@@ -67,12 +67,14 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
     private String streetName;
     private String postcode;
     private String city;
+    private String country;
     private String buildingType;
     private String houseNumber;
     private int houseNumberIncrementStep = 1;
     private String warningSuppressedStreet;
     private String warningSuppressedPostcode;
     private String warningSuppressedCity;
+    private String warningSuppressedCountry;
     private boolean ctrlDispatcherRegistered;
     private boolean ctrlPressedForCursor;
     private boolean shiftPressedForCursor;
@@ -138,7 +140,8 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
         };
     }
 
-    void setAddressValues(String streetName, String postcode, String city, String buildingType, String houseNumber, int houseNumberIncrementStep) {
+    void setAddressValues(String streetName, String postcode, String city, String country,
+            String buildingType, String houseNumber, int houseNumberIncrementStep) {
         String normalizedStreet = normalize(streetName);
         String normalizedPostcode = normalize(postcode);
         if (!normalizedStreet.equals(this.streetName)) {
@@ -152,9 +155,14 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
         if (!normalizedCity.equals(this.city)) {
             warningSuppressedCity = null;
         }
+        String normalizedCountry = normalize(country);
+        if (!normalizedCountry.equals(this.country)) {
+            warningSuppressedCountry = null;
+        }
         this.streetName = normalizedStreet;
         this.postcode = normalizedPostcode;
         this.city = normalizedCity;
+        this.country = normalizedCountry;
         this.buildingType = normalize(buildingType);
         this.houseNumber = houseNumberService.normalize(houseNumber);
         this.houseNumberIncrementStep = houseNumberService.sanitizeIncrementStepForHouseNumber(this.houseNumber, houseNumberIncrementStep);
@@ -650,6 +658,7 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
                 streetName,
                 postcode,
                 city,
+                country,
                 buildingType,
                 houseNumber,
                 interactionPort
@@ -708,13 +717,15 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
                     AddressConflictService.ConflictAnalysis conflictAnalysis,
                     String overwrittenStreet,
                     String overwrittenPostcode,
-                    String overwrittenCity
+                    String overwrittenCity,
+                    String overwrittenCountry
             ) {
                 return HouseNumberClickStreetMapMode.this.shouldShowOverwriteWarning(
                         conflictAnalysis,
                         overwrittenStreet,
                         overwrittenPostcode,
-                        overwrittenCity
+                        overwrittenCity,
+                        overwrittenCountry
                 );
             }
 
@@ -723,13 +734,15 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
                     AddressConflictService.ConflictAnalysis conflictAnalysis,
                     String overwrittenStreet,
                     String overwrittenPostcode,
-                    String overwrittenCity
+                    String overwrittenCity,
+                    String overwrittenCountry
             ) {
                 return HouseNumberClickStreetMapMode.this.confirmOverwrite(
                         conflictAnalysis,
                         overwrittenStreet,
                         overwrittenPostcode,
-                        overwrittenCity
+                        overwrittenCity,
+                        overwrittenCountry
                 );
             }
 
@@ -764,8 +777,9 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
             }
 
             @Override
-            public void updateAddressValues(String streetName, String postcode, String city, String buildingType, String houseNumber) {
-                controller.updateAddressValues(streetName, postcode, city, buildingType, houseNumber);
+            public void updateAddressValues(String streetName, String postcode, String city, String country,
+                    String buildingType, String houseNumber) {
+                controller.updateAddressValues(streetName, postcode, city, country, buildingType, houseNumber);
             }
 
             @Override
@@ -779,7 +793,8 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
             AddressConflictService.ConflictAnalysis conflictAnalysis,
             String overwrittenStreet,
             String overwrittenPostcode,
-            String overwrittenCity
+            String overwrittenCity,
+            String overwrittenCountry
     ) {
         ConflictDialogModelBuilder.DialogModel dialogModel =
                 conflictDialogModelBuilder.build(conflictAnalysis, this::displayValue);
@@ -832,6 +847,7 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
         boolean streetConflict = hasDifferingField(conflictAnalysis, "addr:street");
         boolean postcodeConflict = hasDifferingField(conflictAnalysis, "addr:postcode");
         boolean cityConflict = hasDifferingField(conflictAnalysis, "addr:city");
+        boolean countryConflict = hasDifferingField(conflictAnalysis, "addr:country");
         JCheckBox suppressStreetCheckbox = streetConflict
                 ? new JCheckBox(I18n.tr("Do not warn again for street: {0}.", displayValue(overwrittenStreet)))
                 : null;
@@ -840,6 +856,9 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
                 : null;
         JCheckBox suppressCityCheckbox = cityConflict
                 ? new JCheckBox(I18n.tr("Do not warn again for city: {0}.", displayValue(overwrittenCity)))
+                : null;
+        JCheckBox suppressCountryCheckbox = countryConflict
+                ? new JCheckBox(I18n.tr("Do not warn again for country: {0}.", displayValue(overwrittenCountry)))
                 : null;
 
         List<Object> content = new ArrayList<>();
@@ -854,6 +873,9 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
         }
         if (suppressCityCheckbox != null) {
             content.add(suppressCityCheckbox);
+        }
+        if (suppressCountryCheckbox != null) {
+            content.add(suppressCountryCheckbox);
         }
 
         JOptionPane optionPane = new JOptionPane(content.toArray(new Object[0]), JOptionPane.WARNING_MESSAGE, JOptionPane.YES_NO_OPTION);
@@ -874,6 +896,9 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
             if (suppressCityCheckbox != null && suppressCityCheckbox.isSelected()) {
                 warningSuppressedCity = normalize(overwrittenCity);
             }
+            if (suppressCountryCheckbox != null && suppressCountryCheckbox.isSelected()) {
+                warningSuppressedCountry = normalize(overwrittenCountry);
+            }
         }
         return result == JOptionPane.YES_OPTION;
     }
@@ -882,7 +907,8 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
             AddressConflictService.ConflictAnalysis conflictAnalysis,
             String overwrittenStreet,
             String overwrittenPostcode,
-            String overwrittenCity
+            String overwrittenCity,
+            String overwrittenCountry
     ) {
         boolean streetNeedsWarning = hasDifferingField(conflictAnalysis, "addr:street")
                 && !isStreetWarningSuppressed(overwrittenStreet);
@@ -890,8 +916,10 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
                 && !isPostcodeWarningSuppressed(overwrittenPostcode);
         boolean cityNeedsWarning = hasDifferingField(conflictAnalysis, "addr:city")
                 && !isCityWarningSuppressed(overwrittenCity);
+        boolean countryNeedsWarning = hasDifferingField(conflictAnalysis, "addr:country")
+                && !isCountryWarningSuppressed(overwrittenCountry);
         boolean buildingNeedsWarning = hasDifferingField(conflictAnalysis, "building");
-        return streetNeedsWarning || postcodeNeedsWarning || cityNeedsWarning || buildingNeedsWarning;
+        return streetNeedsWarning || postcodeNeedsWarning || cityNeedsWarning || countryNeedsWarning || buildingNeedsWarning;
     }
 
     private boolean hasDifferingField(AddressConflictService.ConflictAnalysis conflictAnalysis, String key) {
@@ -922,6 +950,12 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
         String normalizedOverwrittenCity = normalize(overwrittenCity);
         return !normalizedOverwrittenCity.isEmpty()
                 && normalizedOverwrittenCity.equals(normalize(warningSuppressedCity));
+    }
+
+    private boolean isCountryWarningSuppressed(String overwrittenCountry) {
+        String normalizedOverwrittenCountry = normalize(overwrittenCountry);
+        return !normalizedOverwrittenCountry.isEmpty()
+                && normalizedOverwrittenCountry.equals(normalize(warningSuppressedCountry));
     }
 
 

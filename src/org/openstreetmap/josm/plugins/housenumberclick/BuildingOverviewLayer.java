@@ -31,7 +31,7 @@ final class BuildingOverviewLayer extends Layer {
 
     /**
      * Selected required address field used to focus completeness-missing highlighting,
-     * including an all-required-fields mode (street, postcode, house number, city).
+     * including an all-required-fields mode (street, postcode, house number, city, country).
      */
     enum MissingField {
         ALL,
@@ -43,6 +43,7 @@ final class BuildingOverviewLayer extends Layer {
 
     private static final Color ADDRESSED_FILL_COLOR = new Color(86, 180, 233, 190);
     private static final Color UNADDRESSED_FILL_COLOR = new Color(230, 159, 0, 190);
+    private static final Color ONLY_COUNTRY_MISSING_FILL_COLOR = new Color(230, 210, 80, 200);
     static final Color NO_ADDRESS_DATA_COLOR = new Color(135, 135, 135, 130);
     private static final Color LEGEND_BACKGROUND_COLOR = new Color(248, 248, 248, 215);
     private static final int LEGEND_PADDING = 8;
@@ -91,7 +92,8 @@ final class BuildingOverviewLayer extends Layer {
         String incomplete = missingLegendLabel();
         String noAddressData = I18n.tr("No Address Data");
 
-        int contentRows = 3;
+        boolean showOnlyCountryMissingRow = missingField == MissingField.ALL;
+        int contentRows = showOnlyCountryMissingRow ? 4 : 3;
         int legendHeight = LEGEND_PADDING * 2 + LEGEND_ROW_HEIGHT + (contentRows * LEGEND_ROW_HEIGHT);
         int legendWidth = Math.max(
                 250,
@@ -117,6 +119,11 @@ final class BuildingOverviewLayer extends Layer {
         rowY += LEGEND_ROW_HEIGHT;
         drawLegendRow(g, textBaseX, rowY, UNADDRESSED_FILL_COLOR, incomplete);
 
+        if (showOnlyCountryMissingRow) {
+            rowY += LEGEND_ROW_HEIGHT;
+            drawLegendRow(g, textBaseX, rowY, ONLY_COUNTRY_MISSING_FILL_COLOR, I18n.tr("Only country missing"));
+        }
+
         rowY += LEGEND_ROW_HEIGHT;
         drawLegendRow(g, textBaseX, rowY, NO_ADDRESS_DATA_COLOR, noAddressData);
     }
@@ -141,6 +148,8 @@ final class BuildingOverviewLayer extends Layer {
                     entry.hasMissingPostcode(),
                     entry.hasMissingHouseNumber(),
                     entry.hasMissingCity(),
+                    entry.hasMissingCountry(),
+                    entry.hasOnlyCountryMissing(),
                     entry.hasMissingRequiredAddressFields()
             );
             return;
@@ -155,6 +164,8 @@ final class BuildingOverviewLayer extends Layer {
                     entry.hasMissingPostcode(),
                     entry.hasMissingHouseNumber(),
                     entry.hasMissingCity(),
+                    entry.hasMissingCountry(),
+                    entry.hasOnlyCountryMissing(),
                     entry.hasMissingRequiredAddressFields()
             );
         }
@@ -166,6 +177,8 @@ final class BuildingOverviewLayer extends Layer {
             boolean hasMissingPostcode,
             boolean hasMissingHouseNumber,
             boolean hasMissingCity,
+            boolean hasMissingCountry,
+            boolean hasOnlyCountryMissing,
             boolean hasMissingRequiredAddressFields) {
         if (relation == null || !relation.isUsable()) {
             return;
@@ -188,6 +201,8 @@ final class BuildingOverviewLayer extends Layer {
                     hasMissingPostcode,
                     hasMissingHouseNumber,
                     hasMissingCity,
+                    hasMissingCountry,
+                    hasOnlyCountryMissing,
                     hasMissingRequiredAddressFields
             );
         }
@@ -199,6 +214,8 @@ final class BuildingOverviewLayer extends Layer {
             boolean hasMissingPostcode,
             boolean hasMissingHouseNumber,
             boolean hasMissingCity,
+            boolean hasMissingCountry,
+            boolean hasOnlyCountryMissing,
             boolean hasMissingRequiredAddressFields) {
         Path2D polygon = buildScreenPolygon(mapView, way);
         if (polygon == null) {
@@ -211,6 +228,8 @@ final class BuildingOverviewLayer extends Layer {
                 hasMissingPostcode,
                 hasMissingHouseNumber,
                 hasMissingCity,
+                hasMissingCountry,
+                hasOnlyCountryMissing,
                 hasMissingRequiredAddressFields
         );
         if (fillColor == null) {
@@ -226,15 +245,21 @@ final class BuildingOverviewLayer extends Layer {
             boolean hasMissingPostcode,
             boolean hasMissingHouseNumber,
             boolean hasMissingCity,
+            boolean hasMissingCountry,
+            boolean hasOnlyCountryMissing,
             boolean hasMissingRequiredAddressFields) {
         if (hasNoAddressData) {
             return NO_ADDRESS_DATA_COLOR;
+        }
+        if (missingField == MissingField.ALL && hasOnlyCountryMissing) {
+            return ONLY_COUNTRY_MISSING_FILL_COLOR;
         }
         if (hasSelectedMissingField(
                 hasMissingStreet,
                 hasMissingPostcode,
                 hasMissingHouseNumber,
-                hasMissingCity
+                hasMissingCity,
+                hasMissingCountry
         )) {
             return UNADDRESSED_FILL_COLOR;
         }
@@ -245,10 +270,10 @@ final class BuildingOverviewLayer extends Layer {
     }
 
     private boolean hasSelectedMissingField(boolean hasMissingStreet, boolean hasMissingPostcode,
-            boolean hasMissingHouseNumber, boolean hasMissingCity) {
+            boolean hasMissingHouseNumber, boolean hasMissingCity, boolean hasMissingCountry) {
         switch (missingField) {
             case ALL:
-                return hasMissingStreet || hasMissingPostcode || hasMissingHouseNumber || hasMissingCity;
+                return hasMissingStreet || hasMissingPostcode || hasMissingHouseNumber || hasMissingCity || hasMissingCountry;
             case STREET:
                 return hasMissingStreet;
             case HOUSE_NUMBER:
@@ -264,7 +289,7 @@ final class BuildingOverviewLayer extends Layer {
     private String completeLegendLabel() {
         switch (missingField) {
             case ALL:
-                return I18n.tr("All address keys present");
+                return I18n.tr("All address keys present (incl. country)");
             case STREET:
                 return I18n.tr("Street present");
             case HOUSE_NUMBER:

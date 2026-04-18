@@ -9,7 +9,7 @@ import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 
 /**
- * Applies address (including optional city) and building tags via JOSM commands,
+ * Applies address (including optional city/country) and building tags via JOSM commands,
  * including relation-aware write targets.
  */
 final class BuildingTagApplier {
@@ -18,7 +18,7 @@ final class BuildingTagApplier {
         // Utility class
     }
 
-    static void applyAddress(OsmPrimitive building, String streetName, String postcode, String city,
+    static void applyAddress(OsmPrimitive building, String streetName, String postcode, String city, String country,
             String buildingType, String houseNumber) {
         String normalizedStreet = normalize(streetName);
         if (building == null || normalizedStreet.isEmpty()) {
@@ -36,6 +36,11 @@ final class BuildingTagApplier {
         String normalizedCity = normalize(city);
         if (!normalizedCity.isEmpty()) {
             tags.put("addr:city", normalizedCity);
+        }
+
+        String normalizedCountry = normalize(country);
+        if (!normalizedCountry.isEmpty()) {
+            tags.put("addr:country", normalizedCountry);
         }
 
         String normalizedBuildingType = normalize(buildingType);

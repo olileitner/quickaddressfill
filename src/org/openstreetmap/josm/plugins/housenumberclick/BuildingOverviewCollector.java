@@ -67,6 +67,8 @@ final class BuildingOverviewCollector {
                     candidate.hasMissingPostcode,
                     candidate.hasMissingHouseNumber,
                     candidate.hasMissingCity,
+                    candidate.hasMissingCountry,
+                    candidate.hasOnlyCountryMissing,
                     candidate.hasMisplacedHouseNumber,
                     hasDuplicateExactAddress
             ));
@@ -97,11 +99,13 @@ final class BuildingOverviewCollector {
         String postcode = normalize(canonicalPrimitive.get("addr:postcode"));
         String houseNumber = normalize(canonicalPrimitive.get("addr:housenumber"));
         String city = normalize(canonicalPrimitive.get("addr:city"));
+        String country = normalize(canonicalPrimitive.get("addr:country"));
 
         boolean hasStreet = !street.isEmpty();
         boolean hasPostcode = !postcode.isEmpty();
         boolean hasHouseNumber = !houseNumber.isEmpty();
         boolean hasCity = !city.isEmpty();
+        boolean hasCountry = !country.isEmpty();
         boolean hasNoAddressData = !hasStreet && !hasPostcode && !hasHouseNumber;
         boolean hasCompleteAddressData = hasStreet && hasPostcode && hasHouseNumber;
         boolean hasMissingRequiredAddressFields = !hasNoAddressData && !hasCompleteAddressData;
@@ -109,6 +113,8 @@ final class BuildingOverviewCollector {
         boolean hasMissingPostcode = hasMissingRequiredAddressFields && !hasPostcode;
         boolean hasMissingHouseNumber = hasMissingRequiredAddressFields && !hasHouseNumber;
         boolean hasMissingCity = !hasNoAddressData && !hasCity;
+        boolean hasMissingCountry = !hasNoAddressData && !hasCountry;
+        boolean hasOnlyCountryMissing = hasStreet && hasPostcode && hasHouseNumber && hasCity && !hasCountry;
         boolean hasMisplacedHouseNumber = !hasHouseNumber && hasMisplacedHouseNumber(canonicalPrimitive);
         String duplicateAddressBaseKey = hasHouseNumber ? buildDuplicateAddressBaseKey(canonicalPrimitive) : "";
         String duplicateAddressCityKey = hasHouseNumber ? buildDuplicateAddressCityKey(canonicalPrimitive) : "";
@@ -121,6 +127,8 @@ final class BuildingOverviewCollector {
                 hasMissingPostcode,
                 hasMissingHouseNumber,
                 hasMissingCity,
+                hasMissingCountry,
+                hasOnlyCountryMissing,
                 hasMisplacedHouseNumber,
                 duplicateAddressBaseKey,
                 duplicateAddressCityKey
@@ -322,6 +330,8 @@ final class BuildingOverviewCollector {
         private final boolean hasMissingPostcode;
         private final boolean hasMissingHouseNumber;
         private final boolean hasMissingCity;
+        private final boolean hasMissingCountry;
+        private final boolean hasOnlyCountryMissing;
         private final boolean hasMisplacedHouseNumber;
         private final boolean hasDuplicateExactAddress;
 
@@ -334,6 +344,8 @@ final class BuildingOverviewCollector {
                 boolean hasMissingPostcode,
                 boolean hasMissingHouseNumber,
                 boolean hasMissingCity,
+                boolean hasMissingCountry,
+                boolean hasOnlyCountryMissing,
                 boolean hasMisplacedHouseNumber,
                 boolean hasDuplicateExactAddress
         ) {
@@ -345,6 +357,8 @@ final class BuildingOverviewCollector {
             this.hasMissingPostcode = hasMissingPostcode;
             this.hasMissingHouseNumber = hasMissingHouseNumber;
             this.hasMissingCity = hasMissingCity;
+            this.hasMissingCountry = hasMissingCountry;
+            this.hasOnlyCountryMissing = hasOnlyCountryMissing;
             this.hasMisplacedHouseNumber = hasMisplacedHouseNumber;
             this.hasDuplicateExactAddress = hasDuplicateExactAddress;
         }
@@ -381,6 +395,14 @@ final class BuildingOverviewCollector {
             return hasMissingCity;
         }
 
+        boolean hasMissingCountry() {
+            return hasMissingCountry;
+        }
+
+        boolean hasOnlyCountryMissing() {
+            return hasOnlyCountryMissing;
+        }
+
         boolean hasMisplacedHouseNumber() {
             return hasMisplacedHouseNumber;
         }
@@ -402,6 +424,8 @@ final class BuildingOverviewCollector {
         private final boolean hasMissingPostcode;
         private final boolean hasMissingHouseNumber;
         private final boolean hasMissingCity;
+        private final boolean hasMissingCountry;
+        private final boolean hasOnlyCountryMissing;
         private final boolean hasMisplacedHouseNumber;
         private final String duplicateAddressBaseKey;
         private final String duplicateAddressCityKey;
@@ -415,6 +439,8 @@ final class BuildingOverviewCollector {
                 boolean hasMissingPostcode,
                 boolean hasMissingHouseNumber,
                 boolean hasMissingCity,
+                boolean hasMissingCountry,
+                boolean hasOnlyCountryMissing,
                 boolean hasMisplacedHouseNumber,
                 String duplicateAddressBaseKey,
                 String duplicateAddressCityKey
@@ -427,6 +453,8 @@ final class BuildingOverviewCollector {
             this.hasMissingPostcode = hasMissingPostcode;
             this.hasMissingHouseNumber = hasMissingHouseNumber;
             this.hasMissingCity = hasMissingCity;
+            this.hasMissingCountry = hasMissingCountry;
+            this.hasOnlyCountryMissing = hasOnlyCountryMissing;
             this.hasMisplacedHouseNumber = hasMisplacedHouseNumber;
             this.duplicateAddressBaseKey = duplicateAddressBaseKey;
             this.duplicateAddressCityKey = duplicateAddressCityKey;

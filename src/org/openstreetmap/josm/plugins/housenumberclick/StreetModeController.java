@@ -35,13 +35,13 @@ import org.openstreetmap.josm.tools.Logging;
 /**
  * Orchestrates Street Mode state, dialog synchronization, seed-aware street highlighting/overlays
  * (including self-healing overlay presence checks while active), explicit street-selection zoom behavior with full selected-street framing,
- * spatially disambiguated street readback selection, and split/address operations including city-aware
+ * spatially disambiguated street readback selection, and split/address operations including city/country-aware
  * address propagation.
  */
 final class StreetModeController {
 
     /**
-     * Immutable current address selection transferred from dialog to map mode, including optional city.
+     * Immutable current address selection transferred from dialog to map mode, including optional city/country.
      */
     static final class AddressSelection {
         private final String streetName;
@@ -49,21 +49,23 @@ final class StreetModeController {
         private final String streetClusterId;
         private final String postcode;
         private final String city;
+        private final String country;
         private final String buildingType;
         private final String houseNumber;
         private final int houseNumberIncrementStep;
 
         AddressSelection(String streetName, String postcode, String buildingType, String houseNumber, int houseNumberIncrementStep) {
-            this(streetName, streetName, "", postcode, "", buildingType, houseNumber, houseNumberIncrementStep);
+            this(streetName, streetName, "", postcode, "", "", buildingType, houseNumber, houseNumberIncrementStep);
         }
 
         AddressSelection(String streetName, String displayStreetName, String streetClusterId,
-                String postcode, String city, String buildingType, String houseNumber, int houseNumberIncrementStep) {
+                String postcode, String city, String country, String buildingType, String houseNumber, int houseNumberIncrementStep) {
             this.streetName = normalize(streetName);
             this.displayStreetName = normalize(displayStreetName);
             this.streetClusterId = normalize(streetClusterId);
             this.postcode = normalize(postcode);
             this.city = normalize(city);
+            this.country = normalize(country);
             this.buildingType = normalize(buildingType);
             this.houseNumber = normalize(houseNumber);
             this.houseNumberIncrementStep = normalizeIncrementStep(houseNumberIncrementStep);
@@ -87,6 +89,10 @@ final class StreetModeController {
 
         String getCity() {
             return city;
+        }
+
+        String getCountry() {
+            return country;
         }
 
         String getBuildingType() {
@@ -149,7 +155,8 @@ final class StreetModeController {
     }
 
     interface AddressValuesReadListener {
-        void onAddressValuesRead(String streetName, String postcode, String city, String buildingType, String houseNumber);
+        void onAddressValuesRead(String streetName, String postcode, String city, String country,
+                String buildingType, String houseNumber);
     }
 
     interface BuildingTypeConsumedListener {
@@ -260,6 +267,7 @@ final class StreetModeController {
                 selection.getStreetName(),
                 selection.getPostcode(),
                 selection.getCity(),
+                selection.getCountry(),
                 selection.getBuildingType(),
                 selection.getHouseNumber(),
                 selection.getHouseNumberIncrementStep()
@@ -285,9 +293,10 @@ final class StreetModeController {
         this.addressValuesReadListener = listener;
     }
 
-    void updateAddressValues(String streetName, String postcode, String city, String buildingType, String houseNumber) {
+    void updateAddressValues(String streetName, String postcode, String city, String country,
+            String buildingType, String houseNumber) {
         if (addressValuesReadListener != null) {
-            addressValuesReadListener.onAddressValuesRead(streetName, postcode, city, buildingType, houseNumber);
+            addressValuesReadListener.onAddressValuesRead(streetName, postcode, city, country, buildingType, houseNumber);
         }
     }
 
@@ -601,6 +610,7 @@ final class StreetModeController {
                 navigationService.getCurrentStreetClusterId(),
                 navigationService.getCurrentPostcode(),
                 lastSelection.getCity(),
+                lastSelection.getCountry(),
                 lastSelection.getBuildingType(),
                 lastSelection.getHouseNumber(),
                 lastSelection.getHouseNumberIncrementStep()
