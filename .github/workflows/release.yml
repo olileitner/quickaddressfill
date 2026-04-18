@@ -1,0 +1,111 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Build and publish tagged release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ant unzip
+
+      - name: Extract tag and expected version
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Verify build.xml version matches tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUILD_VERSION="$(sed -n 's/.*<property name="plugin.version" value="\([^"]*\)"\/.*/\1/p' build.xml | head -n1)"
+          if [ -z "$BUILD_VERSION" ]; then
+            echo "Could not read plugin.version from build.xml"
+            exit 1
+          fi
+          if [ "$BUILD_VERSION" != "$VERSION" ]; then
+            echo "Version mismatch: tag=$VERSION build.xml=$BUILD_VERSION"
+            exit 1
+          fi
+
+      - name: Ensure release notes exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f RELEASE_NOTES.md
+          grep -q "$VERSION" RELEASE_NOTES.md
+
+      - name: Validate i18n prerequisites when PO files exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          po_files=(i18n/po/*.po)
+          if [ ${#po_files[@]} -gt 0 ] && [ ! -f i18n/i18n.pl ]; then
+            echo "Found po/*.po files, but i18n/i18n.pl is missing."
+            echo "Provide i18n/i18n.pl in repo or adapt workflow with -Di18n.pl override."
+            exit 1
+          fi
+
+      - name: Build release artifact
+        run: |
+          ant clean
+          ant test
+          ant release-artifact
+
+      - name: Verify expected artifact and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARTIFACT="dist/HouseNumberClick-${VERSION}.jar"
+          test -f "$ARTIFACT"
+          unzip -p "$ARTIFACT" META-INF/MANIFEST.MF | tee manifest.txt
+          grep -q "Plugin-Version: ${VERSION}" manifest.txt
+          grep -q "Plugin-Class:" manifest.txt
+          grep -q "Plugin-Mainversion:" manifest.txt
+
+      - name: Create or update GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARTIFACT="dist/HouseNumberClick-${VERSION}.jar"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ARTIFACT" --clobber
+            gh release edit "$TAG" --title "HouseNumberClick v${VERSION}" --notes-file RELEASE_NOTES.md
+          else
+            gh release create "$TAG" "$ARTIFACT" \
+              --title "HouseNumberClick v${VERSION}" \
+              --notes-file RELEASE_NOTES.md
+          fi
+
