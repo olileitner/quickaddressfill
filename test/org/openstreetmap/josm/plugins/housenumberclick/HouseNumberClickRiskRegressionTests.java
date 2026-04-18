@@ -312,6 +312,26 @@ public final class HouseNumberClickRiskRegressionTests {
         assertEquals("", service.detectConfidentCountry(mixedCountryDataSet),
                 "ambiguous country values must not be auto-detected");
 
+        List<String> likelyCountries = service.collectLikelyCountryCodes(atDataSet, 10);
+        assertEquals(List.of("AT"), likelyCountries,
+                "likely-country list should contain normalized ISO alpha-2 codes only");
+
+        DataSet rankedCountriesDataSet = new DataSet();
+        Way rankedDeA = createClosedBuilding("Ranked Street", "1");
+        rankedDeA.put("addr:country", "DE");
+        Way rankedDeB = createClosedBuilding("Ranked Street", "2");
+        rankedDeB.put("addr:country", "Germany");
+        Way rankedFr = createClosedBuilding("Ranked Street", "3");
+        rankedFr.put("addr:country", "FR");
+        Way rankedAt = createClosedBuilding("Ranked Street", "4");
+        rankedAt.put("addr:country", "AT");
+        rankedCountriesDataSet.addPrimitiveRecursive(rankedDeA);
+        rankedCountriesDataSet.addPrimitiveRecursive(rankedDeB);
+        rankedCountriesDataSet.addPrimitiveRecursive(rankedFr);
+        rankedCountriesDataSet.addPrimitiveRecursive(rankedAt);
+        assertEquals(List.of("DE", "AT", "FR"), service.collectLikelyCountryCodes(rankedCountriesDataSet, 10),
+                "likely-country list should be ranked by frequency then code");
+
         DataSet boundaryFallbackDataSet = new DataSet();
         Relation deBoundary = new Relation();
         deBoundary.put("boundary", "administrative");
@@ -333,9 +353,15 @@ public final class HouseNumberClickRiskRegressionTests {
         String actionSource = readPluginSource("HouseNumberClickAction.java");
         assertTrue(actionSource.contains("detectConfidentCountry"),
                 "main action should use country detection before opening the dialog");
+        assertTrue(actionSource.contains("collectLikelyCountryCodes"),
+                "main action should collect likely country codes for constrained dialog selection");
         String dialogSource = readPluginSource("StreetSelectionDialog.java");
-        assertTrue(dialogSource.contains("firstNonEmpty(rememberedCountry, detectedCountry)"),
-                "dialog country field should fall back to detected country when remembered value is empty");
+        assertTrue(dialogSource.contains("setSelectedCountry(firstNonEmpty(rememberedCountry, detectedCountry))"),
+                "dialog country selection should fall back to detected country when remembered value is empty");
+        assertTrue(dialogSource.contains("normalizeCountryCode"),
+                "dialog country selection should enforce ISO alpha-2 values");
+        assertTrue(dialogSource.contains("CountryDetectionService.normalizeCountryCode"),
+                "dialog country normalization should reuse CountryDetectionService logic");
     }
 
     private static void testAddressConflictEdgeCases() {

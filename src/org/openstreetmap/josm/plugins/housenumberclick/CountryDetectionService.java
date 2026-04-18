@@ -1,6 +1,9 @@
 package org.openstreetmap.josm.plugins.housenumberclick;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -11,7 +14,7 @@ import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.Way;
 
 /**
- * Detects a confidently known country for the active dataset to prefill addr:country.
+ * Detects a confidently known country for prefill and ranked likely ISO country codes for constrained selection.
  */
 final class CountryDetectionService {
 
@@ -34,6 +37,42 @@ final class CountryDetectionService {
         Map<String, Integer> boundaryCountryCounts = new HashMap<>();
         collectBoundaryCountryCounts(dataSet, boundaryCountryCounts);
         return pickSingleConfidentCountry(boundaryCountryCounts, 1);
+    }
+
+    List<String> collectLikelyCountryCodes(DataSet dataSet, int maxResults) {
+        if (dataSet == null || maxResults <= 0) {
+            return List.of();
+        }
+
+        Map<String, Integer> combinedCounts = new HashMap<>();
+        collectAddressCountryCounts(dataSet, combinedCounts);
+        collectBoundaryCountryCounts(dataSet, combinedCounts);
+
+        if (combinedCounts.isEmpty()) {
+            return List.of();
+        }
+
+        List<Map.Entry<String, Integer>> ranked = new ArrayList<>(combinedCounts.entrySet());
+        ranked.sort(Comparator
+                .comparing((Map.Entry<String, Integer> entry) -> entry.getValue() == null ? 0 : entry.getValue())
+                .reversed()
+                .thenComparing(Map.Entry::getKey));
+
+        List<String> result = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : ranked) {
+            if (entry == null) {
+                continue;
+            }
+            String code = normalizeCountryCode(entry.getKey());
+            if (code.isEmpty()) {
+                continue;
+            }
+            result.add(code);
+            if (result.size() >= maxResults) {
+                break;
+            }
+        }
+        return result;
     }
 
     private void collectAddressCountryCounts(DataSet dataSet, Map<String, Integer> counts) {
@@ -94,14 +133,14 @@ final class CountryDetectionService {
     }
 
     private void addNormalizedCountryCount(String rawCountry, Map<String, Integer> counts) {
-        String normalizedCountry = normalizeCountry(rawCountry);
+        String normalizedCountry = normalizeCountryCode(rawCountry);
         if (normalizedCountry.isEmpty()) {
             return;
         }
         counts.merge(normalizedCountry, 1, Integer::sum);
     }
 
-    private String normalizeCountry(String value) {
+    static String normalizeCountryCode(String value) {
         String normalized = normalize(value);
         if (normalized.isEmpty()) {
             return "";
@@ -131,7 +170,7 @@ final class CountryDetectionService {
         return aliases;
     }
 
-    private String normalize(String value) {
+    private static String normalize(String value) {
         if (value == null) {
             return "";
         }

@@ -41,8 +41,8 @@ import org.openstreetmap.josm.tools.I18n;
 
 /**
  * Main configuration dialog where users pick street/address settings (street, postcode, house number, city,
- * country, building type) and receive disambiguated readback updates, while street auto-zoom is limited to
- * explicit street-selection actions.
+ * country code, building type) and receive disambiguated readback updates, while street auto-zoom is limited
+ * to explicit street-selection actions.
  */
 final class StreetSelectionDialog {
 
@@ -55,9 +55,9 @@ final class StreetSelectionDialog {
     private final JComboBox<String> streetCombo;
     private final JComboBox<String> buildingTypeCombo;
     private final JComboBox<String> postcodeCombo;
+    private final JComboBox<String> countryCombo;
     private final JTextField houseNumberField;
     private final JTextField cityField;
-    private final JTextField countryField;
     private final JCheckBox applyTypeToAllCheckbox;
     private JToggleButton minusTwoIncrementButton;
     private JToggleButton minusOneIncrementButton;
@@ -180,23 +180,8 @@ final class StreetSelectionDialog {
             }
         });
 
-        this.countryField = new JTextField();
-        this.countryField.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent e) {
-                notifyAddressChanged();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent e) {
-                notifyAddressChanged();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent e) {
-                notifyAddressChanged();
-            }
-        });
+        this.countryCombo = new JComboBox<>();
+        this.countryCombo.addActionListener(e -> notifyAddressChanged());
 
         this.streetCombo = new JComboBox<>();
         this.streetCombo.setPrototypeDisplayValue(I18n.tr("Example Street with Longer Name"));
@@ -430,7 +415,7 @@ final class StreetSelectionDialog {
     }
 
     void showDialog(DataSet activeDataSet, List<StreetOption> streetOptions, List<String> detectedPostcodes,
-            String detectedCountry) {
+            String detectedCountry, List<String> likelyCountryCodes) {
         if (streetOptions == null || streetOptions.isEmpty()) {
             JOptionPane.showMessageDialog(
                     MainApplication.getMainFrame(),
@@ -465,11 +450,12 @@ final class StreetSelectionDialog {
         streetCombo.setSelectedItem(null);
 
         populatePostcodeOptions(detectedPostcodes);
+        populateCountryOptions(likelyCountryCodes);
         setSelectedPostcode(rememberedPostcode);
         buildingTypeCombo.getEditor().setItem(firstNonEmpty(rememberedBuildingType, ""));
         houseNumberField.setText(firstNonEmpty(rememberedHouseNumber, INITIAL_HOUSE_NUMBER));
         cityField.setText(firstNonEmpty(rememberedCity, ""));
-        countryField.setText(firstNonEmpty(rememberedCountry, detectedCountry));
+        setSelectedCountry(firstNonEmpty(rememberedCountry, detectedCountry));
         applyIncrementStep(rememberedIncrementStep);
         applyOverlaySettings(
                 rememberedHouseNumberLayerEnabled,
@@ -681,7 +667,7 @@ final class StreetSelectionDialog {
         }
         String normalizedCountry = normalize(country);
         if (!normalizedCountry.isEmpty()) {
-            countryField.setText(normalizedCountry);
+            setSelectedCountry(normalizedCountry);
         }
         String normalizedHouseNumber = normalize(houseNumber);
         if (!normalizedHouseNumber.isEmpty()) {
@@ -966,7 +952,7 @@ final class StreetSelectionDialog {
         gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(2, 0, 2, 0);
-        panel.add(countryField, gbc);
+        panel.add(countryCombo, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 5;
@@ -1355,7 +1341,7 @@ final class StreetSelectionDialog {
         rememberedStreet = getSelectedStreet();
         rememberedPostcode = getSelectedPostcode();
         rememberedCity = normalize(cityField.getText());
-        rememberedCountry = normalize(countryField.getText());
+        rememberedCountry = getSelectedCountry();
         rememberedBuildingType = normalize(getSelectedBuildingType());
         rememberedHouseNumber = normalize(houseNumberField.getText());
         rememberedIncrementStep = houseNumberIncrementStep;
@@ -1469,11 +1455,64 @@ final class StreetSelectionDialog {
                 clusterId,
                 getSelectedPostcode(),
                 cityField.getText(),
-                countryField.getText(),
+                getSelectedCountry(),
                 getSelectedBuildingType(),
                 houseNumberField.getText(),
                 houseNumberIncrementStep
         );
+    }
+
+    private void populateCountryOptions(List<String> countryCodes) {
+        countryCombo.removeAllItems();
+        countryCombo.addItem("");
+        if (countryCodes == null || countryCodes.isEmpty()) {
+            return;
+        }
+        for (String countryCode : countryCodes) {
+            String normalized = normalizeCountryCode(countryCode);
+            if (normalized.isEmpty()) {
+                continue;
+            }
+            if (!containsComboItem(countryCombo, normalized)) {
+                countryCombo.addItem(normalized);
+            }
+        }
+    }
+
+    private void setSelectedCountry(String country) {
+        String normalized = normalizeCountryCode(country);
+        if (normalized.isEmpty()) {
+            countryCombo.setSelectedIndex(0);
+            return;
+        }
+        if (!containsComboItem(countryCombo, normalized)) {
+            countryCombo.addItem(normalized);
+        }
+        countryCombo.setSelectedItem(normalized);
+    }
+
+    private String getSelectedCountry() {
+        Object selected = countryCombo.getSelectedItem();
+        if (!(selected instanceof String)) {
+            return "";
+        }
+        return normalizeCountryCode((String) selected);
+    }
+
+    private boolean containsComboItem(JComboBox<String> combo, String value) {
+        if (combo == null || value == null) {
+            return false;
+        }
+        for (int i = 0; i < combo.getItemCount(); i++) {
+            if (value.equals(combo.getItemAt(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String normalizeCountryCode(String value) {
+        return CountryDetectionService.normalizeCountryCode(value);
     }
 
     private void populatePostcodeOptions(List<String> postcodes) {
@@ -1735,6 +1774,7 @@ final class StreetSelectionDialog {
         return component instanceof JTextComponent
                 || component == houseNumberField
                 || component == cityField
+                || component == countryCombo
                 || component == rowHousePartsField
                 || component == postcodeCombo
                 || component == streetCombo

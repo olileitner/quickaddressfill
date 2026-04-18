@@ -10,7 +10,8 @@ import org.openstreetmap.josm.tools.I18n;
 
 /**
  * Main toolbar/menu action that follows JOSM tool availability (enabled only with an editable
- * dataset/layer), opens the street selection dialog (including optional country prefill),
+ * dataset/layer), opens the street selection dialog (including optional country prefill and
+ * constrained likely-country code options),
  * and activates street mode.
  */
 public class HouseNumberClickAction extends JosmAction {
@@ -57,6 +58,7 @@ public class HouseNumberClickAction extends JosmAction {
         List<StreetOption> streetOptions = StreetNameCollector.collectStreetIndex(dataSet).getStreetOptions();
         List<String> detectedPostcodes = PostcodeCollector.collectVisiblePostcodes(dataSet);
         String detectedCountry = countryDetectionService.detectConfidentCountry(dataSet);
-        streetSelectionDialog.showDialog(dataSet, streetOptions, detectedPostcodes, detectedCountry);
+        List<String> likelyCountryCodes = countryDetectionService.collectLikelyCountryCodes(dataSet, 10);
+        streetSelectionDialog.showDialog(dataSet, streetOptions, detectedPostcodes, detectedCountry, likelyCountryCodes);
     }
 }
