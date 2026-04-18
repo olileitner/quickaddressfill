@@ -38,6 +38,7 @@ HouseNumberClick is a JOSM plugin for fast, street-focused house-number tagging 
 - `Ctrl+Click` reads existing address values from buildings, including `addr:city`; if no building is hit, nearby street name can be read.
 - Conflict warning protects against unintended overwrite of existing address data, including city conflicts.
 - Optional `Auto-zoom to selected street` zooms to mapped house-number buildings of the selected street.
+- The `HouseNumberClick` action follows JOSM tool behavior: it is enabled only while an editable data layer/dataset is available.
 
 ## Split and Row-House Tools
 
@@ -112,11 +113,11 @@ This significantly reduces friction when mapping long streets or dense residenti
 - `Show overview panel (selected street)`: odd/even table with gap markers (`•` for missing base numbers); table click zooms to target object(s).
 - `Show all street counts`: list of all known streets and current counts; row click zooms to selected street. Duplicate marker `(dup)` follows the same conditional city rule as `Show duplicates`.
 - `Show completeness` / `Hide completeness`: `Completeness overview` layer:
-  - `Address complete` (bright blue),
-  - `Address incomplete` (bright orange),
-  - `Address problematic` (bright magenta),
+  - `... present` for the selected completeness focus (bright blue),
+  - `... missing` for the selected completeness focus (bright orange),
   - `No Address Data` (gray, intentionally less prominent for buildings without street/postcode/housenumber).
-- `Show Postcode` / `Hide Postcode`: postcode overview layer:
+- Completeness focus can be switched between `Number`, `Street`, `Postcode`, `City`, and `Basic`.
+- `Show All Postcodes` / `Hide All Postcodes`: postcode overview layer:
   - bright pink = no postcode,
   - same color = same postcode,
   - postcode colors are deterministic (stable across hide/show).
@@ -136,6 +137,7 @@ This significantly reduces friction when mapping long streets or dense residenti
 ## Troubleshooting
 
 - **No postcode selected:** choose a postcode from the dropdown or type one manually; apply is blocked while postcode is empty.
+- **Tool button is disabled:** ensure an editable OSM data layer is loaded and active in JOSM.
 - **No building detected:** zoom in and click directly on a closed `building=*` object.
 - **Overwrite warning appears:** existing address values differ (street/postcode/city/building); confirm to overwrite or cancel to keep existing tags. Street, postcode, and city can each be suppressed independently for repeated warnings.
 - **Line split does not run:** draw the line so it clearly crosses one building (not only touching one edge/corner).

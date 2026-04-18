@@ -35,7 +35,7 @@ public class HouseNumberClickAction extends JosmAction {
         boolean hasEditDataSet = MainApplication.getLayerManager() != null
                 && MainApplication.getLayerManager().getEditDataSet() != null;
         setEnabled(hasEditDataSet);
-        if (wasEnabled && !hasEditDataSet) {
+        if (wasEnabled && !hasEditDataSet && streetSelectionDialog != null) {
             // Edit-layer loss must always tear down active mode/dialog artifacts.
             streetSelectionDialog.onEditLayerUnavailable();
         }
