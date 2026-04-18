@@ -108,6 +108,7 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Street table selection respects AutoZoom option", HouseNumberClickRiskRegressionTests::testStreetTableSelectionRespectsAutoZoomOption);
             run("Closing overview dialogs updates main dialog checkboxes", HouseNumberClickRiskRegressionTests::testOverviewDialogCloseUpdatesMainDialogCheckboxes);
             run("Previous/Next street navigation clears postcode and house number", HouseNumberClickRiskRegressionTests::testStreetNavigationClearsPostcodeAndHouseNumber);
+            run("Street combo popup hover does not trigger transient overlay refresh", HouseNumberClickRiskRegressionTests::testStreetSelectionIgnoresTransientPopupHover);
             run("Street navigation order matches street-count sorting", HouseNumberClickRiskRegressionTests::testStreetNavigationOrderMatchesStreetCountsSorting);
             run("Street grouping bridges endpoint-to-segment gaps", HouseNumberClickRiskRegressionTests::testStreetGroupingBridgesEndpointToSegmentGaps);
             run("Street grouping merges collinear components after raw split", HouseNumberClickRiskRegressionTests::testStreetGroupingMergesCollinearComponentsAfterRawSplit);
@@ -1127,6 +1128,12 @@ public final class HouseNumberClickRiskRegressionTests {
                 "Previous/Next navigation should clear postcode selection to empty");
         assertTrue(source.contains("houseNumberField.setText(\"\")"),
                 "Previous/Next navigation should clear house number field");
+    }
+
+    private static void testStreetSelectionIgnoresTransientPopupHover() throws Exception {
+        String source = readPluginSource("StreetSelectionDialog.java");
+        assertTrue(source.contains("streetCombo.isPopupVisible() && !changedByNavigation"),
+                "street selection handling should ignore transient popup hover/preselection events");
     }
 
     private static void testStreetGroupingBridgesEndpointToSegmentGaps() {

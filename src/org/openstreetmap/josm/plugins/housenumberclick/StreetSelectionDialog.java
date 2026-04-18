@@ -499,6 +499,14 @@ final class StreetSelectionDialog {
         String selectedStreet = getSelectedStreet();
         boolean streetChanged = hasStreetSelectionChanged(lastSelectedStreet, selectedStreet);
         boolean changedByNavigation = consumeStreetSelectionChangedByNavigation();
+        if (!streetChanged) {
+            updateStreetNavigationButtonState();
+            return;
+        }
+        if (streetCombo != null && streetCombo.isPopupVisible() && !changedByNavigation) {
+            // Ignore transient hover/preselection changes while the popup is still open.
+            return;
+        }
         if (streetChanged) {
             boolean wasUpdatingInputs = updatingInputs;
             updatingInputs = true;
