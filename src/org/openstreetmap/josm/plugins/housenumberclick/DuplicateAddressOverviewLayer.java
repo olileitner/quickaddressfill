@@ -207,7 +207,7 @@ final class DuplicateAddressOverviewLayer extends Layer {
 
     @Override
     public Object getInfoComponent() {
-        return I18n.tr("Duplicate-address diagnostics (street+postcode+housenumber)");
+        return I18n.tr("Duplicate-address diagnostics (street+postcode+housenumber; city only when present on both)");
     }
 
     @Override

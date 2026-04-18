@@ -15,6 +15,7 @@ Core classes as defined in `AGENTS.md` are marked: `HouseNumberClickPlugin`, `Ho
 | `BuildingOverviewCollector` | `BuildingOverviewCollector.java` | No | Collects building diagnostics used by completeness and postcode overview layers, canonicalizing relation/outer-way representations of the same real building. |
 | `BuildingOverviewCollector.BuildingOverviewEntry` | `BuildingOverviewCollector.java` | No | Public entry used by overview layers to render completeness and diagnostics for one building. |
 | `BuildingOverviewCollector.CandidateEntry` | `BuildingOverviewCollector.java` | No | Internal collection-stage representation before duplicate-address evaluation is finalized. |
+| `BuildingOverviewCollector.DuplicateAddressGroupStats` | `BuildingOverviewCollector.java` | No | Aggregated duplicate-match statistics for one street+postcode+housenumber group. |
 | `BuildingOverviewLayer` | `BuildingOverviewLayer.java` | No | Map layer that visualizes building-level address status to support completeness inspection. |
 | `BuildingOverviewLayer.MissingField` | `BuildingOverviewLayer.java` | No | Selected required address field used to focus completeness-missing highlighting. |
 | `BuildingResolver` | `BuildingResolver.java` | No | Resolves the clicked building primitive with relation-first logic and bounded candidate scanning. |

@@ -44,10 +44,14 @@ final class BuildingOverviewCollector {
         candidates.addAll(canonicalCandidatesByPrimitiveId.values());
 
         Map<String, Integer> duplicateAddressCounts = new HashMap<>();
+        Map<String, DuplicateAddressGroupStats> duplicateAddressGroups = new HashMap<>();
         for (CandidateEntry candidate : candidates) {
-            String duplicateKey = candidate.duplicateAddressKey;
-            if (!duplicateKey.isEmpty()) {
-                duplicateAddressCounts.merge(duplicateKey, 1, Integer::sum);
+            String duplicateBaseKey = candidate.duplicateAddressBaseKey;
+            if (!duplicateBaseKey.isEmpty()) {
+                duplicateAddressCounts.merge(duplicateBaseKey, 1, Integer::sum);
+                duplicateAddressGroups
+                        .computeIfAbsent(duplicateBaseKey, ignored -> new DuplicateAddressGroupStats())
+                        .addCandidate(candidate.duplicateAddressCityKey);
             }
         }
         int duplicateKeysAboveOne = 0;
@@ -59,8 +63,9 @@ final class BuildingOverviewCollector {
 
         List<BuildingOverviewEntry> entries = new ArrayList<>(candidates.size());
         for (CandidateEntry candidate : candidates) {
-            boolean hasDuplicateExactAddress = !candidate.duplicateAddressKey.isEmpty()
-                    && duplicateAddressCounts.getOrDefault(candidate.duplicateAddressKey, 0) > 1;
+            DuplicateAddressGroupStats duplicateGroup = duplicateAddressGroups.get(candidate.duplicateAddressBaseKey);
+            boolean hasDuplicateExactAddress = duplicateGroup != null
+                    && duplicateGroup.hasDuplicateFor(candidate.duplicateAddressCityKey);
             entries.add(new BuildingOverviewEntry(
                     candidate.primitive,
                     candidate.hasHouseNumber,
@@ -114,7 +119,8 @@ final class BuildingOverviewCollector {
         boolean hasMissingPostcode = hasMissingRequiredAddressFields && !hasPostcode;
         boolean hasMissingHouseNumber = hasMissingRequiredAddressFields && !hasHouseNumber;
         boolean hasMisplacedHouseNumber = !hasHouseNumber && hasMisplacedHouseNumber(canonicalPrimitive);
-        String duplicateAddressKey = hasHouseNumber ? buildDuplicateAddressKey(canonicalPrimitive) : "";
+        String duplicateAddressBaseKey = hasHouseNumber ? buildDuplicateAddressBaseKey(canonicalPrimitive) : "";
+        String duplicateAddressCityKey = hasHouseNumber ? buildDuplicateAddressCityKey(canonicalPrimitive) : "";
         canonicalCandidatesByPrimitiveId.put(canonicalId, new CandidateEntry(
                 canonicalPrimitive,
                 hasHouseNumber,
@@ -124,7 +130,8 @@ final class BuildingOverviewCollector {
                 hasMissingPostcode,
                 hasMissingHouseNumber,
                 hasMisplacedHouseNumber,
-                duplicateAddressKey
+                duplicateAddressBaseKey,
+                duplicateAddressCityKey
         ));
     }
 
@@ -176,7 +183,7 @@ final class BuildingOverviewCollector {
         return false;
     }
 
-    private String buildDuplicateAddressKey(OsmPrimitive primitive) {
+    private String buildDuplicateAddressBaseKey(OsmPrimitive primitive) {
         String street = normalize(primitive.get("addr:street"));
         String postcode = normalize(primitive.get("addr:postcode"));
         String houseNumber = normalize(primitive.get("addr:housenumber"));
@@ -187,6 +194,10 @@ final class BuildingOverviewCollector {
         return street.toLowerCase(Locale.ROOT)
                 + "|" + postcode.toLowerCase(Locale.ROOT)
                 + "|" + houseNumber.toLowerCase(Locale.ROOT);
+    }
+
+    private String buildDuplicateAddressCityKey(OsmPrimitive primitive) {
+        return normalize(primitive.get("addr:city")).toLowerCase(Locale.ROOT);
     }
 
     private boolean hasMisplacedHouseNumber(OsmPrimitive primitive) {
@@ -392,7 +403,8 @@ final class BuildingOverviewCollector {
         private final boolean hasMissingPostcode;
         private final boolean hasMissingHouseNumber;
         private final boolean hasMisplacedHouseNumber;
-        private final String duplicateAddressKey;
+        private final String duplicateAddressBaseKey;
+        private final String duplicateAddressCityKey;
 
         CandidateEntry(
                 OsmPrimitive primitive,
@@ -403,7 +415,8 @@ final class BuildingOverviewCollector {
                 boolean hasMissingPostcode,
                 boolean hasMissingHouseNumber,
                 boolean hasMisplacedHouseNumber,
-                String duplicateAddressKey
+                String duplicateAddressBaseKey,
+                String duplicateAddressCityKey
         ) {
             this.primitive = primitive;
             this.hasHouseNumber = hasHouseNumber;
@@ -413,7 +426,39 @@ final class BuildingOverviewCollector {
             this.hasMissingPostcode = hasMissingPostcode;
             this.hasMissingHouseNumber = hasMissingHouseNumber;
             this.hasMisplacedHouseNumber = hasMisplacedHouseNumber;
-            this.duplicateAddressKey = duplicateAddressKey;
+            this.duplicateAddressBaseKey = duplicateAddressBaseKey;
+            this.duplicateAddressCityKey = duplicateAddressCityKey;
+        }
+    }
+
+    /**
+     * Aggregated duplicate-match statistics for one street+postcode+housenumber group.
+     */
+    private static final class DuplicateAddressGroupStats {
+        private int totalCount;
+        private int missingCityCount;
+        private final Map<String, Integer> cityCounts = new HashMap<>();
+
+        private void addCandidate(String cityKey) {
+            totalCount++;
+            if (cityKey == null || cityKey.isEmpty()) {
+                missingCityCount++;
+                return;
+            }
+            cityCounts.merge(cityKey, 1, Integer::sum);
+        }
+
+        private boolean hasDuplicateFor(String cityKey) {
+            if (totalCount <= 1) {
+                return false;
+            }
+            if (cityKey == null || cityKey.isEmpty()) {
+                return true;
+            }
+            if (missingCityCount > 0) {
+                return true;
+            }
+            return cityCounts.getOrDefault(cityKey, 0) > 1;
         }
     }
 }

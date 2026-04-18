@@ -114,6 +114,7 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Street zoom fallback collects only usable named highway ways", HouseNumberClickRiskRegressionTests::testStreetZoomFallbackWayMatching);
             run("Street auto-zoom uses full-dataset street index", HouseNumberClickRiskRegressionTests::testStreetAutoZoomUsesFullDataSetStreetIndex);
             run("Building overview collector filters tiny buildings and keeps addressed state", HouseNumberClickRiskRegressionTests::testBuildingOverviewCollectorFilteringAndClassification);
+            run("Building overview duplicate detection applies conditional city rule", HouseNumberClickRiskRegressionTests::testBuildingOverviewCollectorConditionalCityRule);
             run("Building overview duplicate detection ignores relation/outer self-duplicates", HouseNumberClickRiskRegressionTests::testBuildingOverviewCollectorIgnoresRelationOuterSelfDuplicate);
             run("House-number overlay collector ignores relation/outer self-duplicates", HouseNumberClickRiskRegressionTests::testHouseNumberOverlayCollectorIgnoresRelationOuterSelfDuplicate);
             run("House-number overlay collector keeps duplicates across distinct real buildings", HouseNumberClickRiskRegressionTests::testHouseNumberOverlayCollectorKeepsDistinctBuildingDuplicates);
@@ -1271,6 +1272,71 @@ public final class HouseNumberClickRiskRegressionTests {
         assertTrue(containsNoAddressData,
                 "building without street, postcode and housenumber should be flagged as no address data");
         assertFalse(containsAddressedTiny, "tiny building should be excluded by minimum area filter");
+    }
+
+    private static void testBuildingOverviewCollectorConditionalCityRule() {
+        BuildingOverviewCollector collector = new BuildingOverviewCollector();
+
+        DataSet onlyDifferentCities = new DataSet();
+        Way cityAOnly = createClosedBuildingWithSize("Example Street", "8", 0.0002);
+        cityAOnly.put("addr:postcode", "12345");
+        cityAOnly.put("addr:city", "Alpha City");
+        Way cityBOnly = createClosedBuildingWithSize("Example Street", "8", 0.0002);
+        cityBOnly.put("addr:postcode", "12345");
+        cityBOnly.put("addr:city", "Beta City");
+        onlyDifferentCities.addPrimitiveRecursive(cityAOnly);
+        onlyDifferentCities.addPrimitiveRecursive(cityBOnly);
+
+        List<BuildingOverviewCollector.BuildingOverviewEntry> onlyDifferentCityEntries = collector.collect(onlyDifferentCities);
+        boolean cityAOnlyIsDuplicate = false;
+        boolean cityBOnlyIsDuplicate = false;
+        for (BuildingOverviewCollector.BuildingOverviewEntry entry : onlyDifferentCityEntries) {
+            if (entry.getPrimitive() == cityAOnly) {
+                cityAOnlyIsDuplicate = entry.hasDuplicateExactAddress();
+            }
+            if (entry.getPrimitive() == cityBOnly) {
+                cityBOnlyIsDuplicate = entry.hasDuplicateExactAddress();
+            }
+        }
+        assertFalse(cityAOnlyIsDuplicate,
+                "same street/postcode/housenumber with different city on both sides must not be duplicate");
+        assertFalse(cityBOnlyIsDuplicate,
+                "city mismatch between fully city-tagged addresses must block duplicate match");
+
+        DataSet withMissingCityBridge = new DataSet();
+        Way cityA = createClosedBuildingWithSize("Example Street", "8", 0.0002);
+        cityA.put("addr:postcode", "12345");
+        cityA.put("addr:city", "Alpha City");
+        Way cityB = createClosedBuildingWithSize("Example Street", "8", 0.0002);
+        cityB.put("addr:postcode", "12345");
+        cityB.put("addr:city", "Beta City");
+        Way cityMissing = createClosedBuildingWithSize("Example Street", "8", 0.0002);
+        cityMissing.put("addr:postcode", "12345");
+        withMissingCityBridge.addPrimitiveRecursive(cityA);
+        withMissingCityBridge.addPrimitiveRecursive(cityB);
+        withMissingCityBridge.addPrimitiveRecursive(cityMissing);
+
+        List<BuildingOverviewCollector.BuildingOverviewEntry> withMissingCityEntries = collector.collect(withMissingCityBridge);
+        boolean cityAIsDuplicate = false;
+        boolean cityBIsDuplicate = false;
+        boolean cityMissingIsDuplicate = false;
+        for (BuildingOverviewCollector.BuildingOverviewEntry entry : withMissingCityEntries) {
+            if (entry.getPrimitive() == cityA) {
+                cityAIsDuplicate = entry.hasDuplicateExactAddress();
+            }
+            if (entry.getPrimitive() == cityB) {
+                cityBIsDuplicate = entry.hasDuplicateExactAddress();
+            }
+            if (entry.getPrimitive() == cityMissing) {
+                cityMissingIsDuplicate = entry.hasDuplicateExactAddress();
+            }
+        }
+        assertTrue(cityAIsDuplicate,
+                "city-tagged address should match duplicate when counterpart has no city (city ignored unless both present)");
+        assertTrue(cityBIsDuplicate,
+                "second city-tagged address should also match duplicate when a counterpart has no city");
+        assertTrue(cityMissingIsDuplicate,
+                "address without city should match duplicates against same street/postcode/housenumber regardless of city on other side");
     }
 
     private static void testBuildingOverviewCollectorIgnoresRelationOuterSelfDuplicate() {
