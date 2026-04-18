@@ -54,11 +54,19 @@ ant -Di18n.pl=/path/to/i18n.pl i18n-lang
 
 ### 3. Tag and Release (Non-Interactive)
 
+Preferred path:
+
+- Push annotated tag `v<version>` and let `.github/workflows/release.yml` publish the release artifact.
+
 ```bash
 git tag -a v<version> -m "Release v<version>"
 git push origin main
 git push origin v<version>
+```
 
+Manual fallback (only when automation is unavailable):
+
+```bash
 gh release create v<version> dist/HouseNumberClick-<version>.jar \
   --title "HouseNumberClick v<version>" \
   --notes-file RELEASE_NOTES.md
@@ -68,6 +76,7 @@ Hard rule:
 
 - Do NOT allow interactive editor prompts.
 - Always provide explicit flags.
+- Never publish twice for the same tag (automation + manual).
 
 ### 4. PluginsSource URL
 

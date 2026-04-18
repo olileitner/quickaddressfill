@@ -123,7 +123,7 @@ Start JOSM and verify:
 - Street Mode works:
   - Left click (`apply`)
   - Ctrl+Click (`readback`)
-  - Right click (`row-house split`)
+  - Alt+Right click (`row-house split`)
   - Alt+Drag (`line split`)
 
 ## 9) Failure Conditions (Release is Invalid if)
