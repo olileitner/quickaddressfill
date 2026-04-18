@@ -1,7 +1,6 @@
 package org.openstreetmap.josm.plugins.housenumberclick;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -414,6 +413,7 @@ final class StreetModeController {
         syncDataSourceListenerBinding();
         refreshStreetHouseNumberCounts();
     }
+
 
     List<StreetOption> getStreetNavigationOrder() {
         return navigationService.getStreetNavigationOrder();

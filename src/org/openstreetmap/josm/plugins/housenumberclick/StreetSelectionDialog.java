@@ -71,7 +71,7 @@ final class StreetSelectionDialog {
     private final JRadioButton completenessStreetRadioButton;
     private final JRadioButton completenessHouseNumberRadioButton;
     private final JRadioButton completenessCityRadioButton;
-    private final JRadioButton completenessBasicRadioButton;
+    private final JRadioButton completenessAllRadioButton;
     private final JButton previousStreetButton;
     private final JButton nextStreetButton;
     private final KeyEventDispatcher streetNavigationKeyDispatcher;
@@ -211,19 +211,19 @@ final class StreetSelectionDialog {
         this.completenessStreetRadioButton = new JRadioButton(I18n.tr("Street"));
         this.completenessHouseNumberRadioButton = new JRadioButton(I18n.tr("Number"));
         this.completenessCityRadioButton = new JRadioButton(I18n.tr("City"));
-        this.completenessBasicRadioButton = new JRadioButton(I18n.tr("Basic"));
+        this.completenessAllRadioButton = new JRadioButton(I18n.tr("All"));
         ButtonGroup completenessFieldGroup = new ButtonGroup();
         completenessFieldGroup.add(completenessPostcodeRadioButton);
         completenessFieldGroup.add(completenessStreetRadioButton);
         completenessFieldGroup.add(completenessHouseNumberRadioButton);
         completenessFieldGroup.add(completenessCityRadioButton);
-        completenessFieldGroup.add(completenessBasicRadioButton);
+        completenessFieldGroup.add(completenessAllRadioButton);
         applyCompletenessRadioSelection(streetModeController.getCompletenessMissingField());
         this.completenessPostcodeRadioButton.addActionListener(e -> onCompletenessMissingFieldChanged());
         this.completenessStreetRadioButton.addActionListener(e -> onCompletenessMissingFieldChanged());
         this.completenessHouseNumberRadioButton.addActionListener(e -> onCompletenessMissingFieldChanged());
         this.completenessCityRadioButton.addActionListener(e -> onCompletenessMissingFieldChanged());
-        this.completenessBasicRadioButton.addActionListener(e -> onCompletenessMissingFieldChanged());
+        this.completenessAllRadioButton.addActionListener(e -> onCompletenessMissingFieldChanged());
 
         this.createOverviewButton = new JButton(SHOW_OVERVIEW_BUTTON_TEXT);
         this.createOverviewButton.addActionListener(e -> onCreateOverviewRequested());
@@ -1020,7 +1020,7 @@ final class StreetSelectionDialog {
         radios.add(completenessStreetRadioButton);
         radios.add(completenessPostcodeRadioButton);
         radios.add(completenessCityRadioButton);
-        radios.add(completenessBasicRadioButton);
+        radios.add(completenessAllRadioButton);
         panel.add(radios, BorderLayout.CENTER);
 
         JPanel postcodeButtonRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
@@ -1242,8 +1242,8 @@ final class StreetSelectionDialog {
     }
 
     private BuildingOverviewLayer.MissingField getSelectedCompletenessMissingField() {
-        if (completenessBasicRadioButton.isSelected()) {
-            return BuildingOverviewLayer.MissingField.BASIC;
+        if (completenessAllRadioButton.isSelected()) {
+            return BuildingOverviewLayer.MissingField.ALL;
         }
         if (completenessCityRadioButton.isSelected()) {
             return BuildingOverviewLayer.MissingField.CITY;
@@ -1262,8 +1262,8 @@ final class StreetSelectionDialog {
                 ? missingField
                 : BuildingOverviewLayer.MissingField.POSTCODE;
         switch (normalized) {
-            case BASIC:
-                completenessBasicRadioButton.setSelected(true);
+            case ALL:
+                completenessAllRadioButton.setSelected(true);
                 break;
             case CITY:
                 completenessCityRadioButton.setSelected(true);

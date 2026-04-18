@@ -917,10 +917,12 @@ public final class HouseNumberClickRiskRegressionTests {
 
     private static void testCompletenessLegendLabelsPresent() throws Exception {
         String source = readPluginSource("BuildingOverviewLayer.java");
-        assertTrue(source.contains("Basic address keys present"),
-                "completeness legend should contain the Basic-mode present label");
+        assertTrue(source.contains("All address keys present"),
+                "completeness legend should contain the All-mode present label");
         assertTrue(source.contains("Address incomplete"),
-                "completeness legend should contain the Basic-mode incomplete label");
+                "completeness legend should contain the All-mode incomplete label");
+        assertTrue(source.contains("hasMissingStreet || hasMissingPostcode || hasMissingHouseNumber || hasMissingCity"),
+                "all-mode completeness should treat missing city as incomplete");
         assertTrue(source.contains("Postcode present"),
                 "completeness legend should contain postcode-present label");
         assertTrue(source.contains("Postcode missing"),
@@ -943,8 +945,8 @@ public final class HouseNumberClickRiskRegressionTests {
         String dialogSource = readPluginSource("StreetSelectionDialog.java");
         assertTrue(dialogSource.contains("I18n.tr(\"Number\")"),
                 "analysis completeness radios should use 'Number' label");
-        assertTrue(dialogSource.contains("I18n.tr(\"Basic\")"),
-                "analysis completeness radios should expose a 'Basic' option");
+        assertTrue(dialogSource.contains("I18n.tr(\"All\")"),
+                "analysis completeness radios should expose an 'All' option");
         assertTrue(dialogSource.contains("I18n.tr(\"City\")"),
                 "analysis completeness radios should expose a 'City' option");
 

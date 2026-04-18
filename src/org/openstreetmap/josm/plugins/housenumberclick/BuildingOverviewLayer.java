@@ -30,10 +30,11 @@ import org.openstreetmap.josm.tools.ImageProvider;
 final class BuildingOverviewLayer extends Layer {
 
     /**
-     * Selected required address field used to focus completeness-missing highlighting.
+     * Selected required address field used to focus completeness-missing highlighting,
+     * including an all-required-fields mode (street, postcode, house number, city).
      */
     enum MissingField {
-        BASIC,
+        ALL,
         STREET,
         POSTCODE,
         HOUSE_NUMBER,
@@ -246,8 +247,8 @@ final class BuildingOverviewLayer extends Layer {
     private boolean hasSelectedMissingField(boolean hasMissingStreet, boolean hasMissingPostcode,
             boolean hasMissingHouseNumber, boolean hasMissingCity) {
         switch (missingField) {
-            case BASIC:
-                return hasMissingStreet || hasMissingPostcode || hasMissingHouseNumber;
+            case ALL:
+                return hasMissingStreet || hasMissingPostcode || hasMissingHouseNumber || hasMissingCity;
             case STREET:
                 return hasMissingStreet;
             case HOUSE_NUMBER:
@@ -262,8 +263,8 @@ final class BuildingOverviewLayer extends Layer {
 
     private String completeLegendLabel() {
         switch (missingField) {
-            case BASIC:
-                return I18n.tr("Basic address keys present");
+            case ALL:
+                return I18n.tr("All address keys present");
             case STREET:
                 return I18n.tr("Street present");
             case HOUSE_NUMBER:
@@ -278,7 +279,7 @@ final class BuildingOverviewLayer extends Layer {
 
     private String missingLegendLabel() {
         switch (missingField) {
-            case BASIC:
+            case ALL:
                 return I18n.tr("Address incomplete");
             case STREET:
                 return I18n.tr("Street missing");
@@ -332,7 +333,7 @@ final class BuildingOverviewLayer extends Layer {
 
     @Override
     public String getToolTipText() {
-        if (missingField == MissingField.BASIC) {
+        if (missingField == MissingField.ALL) {
             return I18n.tr("Completeness overview (complete / incomplete / no address data)");
         }
         return I18n.tr("Completeness overview (complete / selected missing field / no address data)");

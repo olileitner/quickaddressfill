@@ -17,7 +17,7 @@ Core classes as defined in `AGENTS.md` are marked: `HouseNumberClickPlugin`, `Ho
 | `BuildingOverviewCollector.CandidateEntry` | `BuildingOverviewCollector.java` | No | Internal collection-stage representation before duplicate-address evaluation is finalized. |
 | `BuildingOverviewCollector.DuplicateAddressGroupStats` | `BuildingOverviewCollector.java` | No | Aggregated duplicate-match statistics for one street+postcode+housenumber group. |
 | `BuildingOverviewLayer` | `BuildingOverviewLayer.java` | No | Map layer that visualizes building-level address status to support completeness inspection. |
-| `BuildingOverviewLayer.MissingField` | `BuildingOverviewLayer.java` | No | Selected required address field used to focus completeness-missing highlighting. |
+| `BuildingOverviewLayer.MissingField` | `BuildingOverviewLayer.java` | No | Selected required address field used to focus completeness-missing highlighting, including an all-required-fields mode (street, postcode, house number, city). |
 | `BuildingResolver` | `BuildingResolver.java` | No | Resolves the clicked building primitive with relation-first logic and bounded candidate scanning. |
 | `BuildingResolver.BuildingResolutionResult` | `BuildingResolver.java` | No | Full resolver diagnostics and selected building primitive for one click resolution. |
 | `BuildingResolver.RelationScanResult` | `BuildingResolver.java` | No | Internal relation-scan outcome with counters and limit state. |
