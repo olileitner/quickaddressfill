@@ -1020,17 +1020,9 @@ final class StreetSelectionDialog {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Display")));
 
-        JPanel zoomOptionsPanel = new JPanel(new GridBagLayout());
-        GridBagConstraints zoomGbc = new GridBagConstraints();
-        zoomGbc.gridx = 0;
-        zoomGbc.gridy = 0;
-        zoomGbc.anchor = GridBagConstraints.WEST;
-        zoomGbc.insets = new Insets(0, 0, 0, 8);
-        zoomOptionsPanel.add(zoomToSelectedStreetCheckbox, zoomGbc);
-
-        zoomGbc.gridx = 1;
-        zoomGbc.insets = new Insets(0, 0, 0, 0);
-        zoomOptionsPanel.add(zoomToNumberedBuildingsOnlyCheckbox, zoomGbc);
+        JPanel zoomOptionsPanel = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
+        zoomOptionsPanel.add(zoomToSelectedStreetCheckbox);
+        zoomOptionsPanel.add(zoomToNumberedBuildingsOnlyCheckbox);
 
         JPanel houseNumberSubOptionsPanel = new JPanel(new GridBagLayout());
         GridBagConstraints subGbc = new GridBagConstraints();
