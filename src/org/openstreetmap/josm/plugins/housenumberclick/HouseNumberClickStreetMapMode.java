@@ -23,6 +23,7 @@ import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import javax.swing.JComboBox;
 import javax.swing.JCheckBox;
 import javax.swing.JDialog;
@@ -47,7 +48,7 @@ import org.openstreetmap.josm.tools.Logging;
 
 /**
  * Single active map mode that handles address apply/readback (including city/country-aware apply values),
- * temporary split gestures, and interaction-time overlay self-healing checks.
+ * address-removal confirmation gestures, temporary split gestures, and interaction-time overlay self-healing checks.
  */
 final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPaintable {
 
@@ -416,7 +417,7 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
 
     @Override
     public String getModeHelpText() {
-        return I18n.tr("Left-click applies tags, Alt+right-click creates row houses, Ctrl+left-click reads building data or street name, hold Alt and drag for temporary line split, Alt+1..9 sets row-house parts, + / - change number or suffix, L toggles letter suffix.");
+        return I18n.tr("Left-click applies tags, Alt+right-click creates row houses, Ctrl+left-click reads building data or street name, Ctrl+right-click removes address tags, hold Alt and drag for temporary line split, Alt+1..9 sets row-house parts, + / - change number or suffix, L toggles letter suffix.");
     }
 
     private int resolveAltPartsShortcut(KeyEvent e) {
@@ -473,6 +474,26 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
                 resetTemporarySplitState();
                 logClickDiagnostics(startedAtNanos, e, stats);
                 updateHouseNumberCursor();
+            }
+            return;
+        }
+
+        if (e != null
+                && e.getButton() == MouseEvent.BUTTON3
+                && e.isControlDown()
+                && !e.isShiftDown()
+                && !e.isAltDown()
+                && !e.isMetaDown()) {
+            long startedAtNanos = System.nanoTime();
+            ClickResolutionStats stats = new ClickResolutionStats();
+            try {
+                handleCtrlRightClick(e, stats);
+            } catch (RuntimeException ex) {
+                Logging.warn("HouseNumberClick StreetMapMode.mouseReleased: failure while removing address tags via ctrl+right-click");
+                updateStatusLine(I18n.tr("Address removal failed. See log for details."));
+                stats.outcome = "runtime-error";
+            } finally {
+                logClickDiagnostics(startedAtNanos, e, stats);
             }
             return;
         }
@@ -710,6 +731,16 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
         stats.resolution = result.getResolution();
     }
 
+    private void handleCtrlRightClick(MouseEvent e, ClickResolutionStats stats) {
+        ClickHandlerService.ClickResult result = clickHandlerService.handleCtrlRightClick(
+                MainApplication.getMap(),
+                e,
+                interactionPort
+        );
+        stats.outcome = result.getOutcome();
+        stats.resolution = result.getResolution();
+    }
+
     private ClickHandlerService.InteractionPort createInteractionPort() {
         return new ClickHandlerService.InteractionPort() {
             @Override
@@ -744,6 +775,11 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
                         overwrittenCity,
                         overwrittenCountry
                 );
+            }
+
+            @Override
+            public boolean confirmAddressRemoval(Map<String, String> addressTagsToRemove) {
+                return HouseNumberClickStreetMapMode.this.confirmAddressRemoval(addressTagsToRemove);
             }
 
             @Override
@@ -787,6 +823,45 @@ final class HouseNumberClickStreetMapMode extends MapMode implements MapViewPain
                 controller.rememberStreetInteraction(streetWay, interactionPoint);
             }
         };
+    }
+
+    private boolean confirmAddressRemoval(Map<String, String> addressTagsToRemove) {
+        if (addressTagsToRemove == null || addressTagsToRemove.isEmpty()) {
+            return false;
+        }
+
+        List<Object[]> rows = new ArrayList<>();
+        List<String> sortedKeys = new ArrayList<>(addressTagsToRemove.keySet());
+        sortedKeys.sort(String::compareTo);
+        for (String key : sortedKeys) {
+            rows.add(new Object[] {key, displayValue(addressTagsToRemove.get(key))});
+        }
+
+        String[] columns = new String[] {
+                I18n.tr("Field"),
+                I18n.tr("Existing")
+        };
+        JTable comparisonTable = new JTable(rows.toArray(new Object[0][]), columns);
+        comparisonTable.setEnabled(false);
+        comparisonTable.setRowSelectionAllowed(false);
+        comparisonTable.setFillsViewportHeight(true);
+
+        JScrollPane tableScrollPane = new JScrollPane(comparisonTable);
+        tableScrollPane.setPreferredSize(new Dimension(480, 96));
+
+        List<Object> content = new ArrayList<>();
+        content.add(I18n.tr("<html><b>The following address values will be removed:</b></html>"));
+        content.add(tableScrollPane);
+        content.add(I18n.tr("Do you want to remove these values?"));
+
+        JOptionPane optionPane = new JOptionPane(content.toArray(new Object[0]), JOptionPane.WARNING_MESSAGE, JOptionPane.YES_NO_OPTION);
+        optionPane.setInitialValue(JOptionPane.NO_OPTION);
+        JDialog dialog = optionPane.createDialog(MainApplication.getMainFrame(), I18n.tr("HouseNumberClick - Remove Address Values"));
+        dialog.setVisible(true);
+
+        Object selectedValue = optionPane.getValue();
+        int result = selectedValue instanceof Integer ? (Integer) selectedValue : JOptionPane.NO_OPTION;
+        return result == JOptionPane.YES_OPTION;
     }
 
     private boolean confirmOverwrite(

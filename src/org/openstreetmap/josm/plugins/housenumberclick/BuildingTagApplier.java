@@ -9,7 +9,7 @@ import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 
 /**
- * Applies address (including optional city/country) and building tags via JOSM commands,
+ * Applies address tags and removes existing addr:* tags via JOSM commands,
  * including relation-aware write targets.
  */
 final class BuildingTagApplier {
@@ -58,6 +58,45 @@ final class BuildingTagApplier {
                 tags
         );
         UndoRedoHandler.getInstance().add(command);
+    }
+
+    static int removeAddressTags(OsmPrimitive building) {
+        if (building == null || !building.isUsable()) {
+            return 0;
+        }
+
+        Map<String, String> tagsToRemove = collectAddressTagsForRemoval(building);
+
+        if (tagsToRemove.isEmpty()) {
+            return 0;
+        }
+
+        Map<String, String> removalInstruction = new LinkedHashMap<>();
+        for (String key : tagsToRemove.keySet()) {
+            if (key != null && !key.isEmpty()) {
+                removalInstruction.put(key, null);
+            }
+        }
+
+        ChangePropertyCommand command = new ChangePropertyCommand(
+                Collections.singleton(building),
+                removalInstruction
+        );
+        UndoRedoHandler.getInstance().add(command);
+        return removalInstruction.size();
+    }
+
+    static Map<String, String> collectAddressTagsForRemoval(OsmPrimitive building) {
+        Map<String, String> addressTags = new LinkedHashMap<>();
+        if (building == null || !building.isUsable()) {
+            return addressTags;
+        }
+        for (String key : building.keySet()) {
+            if (key != null && key.startsWith("addr:")) {
+                addressTags.put(key, building.get(key));
+            }
+        }
+        return addressTags;
     }
 
     private static String normalize(String value) {

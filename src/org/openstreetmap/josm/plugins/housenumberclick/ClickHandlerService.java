@@ -4,6 +4,7 @@ import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DataSet;
@@ -16,7 +17,7 @@ import org.openstreetmap.josm.gui.MapFrame;
 
 /**
  * Encapsulates click interaction flow for applying tags (including optional city/country),
- * reading addresses, and conflict handling.
+ * reading addresses, removing address tags, and conflict handling.
  */
 final class ClickHandlerService {
 
@@ -38,6 +39,8 @@ final class ClickHandlerService {
                 String overwrittenCity,
                 String overwrittenCountry
         );
+
+        boolean confirmAddressRemoval(Map<String, String> addressTagsToRemove);
 
         void notifyUser(String message);
 
@@ -345,6 +348,39 @@ final class ClickHandlerService {
         ));
         e.consume();
         return clickResult("terrace-split-applied", resolution);
+    }
+
+    ClickResult handleCtrlRightClick(MapFrame map, MouseEvent e, InteractionPort port) {
+        if (map == null || map.mapView == null) {
+            return clickResult("map-unavailable", BuildingResolver.BuildingResolutionResult.notEvaluated());
+        }
+
+        BuildingResolver.BuildingResolutionResult resolution = buildingResolver.resolveAtClick(map, e);
+        OsmPrimitive building = resolution.getBuilding();
+        if (building == null) {
+            port.updateStatusLine(org.openstreetmap.josm.tools.I18n.tr("No building detected."));
+            return clickResult("no-building-hit", resolution);
+        }
+
+        OsmPrimitive writeTarget = resolveWriteTargetForApply(building);
+        Map<String, String> addressTagsToRemove = BuildingTagApplier.collectAddressTagsForRemoval(writeTarget);
+        if (addressTagsToRemove.isEmpty()) {
+            port.updateStatusLine(org.openstreetmap.josm.tools.I18n.tr("No address tags found on this building."));
+            e.consume();
+            return clickResult("remove-address-no-tags", resolution);
+        }
+
+        if (!port.confirmAddressRemoval(addressTagsToRemove)) {
+            port.updateStatusLine(org.openstreetmap.josm.tools.I18n.tr("Address removal cancelled."));
+            e.consume();
+            return clickResult("remove-address-cancelled", resolution);
+        }
+
+        int removedTags = BuildingTagApplier.removeAddressTags(writeTarget);
+
+        port.updateStatusLine(org.openstreetmap.josm.tools.I18n.tr("Removed {0} address tag(s).", removedTags));
+        e.consume();
+        return clickResult("remove-address-applied", resolution);
     }
 
     private PrimaryClickResult rejectedPrimary(String outcome, String buildingType, String streetName, String houseNumber) {

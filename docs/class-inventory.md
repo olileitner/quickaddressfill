@@ -22,8 +22,8 @@ Core classes as defined in `AGENTS.md` are marked: `HouseNumberClickPlugin`, `Ho
 | `BuildingResolver.BuildingResolutionResult` | `BuildingResolver.java` | No | Full resolver diagnostics and selected building primitive for one click resolution. |
 | `BuildingResolver.RelationScanResult` | `BuildingResolver.java` | No | Internal relation-scan outcome with counters and limit state. |
 | `BuildingResolver.WayScanResult` | `BuildingResolver.java` | No | Internal way-scan outcome with counters and limit state. |
-| `BuildingTagApplier` | `BuildingTagApplier.java` | No | Applies address (including optional city/country) and building tags via JOSM commands, including relation-aware write targets. |
-| `ClickHandlerService` | `ClickHandlerService.java` | No | Encapsulates click interaction flow for applying tags (including optional city/country), reading addresses, and conflict handling. |
+| `BuildingTagApplier` | `BuildingTagApplier.java` | No | Applies address tags and removes existing addr:* tags via JOSM commands, including relation-aware write targets. |
+| `ClickHandlerService` | `ClickHandlerService.java` | No | Encapsulates click interaction flow for applying tags (including optional city/country), reading addresses, removing address tags, and conflict handling. |
 | `ClickHandlerService.ClickResult` | `ClickHandlerService.java` | No | Lightweight result of non-primary click flows with outcome and resolver diagnostics. |
 | `ClickHandlerService.PrimaryClickResult` | `ClickHandlerService.java` | No | Result of a primary (apply) click, including outcome, resolution stats, and next UI state. |
 | `ConflictDialogModelBuilder` | `ConflictDialogModelBuilder.java` | No | Converts conflict analysis into table-oriented dialog rows for overwrite confirmation UI. |
@@ -38,7 +38,7 @@ Core classes as defined in `AGENTS.md` are marked: `HouseNumberClickPlugin`, `Ho
 | `DuplicateAddressOverviewLayer` | `DuplicateAddressOverviewLayer.java` | No | Map layer that highlights buildings with duplicate exact address keys. |
 | `HouseNumberClickAction` | `HouseNumberClickAction.java` | Yes | Main toolbar/menu action that follows JOSM tool availability (enabled only with an editable dataset/layer), opens the street selection dialog (including optional country prefill and constrained likely-country code options), and activates street mode. |
 | `HouseNumberClickPlugin` | `HouseNumberClickPlugin.java` | Yes | Plugin entry point that wires the menu action and performs one-time toolbar migration. |
-| `HouseNumberClickStreetMapMode` | `HouseNumberClickStreetMapMode.java` | Yes | Single active map mode that handles address apply/readback (including city/country-aware apply values), temporary split gestures, and interaction-time overlay self-healing checks. |
+| `HouseNumberClickStreetMapMode` | `HouseNumberClickStreetMapMode.java` | Yes | Single active map mode that handles address apply/readback (including city/country-aware apply values), address-removal confirmation gestures, temporary split gestures, and interaction-time overlay self-healing checks. |
 | `HouseNumberClickStreetMapMode.ClickResolutionStats` | `HouseNumberClickStreetMapMode.java` | Yes | Captures per-click outcome metadata for interaction flow handling. |
 | `HouseNumberOverlayCollector` | `HouseNumberOverlayCollector.java` | No | Collects and normalizes addressed buildings near the locally resolved selected street segment, canonicalizing relation/outer-way representations of the same real building. |
 | `HouseNumberOverlayCollector.CollectionStats` | `HouseNumberOverlayCollector.java` | No | Aggregated rejection counters used for overlay collection diagnostics. |

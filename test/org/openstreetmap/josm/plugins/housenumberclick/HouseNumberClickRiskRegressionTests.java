@@ -68,6 +68,8 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Invalid scan limit preferences fall back to defaults", HouseNumberClickRiskRegressionTests::testInvalidScanLimitPreferencesFallBack);
             run("Duplicate click detection blocks true duplicates", HouseNumberClickRiskRegressionTests::testDuplicateClicksAreDetected);
             run("Duplicate click detection keeps rapid distinct clicks", HouseNumberClickRiskRegressionTests::testRapidDistinctClicksAreKept);
+            run("Address tag removal command clears addr keys", HouseNumberClickRiskRegressionTests::testRemoveAddressTagsClearsAddrKeys);
+            run("Ctrl+Right click shortcut removes address tags", HouseNumberClickRiskRegressionTests::testCtrlRightClickShortcutWiring);
             run("Rectangularize skips triangle split results", HouseNumberClickRiskRegressionTests::testRectangularizeCandidateGuard);
             run("Street mode blocks apply when postcode is not selected", HouseNumberClickRiskRegressionTests::testPostcodeSelectionGuard);
             run("Postcode overview source exposes three-state cycle", HouseNumberClickRiskRegressionTests::testPostcodeOverviewThreeStateCycleWiring);
@@ -739,6 +741,55 @@ public final class HouseNumberClickRiskRegressionTests {
         assertFalse(invokeDuplicateCheck(mode, first), "first click must not be duplicate");
         assertFalse(invokeDuplicateCheck(mode, differentPosition), "different position should not be duplicate");
         assertFalse(invokeDuplicateCheck(mode, differentModifiers), "different modifiers should not be duplicate");
+    }
+
+    private static void testCtrlRightClickShortcutWiring() throws Exception {
+        String modeSource = readPluginSource("HouseNumberClickStreetMapMode.java");
+        assertTrue(modeSource.contains("Ctrl+right-click removes address tags"),
+                "mode help text should advertise Ctrl+right-click address removal");
+        assertTrue(modeSource.contains("handleCtrlRightClick(e, stats)"),
+                "mouse release handling should dispatch plain Ctrl+right-click to dedicated handler");
+        assertTrue(modeSource.contains("e.getButton() == MouseEvent.BUTTON3"),
+                "ctrl-right-click removal should require explicit BUTTON3 to avoid ctrl-left regressions");
+
+        String clickHandlerSource = readPluginSource("ClickHandlerService.java");
+        assertTrue(clickHandlerSource.contains("handleCtrlRightClick"),
+                "click handler should expose ctrl-right-click interaction flow");
+        assertTrue(clickHandlerSource.contains("collectAddressTagsForRemoval"),
+                "ctrl-right-click handling should preview addr:* tags before deletion");
+        assertTrue(clickHandlerSource.contains("confirmAddressRemoval"),
+                "ctrl-right-click handling should require explicit confirmation");
+        assertTrue(clickHandlerSource.contains("BuildingTagApplier.removeAddressTags"),
+                "ctrl-right-click handling should remove addr:* tags through BuildingTagApplier");
+        assertTrue(clickHandlerSource.contains("remove-address-cancelled"),
+                "ctrl-right-click flow should keep a dedicated cancelled outcome when user rejects removal");
+
+        assertTrue(modeSource.contains("confirmAddressRemoval("),
+                "street mode should implement address-removal confirmation dialog");
+
+        String dialogSource = readPluginSource("StreetSelectionDialog.java");
+        assertTrue(dialogSource.contains("DIALOG_HEIGHT = 1000"),
+                "main dialog should be 20px higher to fit extended help section");
+        assertTrue(dialogSource.contains("Ctrl+Right click"),
+                "help section should include Ctrl+Right click hint");
+    }
+
+    private static void testRemoveAddressTagsClearsAddrKeys() {
+        DataSet dataSet = new DataSet();
+        Way building = createClosedBuilding("Example Street", "12");
+        building.put("addr:postcode", "12345");
+        building.put("addr:city", "Exampletown");
+        building.put("note", "keep");
+        dataSet.addPrimitiveRecursive(building);
+
+        int removed = BuildingTagApplier.removeAddressTags(building);
+        assertEquals(4, removed, "removeAddressTags should report all removed addr:* tags");
+        assertFalse(building.hasKey("addr:street"), "addr:street should be removed");
+        assertFalse(building.hasKey("addr:housenumber"), "addr:housenumber should be removed");
+        assertFalse(building.hasKey("addr:postcode"), "addr:postcode should be removed");
+        assertFalse(building.hasKey("addr:city"), "addr:city should be removed");
+        assertEquals("yes", building.get("building"), "building type must remain untouched");
+        assertEquals("keep", building.get("note"), "non-address tags must remain untouched");
     }
 
     private static void testCtrlHasPriorityOverAltActivation() throws Exception {
