@@ -44,10 +44,12 @@ import org.openstreetmap.josm.tools.I18n;
  * Main configuration dialog where users pick street/address settings (street, postcode, house number, city,
  * country code, building type) and receive disambiguated readback updates, while street auto-zoom is limited
  * to explicit street-selection actions with configurable zoom scope, postcode overview is cycled through
- * off/buildings/schematic states, and user-facing display/split options persist across JOSM sessions.
+ * off/buildings/schematic states, user-facing display/split options persist across JOSM sessions, and dialog
+ * window bounds are restored with default fallback when saved geometry is no longer on-screen.
  */
 final class StreetSelectionDialog {
 
+    private static final String DIALOG_BOUNDS_ID = "mainDialog";
     private static final String DEFAULT_HOUSE_NUMBER = "1";
     private static final String INITIAL_HOUSE_NUMBER = "";
 
@@ -119,6 +121,8 @@ final class StreetSelectionDialog {
 
     private static final int DIALOG_WIDTH = 400;
     private static final int DIALOG_HEIGHT = 1000;
+    private static final Dimension DIALOG_MINIMUM_SIZE = new Dimension(DIALOG_WIDTH, DIALOG_HEIGHT);
+    private static final Dimension DIALOG_SIZE = new Dimension(DIALOG_WIDTH, DIALOG_HEIGHT);
     private static final int DIALOG_OFFSET_X = 66;
     private static final int DIALOG_OFFSET_Y = 80;
     private static final String SHOW_OVERVIEW_BUTTON_TEXT = I18n.tr("Show completeness");
@@ -407,9 +411,8 @@ final class StreetSelectionDialog {
         content.add(bottomPanel, BorderLayout.SOUTH);
 
         this.dialog.getContentPane().add(content, BorderLayout.CENTER);
-        this.dialog.setMinimumSize(new Dimension(DIALOG_WIDTH, DIALOG_HEIGHT));
-        this.dialog.setSize(new Dimension(DIALOG_WIDTH, DIALOG_HEIGHT));
-        positionTopLeftInOwner(owner);
+        this.dialog.setMinimumSize(DIALOG_MINIMUM_SIZE);
+        this.dialog.setSize(DIALOG_SIZE);
         this.dialog.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -510,7 +513,13 @@ final class StreetSelectionDialog {
         refreshPostcodeOverviewButtonLabel();
 
         if (!dialog.isVisible()) {
-            positionTopLeftInOwner(MainApplication.getMainFrame());
+            DialogWindowBoundsManager.applyStoredBoundsOrDefaults(
+                    dialog,
+                    DIALOG_BOUNDS_ID,
+                    DIALOG_MINIMUM_SIZE,
+                    DIALOG_SIZE,
+                    () -> positionTopLeftInOwner(MainApplication.getMainFrame())
+            );
             dialog.setVisible(true);
             registerStreetNavigationDispatcher();
         } else {
@@ -910,6 +919,7 @@ final class StreetSelectionDialog {
     private void closeDialog() {
         rememberCurrentValues();
         savePersistentDialogSettings();
+        DialogWindowBoundsManager.saveDialogBounds(dialog, DIALOG_BOUNDS_ID);
         dialog.setVisible(false);
         unregisterStreetNavigationDispatcher();
         streetModeController.onMainDialogClosed();

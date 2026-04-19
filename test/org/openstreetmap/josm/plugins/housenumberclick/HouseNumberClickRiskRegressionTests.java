@@ -98,6 +98,7 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Street zoom fallback collects only usable named highway ways", HouseNumberClickRiskRegressionTests::testStreetZoomFallbackWayMatching);
             run("Street-table selection respects auto-zoom option", HouseNumberClickRiskRegressionTests::testStreetTableSelectionRespectsAutoZoomOption);
             run("Street-count dialog title and dimensions match overview dialog", HouseNumberClickRiskRegressionTests::testStreetCountDialogTitleAndDimensions);
+            run("Dialog bounds persistence and off-screen fallback wiring exist", HouseNumberClickRiskRegressionTests::testDialogBoundsPersistenceWiring);
             run("Auto-zoom scope toggle wiring exists", HouseNumberClickRiskRegressionTests::testAutoZoomScopeToggleWiring);
             run("Street counts duplicate marker applies conditional city rule", HouseNumberClickRiskRegressionTests::testStreetHouseNumberCountCollectorConditionalCityRule);
             run("Building overview collector filters tiny buildings and keeps addressed state", HouseNumberClickRiskRegressionTests::testBuildingOverviewCollectorFilteringAndClassification);
@@ -1450,6 +1451,41 @@ public final class HouseNumberClickRiskRegressionTests {
                 "house-number overview dialog should keep 320x500 size for shared sizing baseline");
         assertTrue(houseOverviewDialogSource.contains("new Dimension(300, 440)"),
                 "house-number overview dialog should keep 300x440 minimum size for shared sizing baseline");
+    }
+
+    private static void testDialogBoundsPersistenceWiring() throws Exception {
+        String preferencesSource = readPluginSource("HouseNumberClickPreferences.java");
+        String mainDialogSource = readPluginSource("StreetSelectionDialog.java");
+        String overviewDialogSource = readPluginSource("HouseNumberOverviewDialog.java");
+        String streetCountDialogSource = readPluginSource("StreetHouseNumberCountDialog.java");
+        String boundsManagerSource = readPluginSource("DialogWindowBoundsManager.java");
+
+        assertTrue(preferencesSource.contains("DIALOG_BOUNDS_PREFIX"),
+                "preferences should define a dedicated key prefix for persisted dialog bounds");
+        assertTrue(preferencesSource.contains("putDialogBounds"),
+                "preferences should expose dialog-bounds write helper");
+        assertTrue(preferencesSource.contains("getDialogBounds"),
+                "preferences should expose dialog-bounds read helper");
+
+        assertTrue(mainDialogSource.contains("DialogWindowBoundsManager.applyStoredBoundsOrDefaults"),
+                "main dialog should restore saved bounds with a default fallback path");
+        assertTrue(mainDialogSource.contains("DialogWindowBoundsManager.saveDialogBounds"),
+                "main dialog should persist bounds when closing");
+
+        assertTrue(overviewDialogSource.contains("DialogWindowBoundsManager.applyStoredBoundsOrDefaults"),
+                "house-number overview dialog should restore saved bounds with a default fallback path");
+        assertTrue(overviewDialogSource.contains("DialogWindowBoundsManager.saveDialogBounds"),
+                "house-number overview dialog should persist bounds on close/hide");
+
+        assertTrue(streetCountDialogSource.contains("DialogWindowBoundsManager.applyStoredBoundsOrDefaults"),
+                "street-count dialog should restore saved bounds with a default fallback path");
+        assertTrue(streetCountDialogSource.contains("DialogWindowBoundsManager.saveDialogBounds"),
+                "street-count dialog should persist bounds on close/hide");
+
+        assertTrue(boundsManagerSource.contains("isVisibleOnAnyScreen"),
+                "dialog bounds manager should validate restored bounds against currently available screens");
+        assertTrue(boundsManagerSource.contains("defaultPositioner.run()"),
+                "dialog bounds manager should fall back to default position when restored bounds are invalid/off-screen");
     }
 
     private static void testAutoZoomScopeToggleWiring() throws Exception {

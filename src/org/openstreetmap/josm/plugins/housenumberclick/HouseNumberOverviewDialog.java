@@ -35,12 +35,15 @@ import org.openstreetmap.josm.tools.I18n;
 
 /**
  * Dialog that displays house-number completeness for the selected street and resume actions,
- * including multi-object zoom for duplicate cells.
+ * including multi-object zoom for duplicate cells and persisted window bounds with safe fallback.
  */
 final class HouseNumberOverviewDialog {
 
+    private static final String DIALOG_BOUNDS_ID = "houseNumberOverview";
     private static final int DIALOG_OFFSET_X = 66;
     private static final int DIALOG_OFFSET_Y = 80;
+    private static final Dimension DIALOG_MINIMUM_SIZE = new Dimension(300, 440);
+    private static final Dimension DIALOG_SIZE = new Dimension(320, 500);
     private static final java.awt.Color ODD_COLUMN_COLOR = new java.awt.Color(255, 243, 225);
     private static final java.awt.Color EVEN_COLUMN_COLOR = new java.awt.Color(230, 239, 252);
     private static final Color MISSING_DOT_COLOR = new Color(140, 145, 150);
@@ -52,7 +55,6 @@ final class HouseNumberOverviewDialog {
     private final List<HouseNumberOverviewRow> currentRows = new ArrayList<>();
     private final Runnable rowClickListener;
     private final Runnable closeListener;
-    private boolean positionInitializedForSession;
 
     HouseNumberOverviewDialog(Runnable rowClickListener, Runnable closeListener) {
         this.rowClickListener = rowClickListener;
@@ -63,6 +65,7 @@ final class HouseNumberOverviewDialog {
         this.dialog.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent event) {
+                DialogWindowBoundsManager.saveDialogBounds(dialog, DIALOG_BOUNDS_ID);
                 if (HouseNumberOverviewDialog.this.closeListener != null) {
                     HouseNumberOverviewDialog.this.closeListener.run();
                 }
@@ -129,8 +132,8 @@ final class HouseNumberOverviewDialog {
         content.add(scrollPane, BorderLayout.CENTER);
 
         this.dialog.getContentPane().add(content, BorderLayout.CENTER);
-        this.dialog.setMinimumSize(new Dimension(300, 440));
-        this.dialog.setSize(new Dimension(320, 500));
+        this.dialog.setMinimumSize(DIALOG_MINIMUM_SIZE);
+        this.dialog.setSize(DIALOG_SIZE);
     }
 
     void updateData(String streetName, List<HouseNumberOverviewRow> rows, boolean streetPossiblyIncomplete) {
@@ -155,10 +158,13 @@ final class HouseNumberOverviewDialog {
 
     void showDialog() {
         if (!dialog.isVisible()) {
-            if (!positionInitializedForSession) {
-                positionTopRightInOwner(MainApplication.getMainFrame());
-                positionInitializedForSession = true;
-            }
+            DialogWindowBoundsManager.applyStoredBoundsOrDefaults(
+                    dialog,
+                    DIALOG_BOUNDS_ID,
+                    DIALOG_MINIMUM_SIZE,
+                    DIALOG_SIZE,
+                    () -> positionTopRightInOwner(MainApplication.getMainFrame())
+            );
             dialog.setVisible(true);
         } else {
             dialog.toFront();
@@ -167,11 +173,12 @@ final class HouseNumberOverviewDialog {
     }
 
     void hideDialog() {
+        DialogWindowBoundsManager.saveDialogBounds(dialog, DIALOG_BOUNDS_ID);
         dialog.setVisible(false);
     }
 
     void resetSessionPositioningState() {
-        positionInitializedForSession = false;
+        // Bounds persistence now restores on each show call.
     }
 
     private String normalize(String value) {

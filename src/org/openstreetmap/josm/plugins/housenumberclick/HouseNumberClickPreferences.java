@@ -1,11 +1,14 @@
 package org.openstreetmap.josm.plugins.housenumberclick;
 
+import java.awt.Rectangle;
+
 import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.spi.preferences.Config;
 
 /**
- * Centralized plugin preference access using the shared housenumberclick.* namespace.
+ * Centralized plugin preference access using the shared housenumberclick.* namespace,
+ * including dialog-bounds persistence helpers.
  */
 final class HouseNumberClickPreferences {
 
@@ -43,6 +46,7 @@ final class HouseNumberClickPreferences {
             new IntegerProperty(PREFIX + "dialog.terraceParts", 2);
     static final IntegerProperty COMPLETENESS_MISSING_FIELD =
             new IntegerProperty(PREFIX + "dialog.completenessMissingField", BuildingOverviewLayer.MissingField.POSTCODE.ordinal());
+    private static final String DIALOG_BOUNDS_PREFIX = PREFIX + "dialog.bounds.";
 
     private HouseNumberClickPreferences() {
         // Utility class
@@ -102,6 +106,46 @@ final class HouseNumberClickPreferences {
                 ? missingField
                 : BuildingOverviewLayer.MissingField.POSTCODE;
         COMPLETENESS_MISSING_FIELD.put(normalized.ordinal());
+    }
+
+    static void putDialogBounds(String dialogId, Rectangle bounds) {
+        if (Config.getPref() == null) {
+            return;
+        }
+        String key = normalizeDialogBoundsKey(dialogId);
+        if (key.isEmpty() || bounds == null || bounds.width <= 0 || bounds.height <= 0) {
+            return;
+        }
+        Config.getPref().putInt(key + ".x", bounds.x);
+        Config.getPref().putInt(key + ".y", bounds.y);
+        Config.getPref().putInt(key + ".w", bounds.width);
+        Config.getPref().putInt(key + ".h", bounds.height);
+    }
+
+    static Rectangle getDialogBounds(String dialogId) {
+        if (Config.getPref() == null) {
+            return null;
+        }
+        String key = normalizeDialogBoundsKey(dialogId);
+        if (key.isEmpty()) {
+            return null;
+        }
+        int width = Config.getPref().getInt(key + ".w", -1);
+        int height = Config.getPref().getInt(key + ".h", -1);
+        if (width <= 0 || height <= 0) {
+            return null;
+        }
+        int x = Config.getPref().getInt(key + ".x", Integer.MIN_VALUE);
+        int y = Config.getPref().getInt(key + ".y", Integer.MIN_VALUE);
+        if (x == Integer.MIN_VALUE || y == Integer.MIN_VALUE) {
+            return null;
+        }
+        return new Rectangle(x, y, width, height);
+    }
+
+    private static String normalizeDialogBoundsKey(String dialogId) {
+        String normalizedId = dialogId == null ? "" : dialogId.trim();
+        return normalizedId.isEmpty() ? "" : DIALOG_BOUNDS_PREFIX + normalizedId;
     }
 
     private static void migrateLegacyOverlayPreferenceIfNeeded() {

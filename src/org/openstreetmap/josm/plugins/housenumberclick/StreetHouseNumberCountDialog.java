@@ -32,10 +32,12 @@ import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.tools.I18n;
 
 /**
- * Dialog that lists streets with address counts, selection shortcuts, and rescan controls.
+ * Dialog that lists streets with address counts, selection shortcuts, rescan controls, and persisted
+ * window bounds with safe fallback.
  */
 final class StreetHouseNumberCountDialog {
 
+    private static final String DIALOG_BOUNDS_ID = "streetNumberCounts";
     private static final int DIALOG_OFFSET_X = 66;
     private static final int DIALOG_OFFSET_Y = 80;
     private static final Dimension DIALOG_MINIMUM_SIZE = new Dimension(300, 440);
@@ -49,7 +51,6 @@ final class StreetHouseNumberCountDialog {
     private final Consumer<StreetOption> streetClickListener;
     private final Runnable rescanListener;
     private final Runnable closeListener;
-    private boolean positionInitializedForSession;
 
     static List<StreetHouseNumberCountRow> sortRowsForDisplay(List<StreetHouseNumberCountRow> rows) {
         if (rows == null || rows.isEmpty()) {
@@ -92,6 +93,7 @@ final class StreetHouseNumberCountDialog {
         this.dialog.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent event) {
+                DialogWindowBoundsManager.saveDialogBounds(dialog, DIALOG_BOUNDS_ID);
                 if (StreetHouseNumberCountDialog.this.closeListener != null) {
                     StreetHouseNumberCountDialog.this.closeListener.run();
                 }
@@ -227,10 +229,13 @@ final class StreetHouseNumberCountDialog {
 
     void showDialog() {
         if (!dialog.isVisible()) {
-            if (!positionInitializedForSession) {
-                positionBottomRightInOwner(MainApplication.getMainFrame());
-                positionInitializedForSession = true;
-            }
+            DialogWindowBoundsManager.applyStoredBoundsOrDefaults(
+                    dialog,
+                    DIALOG_BOUNDS_ID,
+                    DIALOG_MINIMUM_SIZE,
+                    DIALOG_SIZE,
+                    () -> positionBottomRightInOwner(MainApplication.getMainFrame())
+            );
             dialog.setVisible(true);
         } else {
             dialog.toFront();
@@ -239,11 +244,12 @@ final class StreetHouseNumberCountDialog {
     }
 
     void hideDialog() {
+        DialogWindowBoundsManager.saveDialogBounds(dialog, DIALOG_BOUNDS_ID);
         dialog.setVisible(false);
     }
 
     void resetSessionPositioningState() {
-        positionInitializedForSession = false;
+        // Bounds persistence now restores on each show call.
     }
 
     private void positionBottomRightInOwner(Frame owner) {
