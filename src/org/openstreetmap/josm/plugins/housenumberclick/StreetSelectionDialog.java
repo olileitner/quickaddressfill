@@ -45,9 +45,10 @@ import org.openstreetmap.josm.tools.I18n;
  * Main configuration dialog where users pick street/address settings (street, postcode, house number, city,
  * country code, building type) and receive disambiguated readback updates, while street auto-zoom is limited
  * to explicit street-selection actions with configurable zoom scope, postcode overview is cycled through
- * off/buildings/schematic states, user-facing display/split options persist across JOSM sessions, advanced
- * sections below Address can be collapsed via a lightweight toggle with persisted state, and dialog window bounds
- * are restored with default fallback when saved geometry is no longer on-screen.
+ * off/buildings/schematic states, Street Counts/Street Numbers overviews are rendered as dedicated sidebar
+ * ToggleDialogs, user-facing display/split options persist across JOSM sessions, advanced sections below Address
+ * can be collapsed via a lightweight toggle with persisted state, and dialog window bounds are restored with
+ * default fallback when saved geometry is no longer on-screen.
  */
 final class StreetSelectionDialog {
 
@@ -85,8 +86,6 @@ final class StreetSelectionDialog {
     private final JCheckBox showHouseNumberLayerCheckbox;
     private final JCheckBox showConnectionLinesCheckbox;
     private final JCheckBox showSeparateEvenOddConnectionLinesCheckbox;
-    private final JCheckBox showHouseNumberOverviewCheckbox;
-    private final JCheckBox showStreetHouseNumberCountsCheckbox;
     private final JCheckBox zoomToSelectedStreetCheckbox;
     private final JCheckBox zoomToNumberedBuildingsOnlyCheckbox;
     private final JCheckBox splitMakeRectangularCheckbox;
@@ -112,8 +111,6 @@ final class StreetSelectionDialog {
     private boolean rememberedConnectionLinesPreference = HouseNumberClickPreferences.SHOW_CONNECTION_LINES.get();
     private boolean rememberedSeparateEvenOddLinesEnabled = HouseNumberClickPreferences.SHOW_SEPARATE_EVEN_ODD_LINES.get();
     private boolean rememberedSeparateEvenOddLinesPreference = HouseNumberClickPreferences.SHOW_SEPARATE_EVEN_ODD_LINES.get();
-    private boolean rememberedHouseNumberOverviewEnabled = HouseNumberClickPreferences.SHOW_HOUSE_NUMBER_OVERVIEW.get();
-    private boolean rememberedStreetHouseNumberCountsEnabled = HouseNumberClickPreferences.SHOW_STREET_HOUSE_NUMBER_COUNTS.get();
     private boolean rememberedZoomToSelectedStreetEnabled = HouseNumberClickPreferences.ZOOM_TO_SELECTED_STREET.get();
     private boolean rememberedZoomToNumberedBuildingsOnlyEnabled = HouseNumberClickPreferences.ZOOM_TO_NUMBERED_BUILDINGS_ONLY.get();
     private boolean rememberedSplitMakeRectangular = HouseNumberClickPreferences.SPLIT_MAKE_RECTANGULAR.get();
@@ -222,8 +219,6 @@ final class StreetSelectionDialog {
         this.streetModeController.setAddressValuesReadListener(this::updateAddressValuesFromMode);
         this.streetModeController.setBuildingTypeConsumedListener(this::consumeBuildingTypeFromMode);
         this.streetModeController.setStreetSelectionRequestListener(this::applyStreetSelectionFromOverview);
-        this.streetModeController.setHouseNumberOverviewVisibilityListener(this::updateHouseNumberOverviewCheckboxFromController);
-        this.streetModeController.setStreetHouseNumberCountsVisibilityListener(this::updateStreetHouseNumberCountsCheckboxFromController);
 
         JButton closeButton = new JButton(I18n.tr("Close"));
         closeButton.addActionListener(e -> closeDialog());
@@ -272,8 +267,6 @@ final class StreetSelectionDialog {
         this.showHouseNumberLayerCheckbox = new JCheckBox(I18n.tr("Show house number labels"));
         this.showConnectionLinesCheckbox = new JCheckBox(I18n.tr("Show connections"));
         this.showSeparateEvenOddConnectionLinesCheckbox = new JCheckBox(I18n.tr("Separate even / odd"));
-        this.showHouseNumberOverviewCheckbox = new JCheckBox(I18n.tr("Show overview panel (selected street)"));
-        this.showStreetHouseNumberCountsCheckbox = new JCheckBox(I18n.tr("Show all street counts"));
         this.zoomToSelectedStreetCheckbox = new JCheckBox(I18n.tr("Auto-zoom to selected street"));
         this.zoomToNumberedBuildingsOnlyCheckbox = new JCheckBox(I18n.tr("Numbered only"));
         this.zoomToNumberedBuildingsOnlyCheckbox.setToolTipText(
@@ -281,8 +274,6 @@ final class StreetSelectionDialog {
         this.showHouseNumberLayerCheckbox.addActionListener(e -> onOverlayLayerSelectionChanged());
         this.showConnectionLinesCheckbox.addActionListener(e -> onConnectionLinesSelectionChanged());
         this.showSeparateEvenOddConnectionLinesCheckbox.addActionListener(e -> onSeparateEvenOddConnectionLinesSelectionChanged());
-        this.showHouseNumberOverviewCheckbox.addActionListener(e -> onHouseNumberOverviewSelectionChanged());
-        this.showStreetHouseNumberCountsCheckbox.addActionListener(e -> onStreetHouseNumberCountsSelectionChanged());
         this.zoomToSelectedStreetCheckbox.addActionListener(e -> onZoomToSelectedStreetSelectionChanged());
         this.zoomToNumberedBuildingsOnlyCheckbox.addActionListener(e -> onZoomToNumberedBuildingsOnlySelectionChanged());
         this.zoomToNumberedBuildingsOnlyCheckbox.setSelected(rememberedZoomToNumberedBuildingsOnlyEnabled);
@@ -468,6 +459,7 @@ final class StreetSelectionDialog {
     }
 
     void onEditLayerUnavailable() {
+        streetModeController.onNoActiveDataSet();
         if (dialog.isVisible()) {
             closeDialog();
             return;
@@ -491,6 +483,7 @@ final class StreetSelectionDialog {
             resetRememberedValuesForDataSetChange();
         }
         rememberedDataSet = activeDataSet;
+        streetModeController.onMainDialogOpened();
 
         String previousStreet = null;
         updatingInputs = true;
@@ -524,8 +517,6 @@ final class StreetSelectionDialog {
                 rememberedConnectionLinesEnabled,
                 rememberedSeparateEvenOddLinesEnabled
         );
-        showHouseNumberOverviewCheckbox.setSelected(rememberedHouseNumberOverviewEnabled);
-        showStreetHouseNumberCountsCheckbox.setSelected(rememberedStreetHouseNumberCountsEnabled);
         zoomToSelectedStreetCheckbox.setSelected(rememberedZoomToSelectedStreetEnabled);
         zoomToNumberedBuildingsOnlyCheckbox.setSelected(rememberedZoomToNumberedBuildingsOnlyEnabled);
         updateZoomScopeOptionEnablement();
@@ -540,8 +531,6 @@ final class StreetSelectionDialog {
 
         notifyAddressChanged();
         notifyOverlaySettingsChanged();
-        notifyHouseNumberOverviewChanged();
-        notifyStreetHouseNumberCountsChanged();
         notifyZoomToSelectedStreetChanged();
         notifyZoomToNumberedBuildingsOnlyChanged();
         refreshModeStateUi(streetModeController.isActive());
@@ -884,16 +873,6 @@ final class StreetSelectionDialog {
         focusMapViewIfStreetModeActive();
     }
 
-    private void onHouseNumberOverviewSelectionChanged() {
-        if (updatingInputs) {
-            return;
-        }
-        rememberCurrentValues();
-        savePersistentDialogSettings();
-        notifyHouseNumberOverviewChanged();
-        focusMapViewIfStreetModeActive();
-    }
-
     private void onZoomToSelectedStreetSelectionChanged() {
         if (updatingInputs) {
             return;
@@ -915,16 +894,6 @@ final class StreetSelectionDialog {
         if (zoomToSelectedStreetCheckbox != null && zoomToSelectedStreetCheckbox.isSelected()) {
             streetModeController.zoomToCurrentStreet();
         }
-        focusMapViewIfStreetModeActive();
-    }
-
-    private void onStreetHouseNumberCountsSelectionChanged() {
-        if (updatingInputs) {
-            return;
-        }
-        rememberCurrentValues();
-        savePersistentDialogSettings();
-        notifyStreetHouseNumberCountsChanged();
         focusMapViewIfStreetModeActive();
     }
 
@@ -1161,14 +1130,6 @@ final class StreetSelectionDialog {
         gbc.gridy = 2;
         gbc.insets = new Insets(2, 16, 2, 0);
         panel.add(houseNumberSubOptionsPanel, gbc);
-
-        gbc.gridy = 3;
-        gbc.insets = new Insets(2, 0, 2, 0);
-        panel.add(showHouseNumberOverviewCheckbox, gbc);
-
-        gbc.gridy = 4;
-        gbc.insets = new Insets(2, 0, 2, 0);
-        panel.add(showStreetHouseNumberCountsCheckbox, gbc);
 
         return panel;
     }
@@ -1489,8 +1450,6 @@ final class StreetSelectionDialog {
                 .normalizeIncrementStep(HouseNumberClickPreferences.HOUSE_NUMBER_INCREMENT_STEP.get());
         rememberedConnectionLinesPreference = HouseNumberClickPreferences.SHOW_CONNECTION_LINES.get();
         rememberedSeparateEvenOddLinesPreference = HouseNumberClickPreferences.SHOW_SEPARATE_EVEN_ODD_LINES.get();
-        rememberedHouseNumberOverviewEnabled = HouseNumberClickPreferences.SHOW_HOUSE_NUMBER_OVERVIEW.get();
-        rememberedStreetHouseNumberCountsEnabled = HouseNumberClickPreferences.SHOW_STREET_HOUSE_NUMBER_COUNTS.get();
         rememberedZoomToSelectedStreetEnabled = HouseNumberClickPreferences.ZOOM_TO_SELECTED_STREET.get();
         rememberedZoomToNumberedBuildingsOnlyEnabled = HouseNumberClickPreferences.ZOOM_TO_NUMBERED_BUILDINGS_ONLY.get();
         rememberedSplitMakeRectangular = HouseNumberClickPreferences.SPLIT_MAKE_RECTANGULAR.get();
@@ -1509,8 +1468,6 @@ final class StreetSelectionDialog {
         );
         HouseNumberClickPreferences.SHOW_CONNECTION_LINES.put(rememberedConnectionLinesPreference);
         HouseNumberClickPreferences.SHOW_SEPARATE_EVEN_ODD_LINES.put(rememberedSeparateEvenOddLinesPreference);
-        HouseNumberClickPreferences.SHOW_HOUSE_NUMBER_OVERVIEW.put(rememberedHouseNumberOverviewEnabled);
-        HouseNumberClickPreferences.SHOW_STREET_HOUSE_NUMBER_COUNTS.put(rememberedStreetHouseNumberCountsEnabled);
         HouseNumberClickPreferences.ZOOM_TO_SELECTED_STREET.put(rememberedZoomToSelectedStreetEnabled);
         HouseNumberClickPreferences.ZOOM_TO_NUMBERED_BUILDINGS_ONLY.put(rememberedZoomToNumberedBuildingsOnlyEnabled);
         HouseNumberClickPreferences.SPLIT_MAKE_RECTANGULAR.put(rememberedSplitMakeRectangular);
@@ -1551,10 +1508,6 @@ final class StreetSelectionDialog {
         rememberedConnectionLinesEnabled = showConnectionLinesCheckbox != null && showConnectionLinesCheckbox.isSelected();
         rememberedSeparateEvenOddLinesEnabled = showSeparateEvenOddConnectionLinesCheckbox != null
                 && showSeparateEvenOddConnectionLinesCheckbox.isSelected();
-        rememberedHouseNumberOverviewEnabled = showHouseNumberOverviewCheckbox != null
-                && showHouseNumberOverviewCheckbox.isSelected();
-        rememberedStreetHouseNumberCountsEnabled = showStreetHouseNumberCountsCheckbox != null
-                && showStreetHouseNumberCountsCheckbox.isSelected();
         rememberedZoomToSelectedStreetEnabled = zoomToSelectedStreetCheckbox != null
                 && zoomToSelectedStreetCheckbox.isSelected();
         rememberedZoomToNumberedBuildingsOnlyEnabled = zoomToNumberedBuildingsOnlyCheckbox != null
@@ -1615,37 +1568,6 @@ final class StreetSelectionDialog {
         streetModeController.updateOverlaySettings(overlayEnabled, connectionLinesEnabled, separateEvenOddLinesEnabled);
     }
 
-    private void notifyHouseNumberOverviewChanged() {
-        streetModeController.setHouseNumberOverviewEnabled(showHouseNumberOverviewCheckbox.isSelected());
-    }
-
-    private void notifyStreetHouseNumberCountsChanged() {
-        streetModeController.setStreetHouseNumberCountsEnabled(showStreetHouseNumberCountsCheckbox.isSelected());
-    }
-
-    private void updateHouseNumberOverviewCheckboxFromController(boolean enabled) {
-        if (showHouseNumberOverviewCheckbox == null) {
-            return;
-        }
-        boolean wasUpdatingInputs = updatingInputs;
-        updatingInputs = true;
-        showHouseNumberOverviewCheckbox.setSelected(enabled);
-        updatingInputs = wasUpdatingInputs;
-        rememberCurrentValues();
-        savePersistentDialogSettings();
-    }
-
-    private void updateStreetHouseNumberCountsCheckboxFromController(boolean enabled) {
-        if (showStreetHouseNumberCountsCheckbox == null) {
-            return;
-        }
-        boolean wasUpdatingInputs = updatingInputs;
-        updatingInputs = true;
-        showStreetHouseNumberCountsCheckbox.setSelected(enabled);
-        updatingInputs = wasUpdatingInputs;
-        rememberCurrentValues();
-        savePersistentDialogSettings();
-    }
 
     private void notifyZoomToSelectedStreetChanged() {
         streetModeController.setZoomToSelectedStreetEnabled(zoomToSelectedStreetCheckbox.isSelected());

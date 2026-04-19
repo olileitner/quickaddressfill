@@ -27,10 +27,6 @@ final class HouseNumberClickPreferences {
             new BooleanProperty(PREFIX + "dialog.showConnectionLines", true);
     static final BooleanProperty SHOW_SEPARATE_EVEN_ODD_LINES =
             new BooleanProperty(PREFIX + "dialog.showSeparateEvenOddLines", true);
-    static final BooleanProperty SHOW_HOUSE_NUMBER_OVERVIEW =
-            new BooleanProperty(PREFIX + "dialog.showHouseNumberOverview", false);
-    static final BooleanProperty SHOW_STREET_HOUSE_NUMBER_COUNTS =
-            new BooleanProperty(PREFIX + "dialog.showStreetHouseNumberCounts", false);
     static final BooleanProperty ZOOM_TO_SELECTED_STREET =
             new BooleanProperty(PREFIX + "dialog.zoomToSelectedStreet", true);
     static final BooleanProperty ZOOM_TO_NUMBERED_BUILDINGS_ONLY =

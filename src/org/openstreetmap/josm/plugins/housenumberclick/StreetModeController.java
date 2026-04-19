@@ -33,12 +33,12 @@ import org.openstreetmap.josm.tools.I18n;
 import org.openstreetmap.josm.tools.Logging;
 
 /**
- * Orchestrates Street Mode state, dialog synchronization, seed-aware street highlighting/overlays
- * (including self-healing overlay presence checks while active and full teardown cleanup),
- * explicit street-selection zoom behavior with full selected-street framing, spatially disambiguated
- * street readback selection, configurable zoom scope for numbered-building-only vs full-street
- * framing, split/address operations including city/country-aware address
- * propagation, and the three-state postcode overview cycle.
+ * Orchestrates Street Mode state, dialog synchronization, persistent sidebar overview updates,
+ * seed-aware street highlighting/overlays (including self-healing overlay presence checks while active
+ * and full teardown cleanup), explicit street-selection zoom behavior with full selected-street framing,
+ * spatially disambiguated street readback selection, configurable zoom scope for numbered-building-only vs
+ * full-street framing, split/address operations including city/country-aware address propagation, and the
+ * three-state postcode overview cycle.
  */
 final class StreetModeController {
 
@@ -112,7 +112,7 @@ final class StreetModeController {
 
     private HouseNumberClickStreetMapMode streetMapMode;
     private final OverlayManager overlayManager = new OverlayManager();
-    private final OverviewManager overviewManager = new OverviewManager();
+    private final HouseNumberClickSidebarController sidebarController;
     private final NavigationService navigationService = new NavigationService();
     private final HouseNumberOverlayCollector houseNumberOverlayCollector = new HouseNumberOverlayCollector();
     private final SingleBuildingSplitService singleBuildingSplitService = new SingleBuildingSplitService();
@@ -130,10 +130,9 @@ final class StreetModeController {
     private boolean houseNumberOverlayEnabled;
     private boolean connectionLinesEnabled;
     private boolean separateEvenOddConnectionLinesEnabled;
-    private boolean houseNumberOverviewEnabled;
-    private boolean streetHouseNumberCountsEnabled;
     private boolean zoomToSelectedStreetEnabled;
     private boolean zoomToNumberedBuildingsOnlyEnabled = true;
+    private boolean mainDialogOpen;
     private String visibleReferenceStreetKey = "";
     private String lastReferenceSyncStreetKey = "";
     private DataSet cachedStreetIndexDataSet;
@@ -150,8 +149,6 @@ final class StreetModeController {
     private ModeStateListener modeStateListener;
     private TerracePartsUpdateListener terracePartsUpdateListener;
     private StreetSelectionRequestListener streetSelectionRequestListener;
-    private HouseNumberOverviewVisibilityListener houseNumberOverviewVisibilityListener;
-    private StreetHouseNumberCountsVisibilityListener streetHouseNumberCountsVisibilityListener;
 
     interface HouseNumberUpdateListener {
         void onHouseNumberUpdated(String houseNumber);
@@ -176,14 +173,6 @@ final class StreetModeController {
 
     interface StreetSelectionRequestListener {
         void onStreetSelectionRequested(StreetOption streetOption);
-    }
-
-    interface HouseNumberOverviewVisibilityListener {
-        void onHouseNumberOverviewVisibilityChanged(boolean enabled);
-    }
-
-    interface StreetHouseNumberCountsVisibilityListener {
-        void onStreetHouseNumberCountsVisibilityChanged(boolean enabled);
     }
 
     /**
@@ -227,6 +216,19 @@ final class StreetModeController {
 
     private final DataSourceListener dataSourceRefreshListener = event -> onDataSourceChanged();
     private final UndoRedoHandler.CommandQueueListener commandQueueListener = (undoSize, redoSize) -> onCommandQueueChanged();
+
+    StreetModeController() {
+        this(new HouseNumberClickSidebarController());
+    }
+
+    StreetModeController(HouseNumberClickSidebarController sidebarController) {
+        this.sidebarController = sidebarController != null ? sidebarController : new HouseNumberClickSidebarController();
+        this.sidebarController.setInteractionCallbacks(
+                this::onStreetHouseNumberCountSelected,
+                this::rescanPluginData,
+                this::continueWorkingFromTableInteraction
+        );
+    }
 
     boolean isActive() {
         MapFrame map = MainApplication.getMap();
@@ -276,8 +278,7 @@ final class StreetModeController {
                 selection.getHouseNumberIncrementStep()
         );
         refreshOverlayLayer();
-        refreshHouseNumberOverview();
-        refreshStreetHouseNumberCounts();
+        refreshSidebarDialogs();
         syncReferenceStreetVisibilityForCurrentStreet();
         map.selectMapMode(streetMapMode);
     }
@@ -384,12 +385,9 @@ final class StreetModeController {
         this.streetSelectionRequestListener = listener;
     }
 
-    void setHouseNumberOverviewVisibilityListener(HouseNumberOverviewVisibilityListener listener) {
-        this.houseNumberOverviewVisibilityListener = listener;
-    }
-
-    void setStreetHouseNumberCountsVisibilityListener(StreetHouseNumberCountsVisibilityListener listener) {
-        this.streetHouseNumberCountsVisibilityListener = listener;
+    void attachSidebarDialogs(MapFrame mapFrame) {
+        sidebarController.attachToMapFrame(mapFrame);
+        refreshSidebarDialogs();
     }
 
     void updateOverlaySettings(boolean overlayEnabled, boolean connectionLinesEnabled, boolean separateEvenOddLinesEnabled) {
@@ -410,10 +408,10 @@ final class StreetModeController {
         overlayManager.showOverlayLayerIfPresent();
     }
 
-    void setHouseNumberOverviewEnabled(boolean enabled) {
-        houseNumberOverviewEnabled = enabled;
+    void onMainDialogOpened() {
+        mainDialogOpen = true;
         syncDataSourceListenerBinding();
-        refreshHouseNumberOverview();
+        refreshSidebarDialogs();
     }
 
     void setZoomToSelectedStreetEnabled(boolean enabled) {
@@ -424,10 +422,12 @@ final class StreetModeController {
         zoomToNumberedBuildingsOnlyEnabled = enabled;
     }
 
-    void setStreetHouseNumberCountsEnabled(boolean enabled) {
-        streetHouseNumberCountsEnabled = enabled;
-        syncDataSourceListenerBinding();
-        refreshStreetHouseNumberCounts();
+    void onNoActiveDataSet() {
+        if (!mainDialogOpen) {
+            sidebarController.showMainDialogClosed();
+            return;
+        }
+        sidebarController.showNoData();
     }
 
 
@@ -625,9 +625,9 @@ final class StreetModeController {
                 lastSelection.getHouseNumberIncrementStep()
         );
         requestMainDialogStreetSelection(selectedStreetOption);
-        highlightCurrentStreetInStreetCountDialog();
+        sidebarController.highlightStreet(selectedStreetOption);
         refreshOverlayLayer();
-        refreshHouseNumberOverview();
+        refreshSidebarDialogs();
         syncReferenceStreetVisibilityForCurrentStreet();
         if (zoomToSelectedStreetEnabled) {
             if (!isSameStreetOptionIdentity(previousStreetOption, selectedStreetOption)) {
@@ -644,16 +644,11 @@ final class StreetModeController {
         streetSelectionRequestListener.onStreetSelectionRequested(selectedStreetOption);
     }
 
-    private void highlightCurrentStreetInStreetCountDialog() {
-        overviewManager.highlightStreetInStreetCountDialog(resolveCurrentStreetOption(getActiveEditDataSet()));
-    }
-
     void rescanPluginData() {
         // Recompute all collector-driven views so plugin UI reflects latest dataset state.
         invalidateStreetIndexCache();
         refreshOverlayLayer();
-        refreshHouseNumberOverview();
-        refreshStreetHouseNumberCounts();
+        refreshSidebarDialogs();
         syncReferenceStreetVisibilityForCurrentStreet();
     }
 
@@ -667,6 +662,7 @@ final class StreetModeController {
     void onAddressApplied() {
         overlayManager.invalidateOverlayDataCache();
         refreshOverlayLayer();
+        refreshSidebarDialogs();
         syncReferenceStreetVisibilityForCurrentStreet();
     }
 
@@ -730,68 +726,26 @@ final class StreetModeController {
         );
     }
 
-    private void refreshHouseNumberOverview() {
-        DataSet editDataSet = getActiveEditDataSet();
-        StreetNameCollector.StreetIndex streetIndex = getStreetIndex(editDataSet);
-        StreetOption selectedStreetOption = resolveCurrentStreetOption(editDataSet, streetIndex);
-        overviewManager.refreshHouseNumberOverview(
-                houseNumberOverviewEnabled,
-                selectedStreetOption,
-                editDataSet,
-                streetIndex,
-                this::continueWorkingFromTableInteraction,
-                this::onHouseNumberOverviewDialogClosedByUser
-        );
-    }
+    private void refreshSidebarDialogs() {
+        if (!mainDialogOpen) {
+            sidebarController.showMainDialogClosed();
+            navigationService.setStreetNavigationOrder(List.of());
+            return;
+        }
 
-    private void refreshStreetHouseNumberCounts() {
         DataSet editDataSet = getActiveEditDataSet();
+        if (editDataSet == null) {
+            sidebarController.showNoData();
+            navigationService.setStreetNavigationOrder(List.of());
+            return;
+        }
+
         StreetNameCollector.StreetIndex streetIndex = getStreetIndex(editDataSet);
         StreetOption currentStreetOption = resolveCurrentStreetOption(editDataSet, streetIndex);
         navigationService.setStreetNavigationOrder(
-                overviewManager.refreshStreetHouseNumberCounts(
-                        streetHouseNumberCountsEnabled,
-                        editDataSet,
-                        streetIndex,
-                        this::onStreetHouseNumberCountSelected,
-                        this::rescanPluginData,
-                        currentStreetOption,
-                        this::onStreetHouseNumberCountsDialogClosedByUser
-                )
+                sidebarController.showActiveData(editDataSet, streetIndex, currentStreetOption)
         );
-        highlightCurrentStreetInStreetCountDialog();
-    }
-
-    private void onHouseNumberOverviewDialogClosedByUser() {
-        if (!houseNumberOverviewEnabled) {
-            return;
-        }
-        houseNumberOverviewEnabled = false;
-        syncDataSourceListenerBinding();
-        refreshHouseNumberOverview();
-        if (houseNumberOverviewVisibilityListener != null) {
-            houseNumberOverviewVisibilityListener.onHouseNumberOverviewVisibilityChanged(false);
-        }
-    }
-
-    private void onStreetHouseNumberCountsDialogClosedByUser() {
-        if (!streetHouseNumberCountsEnabled) {
-            return;
-        }
-        streetHouseNumberCountsEnabled = false;
-        syncDataSourceListenerBinding();
-        refreshStreetHouseNumberCounts();
-        if (streetHouseNumberCountsVisibilityListener != null) {
-            streetHouseNumberCountsVisibilityListener.onStreetHouseNumberCountsVisibilityChanged(false);
-        }
-    }
-
-    private void hideHouseNumberOverview() {
-        overviewManager.hideHouseNumberOverview();
-    }
-
-    private void hideStreetHouseNumberCounts() {
-        overviewManager.hideStreetHouseNumberCounts();
+        sidebarController.highlightStreet(currentStreetOption);
     }
 
     void deactivate() {
@@ -802,12 +756,11 @@ final class StreetModeController {
     }
 
     void onMainDialogClosed() {
-        // Closing the main dialog should also close dependent views and clear visual overlays.
+        // Closing the main dialog pauses interaction and overlays while sidebar views stay registered.
+        mainDialogOpen = false;
         invalidateStreetIndexCache();
         invalidateReferenceLoadGeneration();
-        hideHouseNumberOverview();
-        hideStreetHouseNumberCounts();
-        overviewManager.resetSessionPositioningState();
+        sidebarController.showMainDialogClosed();
         overlayManager.removeAllPluginLayers();
         visibleReferenceStreetKey = "";
         synchronized (referenceStreetCache) {
@@ -857,7 +810,7 @@ final class StreetModeController {
     }
 
     private void onDataSourceChanged() {
-        if (!houseNumberOverviewEnabled && !streetHouseNumberCountsEnabled) {
+        if (!mainDialogOpen) {
             return;
         }
         if (dataSourceRescanQueued) {
@@ -887,7 +840,7 @@ final class StreetModeController {
 
     private void syncDataSourceListenerBinding() {
         DataSet activeDataSet = getActiveEditDataSet();
-        boolean shouldListen = (houseNumberOverviewEnabled || streetHouseNumberCountsEnabled) && activeDataSet != null;
+        boolean shouldListen = mainDialogOpen && activeDataSet != null;
         if (!shouldListen) {
             unbindDataSourceListener();
             return;

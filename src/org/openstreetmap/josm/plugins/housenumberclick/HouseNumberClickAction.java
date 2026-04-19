@@ -6,26 +6,35 @@ import java.util.List;
 import org.openstreetmap.josm.actions.JosmAction;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.tools.I18n;
 
 /**
  * Main toolbar/menu action that follows JOSM tool availability (enabled only with an editable
  * dataset/layer), opens the street selection dialog (including optional country prefill and
- * constrained likely-country code options),
+ * constrained likely-country code options), initializes persistent sidebar overview dialogs,
  * and activates street mode.
  */
 public class HouseNumberClickAction extends JosmAction {
 
     private final StreetModeController streetModeController;
+    private final HouseNumberClickSidebarController sidebarController;
     private final StreetSelectionDialog streetSelectionDialog;
     private final CountryDetectionService countryDetectionService;
 
     public HouseNumberClickAction() {
         super(I18n.tr("HouseNumberClick"), "housenumberclick", I18n.tr("Open HouseNumberClick street dialog"), null, true);
-        this.streetModeController = new StreetModeController();
+        this.sidebarController = new HouseNumberClickSidebarController();
+        this.streetModeController = new StreetModeController(sidebarController);
         this.streetSelectionDialog = new StreetSelectionDialog(streetModeController);
         this.countryDetectionService = new CountryDetectionService();
         updateEnabledState();
+    }
+
+    void onMapFrameInitialized(MapFrame newFrame) {
+        if (newFrame != null) {
+            streetModeController.attachSidebarDialogs(newFrame);
+        }
     }
 
     @Override
