@@ -99,6 +99,7 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Street-table selection respects auto-zoom option", HouseNumberClickRiskRegressionTests::testStreetTableSelectionRespectsAutoZoomOption);
             run("Street-count dialog title and dimensions match overview dialog", HouseNumberClickRiskRegressionTests::testStreetCountDialogTitleAndDimensions);
             run("Dialog bounds persistence and off-screen fallback wiring exist", HouseNumberClickRiskRegressionTests::testDialogBoundsPersistenceWiring);
+            run("Main dialog supports collapsible advanced sections", HouseNumberClickRiskRegressionTests::testMainDialogCollapsibleAdvancedSectionsWiring);
             run("Auto-zoom scope toggle wiring exists", HouseNumberClickRiskRegressionTests::testAutoZoomScopeToggleWiring);
             run("Street counts duplicate marker applies conditional city rule", HouseNumberClickRiskRegressionTests::testStreetHouseNumberCountCollectorConditionalCityRule);
             run("Building overview collector filters tiny buildings and keeps addressed state", HouseNumberClickRiskRegressionTests::testBuildingOverviewCollectorFilteringAndClassification);
@@ -1488,6 +1489,27 @@ public final class HouseNumberClickRiskRegressionTests {
                 "dialog bounds manager should fall back to default position when restored bounds are invalid/off-screen");
     }
 
+    private static void testMainDialogCollapsibleAdvancedSectionsWiring() throws Exception {
+        String dialogSource = readPluginSource("StreetSelectionDialog.java");
+
+        assertTrue(dialogSource.contains("toggleAdvancedSectionsButton"),
+                "main dialog should define a dedicated toggle button for advanced sections");
+        assertTrue(dialogSource.contains("collapsibleSectionsPanel"),
+                "main dialog should define a dedicated collapsible panel for advanced sections");
+        assertTrue(dialogSource.contains("advancedSectionsExpanded"),
+                "main dialog should track expanded/collapsed state for advanced sections");
+        assertTrue(dialogSource.contains("ADVANCED_SECTIONS_COLLAPSED_TEXT"),
+                "main dialog should expose a collapsed toggle label");
+        assertTrue(dialogSource.contains("ADVANCED_SECTIONS_EXPANDED_TEXT"),
+                "main dialog should expose an expanded toggle label");
+        assertTrue(dialogSource.contains("rememberedAdvancedSectionsExpanded"),
+                "main dialog should track persisted advanced-section expand/collapse state");
+        assertTrue(dialogSource.contains("HouseNumberClickPreferences.ADVANCED_SECTIONS_EXPANDED"),
+                "main dialog should load and save expanded-state through centralized preferences");
+        assertTrue(dialogSource.contains("updateAdvancedSectionsVisibility()"),
+                "main dialog should centralize collapsible section visibility updates");
+    }
+
     private static void testAutoZoomScopeToggleWiring() throws Exception {
         String dialogSource = readPluginSource("StreetSelectionDialog.java");
         String controllerSource = readPluginSource("StreetModeController.java");
@@ -2142,6 +2164,7 @@ public final class HouseNumberClickRiskRegressionTests {
         Config.getPref().put(HouseNumberClickPreferences.PREFIX + "dialog.zoomToNumberedBuildingsOnly", null);
         Config.getPref().put(HouseNumberClickPreferences.PREFIX + "dialog.splitMakeRectangular", null);
         Config.getPref().put(HouseNumberClickPreferences.PREFIX + "dialog.applyTypeToAll", null);
+        Config.getPref().put(HouseNumberClickPreferences.PREFIX + "dialog.advancedSectionsExpanded", null);
         Config.getPref().put(HouseNumberClickPreferences.PREFIX + "dialog.houseNumberIncrementStep", null);
         Config.getPref().put(HouseNumberClickPreferences.PREFIX + "dialog.terraceParts", null);
         Config.getPref().put(HouseNumberClickPreferences.PREFIX + "dialog.completenessMissingField", null);

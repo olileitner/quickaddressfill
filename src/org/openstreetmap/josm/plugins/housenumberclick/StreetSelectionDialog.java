@@ -30,6 +30,7 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
+import javax.swing.SwingConstants;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.JTextComponent;
@@ -44,8 +45,9 @@ import org.openstreetmap.josm.tools.I18n;
  * Main configuration dialog where users pick street/address settings (street, postcode, house number, city,
  * country code, building type) and receive disambiguated readback updates, while street auto-zoom is limited
  * to explicit street-selection actions with configurable zoom scope, postcode overview is cycled through
- * off/buildings/schematic states, user-facing display/split options persist across JOSM sessions, and dialog
- * window bounds are restored with default fallback when saved geometry is no longer on-screen.
+ * off/buildings/schematic states, user-facing display/split options persist across JOSM sessions, advanced
+ * sections below Address can be collapsed via a lightweight toggle with persisted state, and dialog window bounds
+ * are restored with default fallback when saved geometry is no longer on-screen.
  */
 final class StreetSelectionDialog {
 
@@ -88,9 +90,12 @@ final class StreetSelectionDialog {
     private final JCheckBox zoomToSelectedStreetCheckbox;
     private final JCheckBox zoomToNumberedBuildingsOnlyCheckbox;
     private final JCheckBox splitMakeRectangularCheckbox;
+    private final JButton toggleAdvancedSectionsButton;
+    private final JPanel collapsibleSectionsPanel;
     private final JButton rowHousePartsMinusButton;
     private final JButton rowHousePartsPlusButton;
     private final JTextField rowHousePartsField;
+    private boolean advancedSectionsExpanded;
     private int houseNumberIncrementStep = 1;
     private List<StreetOption> currentStreetOptions = List.of();
     private String lastSelectedStreet;
@@ -113,6 +118,7 @@ final class StreetSelectionDialog {
     private boolean rememberedZoomToNumberedBuildingsOnlyEnabled = HouseNumberClickPreferences.ZOOM_TO_NUMBERED_BUILDINGS_ONLY.get();
     private boolean rememberedSplitMakeRectangular = HouseNumberClickPreferences.SPLIT_MAKE_RECTANGULAR.get();
     private boolean rememberedApplyTypeToAll = HouseNumberClickPreferences.APPLY_TYPE_TO_ALL.get();
+    private boolean rememberedAdvancedSectionsExpanded = HouseNumberClickPreferences.ADVANCED_SECTIONS_EXPANDED.get();
     private boolean updatingInputs;
     private boolean streetSelectionChangedByNavigation;
     private DataSet rememberedDataSet;
@@ -121,10 +127,15 @@ final class StreetSelectionDialog {
 
     private static final int DIALOG_WIDTH = 400;
     private static final int DIALOG_HEIGHT = 1000;
-    private static final Dimension DIALOG_MINIMUM_SIZE = new Dimension(DIALOG_WIDTH, DIALOG_HEIGHT);
-    private static final Dimension DIALOG_SIZE = new Dimension(DIALOG_WIDTH, DIALOG_HEIGHT);
+    private static final int DIALOG_MINIMUM_HEIGHT = 220;
+    private static final int DIALOG_DEFAULT_HEIGHT = 360;
+    private static final int ADVANCED_SECTIONS_EXPANDED_BOTTOM_PADDING = 10;
+    private static final Dimension DIALOG_MINIMUM_SIZE = new Dimension(DIALOG_WIDTH, DIALOG_MINIMUM_HEIGHT);
+    private static final Dimension DIALOG_SIZE = new Dimension(DIALOG_WIDTH, DIALOG_DEFAULT_HEIGHT);
     private static final int DIALOG_OFFSET_X = 66;
     private static final int DIALOG_OFFSET_Y = 80;
+    private static final String ADVANCED_SECTIONS_COLLAPSED_TEXT = I18n.tr("▸ More");
+    private static final String ADVANCED_SECTIONS_EXPANDED_TEXT = I18n.tr("▾ Less");
     private static final String SHOW_OVERVIEW_BUTTON_TEXT = I18n.tr("Show completeness");
     private static final String HIDE_OVERVIEW_BUTTON_TEXT = I18n.tr("Hide completeness");
     private static final String SHOW_DUPLICATE_BUTTON_TEXT = I18n.tr("Show duplicates");
@@ -360,6 +371,52 @@ final class StreetSelectionDialog {
         this.rowHousePartsPlusButton.setMaximumSize(squarePartsButtonSize);
         this.streetModeController.setTerracePartsUpdateListener(this::updateRowHousePartsFromMode);
 
+        this.toggleAdvancedSectionsButton = new JButton();
+        this.toggleAdvancedSectionsButton.setHorizontalAlignment(SwingConstants.RIGHT);
+        this.toggleAdvancedSectionsButton.setForeground(new java.awt.Color(45, 110, 210));
+        this.toggleAdvancedSectionsButton.setFocusPainted(false);
+        this.toggleAdvancedSectionsButton.setContentAreaFilled(false);
+        this.toggleAdvancedSectionsButton.setBorderPainted(false);
+        this.toggleAdvancedSectionsButton.setOpaque(false);
+        this.toggleAdvancedSectionsButton.setMargin(new Insets(0, 0, 0, 0));
+        this.toggleAdvancedSectionsButton.addActionListener(e -> {
+            advancedSectionsExpanded = !advancedSectionsExpanded;
+            rememberedAdvancedSectionsExpanded = advancedSectionsExpanded;
+            savePersistentDialogSettings();
+            updateAdvancedSectionsVisibility();
+        });
+
+        this.collapsibleSectionsPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints advancedSectionGbc = new GridBagConstraints();
+        advancedSectionGbc.gridx = 0;
+        advancedSectionGbc.weightx = 1.0;
+        advancedSectionGbc.fill = GridBagConstraints.HORIZONTAL;
+        advancedSectionGbc.anchor = GridBagConstraints.NORTHWEST;
+
+        advancedSectionGbc.gridy = 0;
+        advancedSectionGbc.insets = new Insets(0, 0, 0, 0);
+        collapsibleSectionsPanel.add(createStreetNavigationSection(), advancedSectionGbc);
+
+        advancedSectionGbc.gridy = 1;
+        advancedSectionGbc.insets = new Insets(6, 0, 0, 0);
+        collapsibleSectionsPanel.add(createLineSplitSection(), advancedSectionGbc);
+
+        advancedSectionGbc.gridy = 2;
+        advancedSectionGbc.insets = new Insets(6, 0, 0, 0);
+        collapsibleSectionsPanel.add(createRowHousesSection(), advancedSectionGbc);
+
+        advancedSectionGbc.gridy = 3;
+        advancedSectionGbc.insets = new Insets(6, 0, 0, 0);
+        collapsibleSectionsPanel.add(createDisplaySection(), advancedSectionGbc);
+
+        advancedSectionGbc.gridy = 4;
+        advancedSectionGbc.insets = new Insets(6, 0, 0, 0);
+        collapsibleSectionsPanel.add(createAnalysisSection(), advancedSectionGbc);
+
+        advancedSectionGbc.gridy = 5;
+        advancedSectionGbc.insets = new Insets(6, 0, 0, 0);
+        collapsibleSectionsPanel.add(createHelpSection(), advancedSectionGbc);
+
         JPanel sectionsPanel = new JPanel(new GridBagLayout());
         GridBagConstraints sectionGbc = new GridBagConstraints();
         sectionGbc.gridx = 0;
@@ -373,33 +430,11 @@ final class StreetSelectionDialog {
 
         sectionGbc.gridy = 1;
         sectionGbc.insets = new Insets(6, 0, 0, 0);
-        sectionsPanel.add(createStreetNavigationSection(), sectionGbc);
+        sectionsPanel.add(toggleAdvancedSectionsButton, sectionGbc);
 
         sectionGbc.gridy = 2;
         sectionGbc.insets = new Insets(6, 0, 0, 0);
-        sectionsPanel.add(createLineSplitSection(), sectionGbc);
-
-        sectionGbc.gridy = 3;
-        sectionGbc.insets = new Insets(6, 0, 0, 0);
-        sectionsPanel.add(createRowHousesSection(), sectionGbc);
-
-        sectionGbc.gridy = 4;
-        sectionGbc.insets = new Insets(6, 0, 0, 0);
-        sectionsPanel.add(createDisplaySection(), sectionGbc);
-
-        sectionGbc.gridy = 5;
-        sectionGbc.insets = new Insets(6, 0, 0, 0);
-        sectionsPanel.add(createAnalysisSection(), sectionGbc);
-
-        sectionGbc.gridy = 6;
-        sectionGbc.insets = new Insets(6, 0, 0, 0);
-        sectionsPanel.add(createHelpSection(), sectionGbc);
-
-        sectionGbc.gridy = 7;
-        sectionGbc.weighty = 1.0;
-        sectionGbc.fill = GridBagConstraints.BOTH;
-        sectionGbc.insets = new Insets(0, 0, 0, 0);
-        sectionsPanel.add(new JPanel(), sectionGbc);
+        sectionsPanel.add(collapsibleSectionsPanel, sectionGbc);
 
         JPanel content = new JPanel(new BorderLayout(8, 8));
         content.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -413,6 +448,8 @@ final class StreetSelectionDialog {
         this.dialog.getContentPane().add(content, BorderLayout.CENTER);
         this.dialog.setMinimumSize(DIALOG_MINIMUM_SIZE);
         this.dialog.setSize(DIALOG_SIZE);
+        advancedSectionsExpanded = rememberedAdvancedSectionsExpanded;
+        updateAdvancedSectionsVisibility();
         this.dialog.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -520,6 +557,8 @@ final class StreetSelectionDialog {
                     DIALOG_SIZE,
                     () -> positionTopLeftInOwner(MainApplication.getMainFrame())
             );
+            // Always compact to visible content for the current collapse state on first show.
+            resizeDialogForAdvancedSectionsState(false);
             dialog.setVisible(true);
             registerStreetNavigationDispatcher();
         } else {
@@ -577,6 +616,41 @@ final class StreetSelectionDialog {
             streetModeController.zoomToCurrentStreet();
         }
         updateStreetNavigationButtonState();
+    }
+
+    private void updateAdvancedSectionsVisibility() {
+        collapsibleSectionsPanel.setVisible(advancedSectionsExpanded);
+        toggleAdvancedSectionsButton.setText(
+                advancedSectionsExpanded
+                        ? ADVANCED_SECTIONS_EXPANDED_TEXT
+                        : ADVANCED_SECTIONS_COLLAPSED_TEXT
+        );
+        resizeDialogForAdvancedSectionsState(dialog.isShowing());
+    }
+
+    private void resizeDialogForAdvancedSectionsState(boolean preserveLocation) {
+        int previousX = dialog.getX();
+        int previousY = dialog.getY();
+
+        java.awt.Container contentPane = dialog.getContentPane();
+        if (contentPane != null) {
+            contentPane.revalidate();
+            contentPane.repaint();
+        }
+
+        dialog.pack();
+        int targetWidth = Math.max(DIALOG_WIDTH, dialog.getWidth());
+        int targetHeight = Math.max(DIALOG_MINIMUM_SIZE.height, dialog.getHeight());
+        if (advancedSectionsExpanded) {
+            targetHeight += ADVANCED_SECTIONS_EXPANDED_BOTTOM_PADDING;
+        }
+        dialog.setSize(targetWidth, targetHeight);
+
+        if (preserveLocation) {
+            dialog.setLocation(previousX, previousY);
+        }
+        dialog.revalidate();
+        dialog.repaint();
     }
 
     private JComboBox<String> createBuildingTypeCombo() {
@@ -1421,6 +1495,7 @@ final class StreetSelectionDialog {
         rememberedZoomToNumberedBuildingsOnlyEnabled = HouseNumberClickPreferences.ZOOM_TO_NUMBERED_BUILDINGS_ONLY.get();
         rememberedSplitMakeRectangular = HouseNumberClickPreferences.SPLIT_MAKE_RECTANGULAR.get();
         rememberedApplyTypeToAll = HouseNumberClickPreferences.APPLY_TYPE_TO_ALL.get();
+        rememberedAdvancedSectionsExpanded = HouseNumberClickPreferences.ADVANCED_SECTIONS_EXPANDED.get();
 
         HouseNumberClickPreferences.OverlayMode overlayMode = HouseNumberClickPreferences.getOverlayMode();
         rememberedHouseNumberLayerEnabled = overlayMode != HouseNumberClickPreferences.OverlayMode.OFF;
@@ -1440,6 +1515,7 @@ final class StreetSelectionDialog {
         HouseNumberClickPreferences.ZOOM_TO_NUMBERED_BUILDINGS_ONLY.put(rememberedZoomToNumberedBuildingsOnlyEnabled);
         HouseNumberClickPreferences.SPLIT_MAKE_RECTANGULAR.put(rememberedSplitMakeRectangular);
         HouseNumberClickPreferences.APPLY_TYPE_TO_ALL.put(rememberedApplyTypeToAll);
+        HouseNumberClickPreferences.ADVANCED_SECTIONS_EXPANDED.put(rememberedAdvancedSectionsExpanded);
         HouseNumberClickPreferences.TERRACE_PARTS.put(
                 HouseNumberClickPreferences.normalizeTerraceParts(streetModeController.getConfiguredTerraceParts())
         );
@@ -1487,6 +1563,7 @@ final class StreetSelectionDialog {
                 && splitMakeRectangularCheckbox.isSelected();
         rememberedApplyTypeToAll = applyTypeToAllCheckbox != null
                 && applyTypeToAllCheckbox.isSelected();
+        rememberedAdvancedSectionsExpanded = advancedSectionsExpanded;
         if (rememberedHouseNumberLayerEnabled) {
             rememberedConnectionLinesPreference = rememberedConnectionLinesEnabled;
             if (rememberedConnectionLinesEnabled) {

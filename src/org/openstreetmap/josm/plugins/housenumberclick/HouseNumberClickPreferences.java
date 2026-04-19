@@ -39,6 +39,8 @@ final class HouseNumberClickPreferences {
             new BooleanProperty(PREFIX + "dialog.splitMakeRectangular", false);
     static final BooleanProperty APPLY_TYPE_TO_ALL =
             new BooleanProperty(PREFIX + "dialog.applyTypeToAll", false);
+    static final BooleanProperty ADVANCED_SECTIONS_EXPANDED =
+            new BooleanProperty(PREFIX + "dialog.advancedSectionsExpanded", false);
 
     static final IntegerProperty HOUSE_NUMBER_INCREMENT_STEP =
             new IntegerProperty(PREFIX + "dialog.houseNumberIncrementStep", 1);
