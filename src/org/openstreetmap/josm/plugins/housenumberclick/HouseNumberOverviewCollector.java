@@ -122,12 +122,13 @@ final class HouseNumberOverviewCollector {
         for (int baseNumber = minBaseNumber; baseNumber <= maxBaseNumber; baseNumber += 2) {
             BaseNumberGroup group = groups.get(baseNumber);
             if (group == null) {
-                values.add(new OverviewCellData(MISSING_NUMBER_PLACEHOLDER, null, List.of(), false));
+                values.add(new OverviewCellData(MISSING_NUMBER_PLACEHOLDER, null, List.of(), List.of(), false));
             } else {
                 values.add(new OverviewCellData(
                         group.formatForOverview(),
                         group.getRepresentativePrimitive(),
                         group.getGroupedPrimitives(),
+                        group.getDuplicatePrimitives(),
                         group.hasExactDuplicate()
                 ));
             }
@@ -148,6 +149,8 @@ final class HouseNumberOverviewCollector {
                     even.primitive,
                     odd.primitives,
                     even.primitives,
+                    odd.duplicatePrimitives,
+                    even.duplicatePrimitives,
                     odd.duplicate,
                     even.duplicate
             ));
@@ -173,12 +176,13 @@ final class HouseNumberOverviewCollector {
     }
 
     /**
-     * Groups occurrences of one base number and tracks duplicate exact values plus representative primitives.
+     * Groups occurrences of one base number and tracks both grouped and exact-duplicate primitives.
      */
     private static final class BaseNumberGroup {
         private final int baseNumber;
         private final TreeSet<String> suffixes = new TreeSet<>();
         private final Map<String, Integer> exactHouseNumberCounts = new HashMap<>();
+        private final Map<String, Set<OsmPrimitive>> exactHouseNumberPrimitives = new HashMap<>();
         private final Set<OsmPrimitive> groupedPrimitives = new LinkedHashSet<>();
         private OsmPrimitive representativePrimitive;
 
@@ -196,6 +200,11 @@ final class HouseNumberOverviewCollector {
                         normalizedFullHouseNumber,
                         exactHouseNumberCounts.getOrDefault(normalizedFullHouseNumber, 0) + 1
                 );
+                if (primitive != null) {
+                    exactHouseNumberPrimitives
+                            .computeIfAbsent(normalizedFullHouseNumber, ignored -> new LinkedHashSet<>())
+                            .add(primitive);
+                }
             }
             if (representativePrimitive == null && primitive != null) {
                 representativePrimitive = primitive;
@@ -237,6 +246,20 @@ final class HouseNumberOverviewCollector {
         List<OsmPrimitive> getGroupedPrimitives() {
             return new ArrayList<>(groupedPrimitives);
         }
+
+        List<OsmPrimitive> getDuplicatePrimitives() {
+            Set<OsmPrimitive> duplicates = new LinkedHashSet<>();
+            for (Map.Entry<String, Integer> entry : exactHouseNumberCounts.entrySet()) {
+                if (entry == null || entry.getValue() == null || entry.getValue() <= 1) {
+                    continue;
+                }
+                Set<OsmPrimitive> primitives = exactHouseNumberPrimitives.get(entry.getKey());
+                if (primitives != null) {
+                    duplicates.addAll(primitives);
+                }
+            }
+            return new ArrayList<>(duplicates);
+        }
     }
 
     /**
@@ -246,17 +269,20 @@ final class HouseNumberOverviewCollector {
         private final String value;
         private final OsmPrimitive primitive;
         private final List<OsmPrimitive> primitives;
+        private final List<OsmPrimitive> duplicatePrimitives;
         private final boolean duplicate;
 
-        private OverviewCellData(String value, OsmPrimitive primitive, List<OsmPrimitive> primitives, boolean duplicate) {
+        private OverviewCellData(String value, OsmPrimitive primitive, List<OsmPrimitive> primitives,
+                List<OsmPrimitive> duplicatePrimitives, boolean duplicate) {
             this.value = value;
             this.primitive = primitive;
             this.primitives = primitives == null ? List.of() : primitives;
+            this.duplicatePrimitives = duplicatePrimitives == null ? List.of() : duplicatePrimitives;
             this.duplicate = duplicate;
         }
 
         private static OverviewCellData empty() {
-            return new OverviewCellData("", null, List.of(), false);
+            return new OverviewCellData("", null, List.of(), List.of(), false);
         }
     }
 }

@@ -47,7 +47,7 @@ public final class HouseNumberClickRiskRegressionTests {
             run("HouseNumberOverview duplicate marker ignores mixed variants", HouseNumberClickRiskRegressionTests::testOverviewDuplicateMarkerIgnoresMixedVariants);
             run("HouseNumberOverview duplicate marker tracks exact repeats", HouseNumberClickRiskRegressionTests::testOverviewDuplicateMarkerTracksExactRepeats);
             run("HouseNumberOverview local duplicate marker stays city-agnostic", HouseNumberClickRiskRegressionTests::testOverviewDuplicateMarkerIsCityAgnostic);
-            run("HouseNumberOverview duplicate rows expose grouped primitives", HouseNumberClickRiskRegressionTests::testOverviewDuplicateRowCarriesGroupedPrimitives);
+            run("HouseNumberOverview duplicate rows expose duplicate zoom targets", HouseNumberClickRiskRegressionTests::testOverviewDuplicateRowCarriesGroupedPrimitives);
             run("DataSet transition detection is stable", HouseNumberClickRiskRegressionTests::testDataSetChangeDetection);
             run("Single split fails without dataset", HouseNumberClickRiskRegressionTests::testSingleSplitFailsWithoutDataset);
             run("Single split fails for open way", HouseNumberClickRiskRegressionTests::testSingleSplitFailsForOpenWay);
@@ -575,7 +575,9 @@ public final class HouseNumberClickRiskRegressionTests {
         HouseNumberOverviewRow row = firstRowWithOddValuePrefix(rows, "2");
         assertTrue(row != null, "expected overview row for base number 2");
         assertTrue(row.isEvenDuplicate(), "even row for base 2 should be marked as duplicate");
-        assertEquals(5, row.getEvenPrimitives().size(), "duplicate row should include all base-number primitives for grouped zoom");
+        assertEquals(5, row.getEvenPrimitives().size(), "duplicate row should keep full base-number primitive grouping");
+        assertEquals(4, row.getEvenDuplicatePrimitives().size(),
+                "duplicate row should expose exact-duplicate primitives for multi-object duplicate zoom");
     }
 
     private static void testAddressSelectionNormalization() {

@@ -34,7 +34,8 @@ import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.tools.I18n;
 
 /**
- * Dialog that displays house-number completeness for the selected street and resume actions.
+ * Dialog that displays house-number completeness for the selected street and resume actions,
+ * including multi-object zoom for duplicate cells.
  */
 final class HouseNumberOverviewDialog {
 
@@ -195,9 +196,11 @@ final class HouseNumberOverviewDialog {
 
         HouseNumberOverviewRow overviewRow = currentRows.get(row);
         boolean duplicate = column == 0 ? overviewRow.isOddDuplicate() : overviewRow.isEvenDuplicate();
-        List<OsmPrimitive> groupedTargets = column == 0 ? overviewRow.getOddPrimitives() : overviewRow.getEvenPrimitives();
-        if (duplicate && groupedTargets != null && !groupedTargets.isEmpty()) {
-            zoomToPrimitives(groupedTargets);
+        List<OsmPrimitive> duplicateTargets = column == 0
+                ? overviewRow.getOddDuplicatePrimitives()
+                : overviewRow.getEvenDuplicatePrimitives();
+        if (duplicate && duplicateTargets != null && !duplicateTargets.isEmpty()) {
+            zoomToPrimitives(duplicateTargets);
         } else {
             OsmPrimitive target = column == 0 ? overviewRow.getOddPrimitive() : overviewRow.getEvenPrimitive();
             if (target == null || !target.isUsable()) {

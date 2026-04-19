@@ -46,11 +46,11 @@ Core classes as defined in `AGENTS.md` are marked: `HouseNumberClickPlugin`, `Ho
 | `HouseNumberOverlayEntry` | `HouseNumberOverlayEntry.java` | No | Value object describing one rendered house-number label entry in the overlay layer. |
 | `HouseNumberOverlayLayer` | `HouseNumberOverlayLayer.java` | No | Renders street-specific house-number highlights and optional connection lines in a dedicated layer. |
 | `HouseNumberOverviewCollector` | `HouseNumberOverviewCollector.java` | No | Aggregates and orders house numbers for the selected disambiguated street cluster. |
-| `HouseNumberOverviewCollector.BaseNumberGroup` | `HouseNumberOverviewCollector.java` | No | Groups occurrences of one base number and tracks duplicate exact values plus representative primitives. |
+| `HouseNumberOverviewCollector.BaseNumberGroup` | `HouseNumberOverviewCollector.java` | No | Groups occurrences of one base number and tracks both grouped primitives and exact-duplicate primitives for duplicate zoom. |
 | `HouseNumberOverviewCollector.OverviewCellData` | `HouseNumberOverviewCollector.java` | No | Intermediate formatted cell data used while composing final overview rows. |
 | `HouseNumberOverviewCollector.ParsedHouseNumber` | `HouseNumberOverviewCollector.java` | No | Parsed house-number token with normalized base number and suffix. |
-| `HouseNumberOverviewDialog` | `HouseNumberOverviewDialog.java` | No | Dialog that displays house-number completeness for the selected street and resume actions. |
-| `HouseNumberOverviewRow` | `HouseNumberOverviewRow.java` | No | Row model used by the house-number overview table for odd/even values and linked primitives. |
+| `HouseNumberOverviewDialog` | `HouseNumberOverviewDialog.java` | No | Dialog that displays house-number completeness for the selected street and resume actions, including multi-object zoom for duplicate cells. |
+| `HouseNumberOverviewRow` | `HouseNumberOverviewRow.java` | No | Row model used by the house-number overview table for odd/even values, linked primitives, and exact-duplicate zoom targets. |
 | `HouseNumberService` | `HouseNumberService.java` | No | Encapsulates house-number parsing, normalization, and increment/decrement behavior. |
 | `IntersectionPoint` | `IntersectionPoint.java` | No | Represents one detected intersection between a split line and a building outline segment. |
 | `IntersectionScanResult` | `IntersectionScanResult.java` | No | Result container for intersection scanning, including success state, message, and points. |
