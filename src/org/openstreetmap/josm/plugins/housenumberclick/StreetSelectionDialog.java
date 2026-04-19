@@ -1020,7 +1020,7 @@ final class StreetSelectionDialog {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBorder(BorderFactory.createTitledBorder(I18n.tr("Display")));
 
-        JPanel zoomOptionsPanel = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
+        JPanel zoomOptionsPanel = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0));
         zoomOptionsPanel.add(zoomToSelectedStreetCheckbox);
         zoomOptionsPanel.add(zoomToNumberedBuildingsOnlyCheckbox);
 
