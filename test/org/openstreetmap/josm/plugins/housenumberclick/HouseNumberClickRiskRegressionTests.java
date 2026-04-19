@@ -97,10 +97,11 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Street grouping keeps parallel nearby roads separated", HouseNumberClickRiskRegressionTests::testStreetGroupingKeepsParallelNearbyRoadsSeparated);
             run("Street zoom fallback collects only usable named highway ways", HouseNumberClickRiskRegressionTests::testStreetZoomFallbackWayMatching);
             run("Street-table selection respects auto-zoom option", HouseNumberClickRiskRegressionTests::testStreetTableSelectionRespectsAutoZoomOption);
-            run("Street-count dialog title and dimensions match overview dialog", HouseNumberClickRiskRegressionTests::testStreetCountDialogTitleAndDimensions);
+            run("Sidebar dialog labels and hints wiring exist", HouseNumberClickRiskRegressionTests::testStreetCountDialogTitleAndDimensions);
             run("Dialog bounds persistence and off-screen fallback wiring exist", HouseNumberClickRiskRegressionTests::testDialogBoundsPersistenceWiring);
             run("Main dialog supports collapsible advanced sections", HouseNumberClickRiskRegressionTests::testMainDialogCollapsibleAdvancedSectionsWiring);
             run("Auto-zoom scope toggle wiring exists", HouseNumberClickRiskRegressionTests::testAutoZoomScopeToggleWiring);
+            run("Sidebar ToggleDialog architecture wiring exists", HouseNumberClickRiskRegressionTests::testSidebarToggleDialogArchitectureWiring);
             run("Street counts duplicate marker applies conditional city rule", HouseNumberClickRiskRegressionTests::testStreetHouseNumberCountCollectorConditionalCityRule);
             run("Building overview collector filters tiny buildings and keeps addressed state", HouseNumberClickRiskRegressionTests::testBuildingOverviewCollectorFilteringAndClassification);
             run("Building overview duplicate detection applies conditional city rule", HouseNumberClickRiskRegressionTests::testBuildingOverviewCollectorConditionalCityRule);
@@ -1438,27 +1439,26 @@ public final class HouseNumberClickRiskRegressionTests {
     }
 
     private static void testStreetCountDialogTitleAndDimensions() throws Exception {
-        String streetCountDialogSource = readPluginSource("StreetHouseNumberCountDialog.java");
-        String houseOverviewDialogSource = readPluginSource("HouseNumberOverviewDialog.java");
+        String countsToggleSource = readPluginSource("StreetCountsToggleDialog.java");
+        String numbersToggleSource = readPluginSource("StreetNumbersToggleDialog.java");
+        String countsPanelSource = readPluginSource("StreetCountsPanel.java");
+        String numbersPanelSource = readPluginSource("StreetNumbersPanel.java");
 
-        assertTrue(streetCountDialogSource.contains("I18n.tr(\"Number Counts\")"),
-                "street-count dialog title should be renamed to Number Counts");
-        assertTrue(streetCountDialogSource.contains("new Dimension(320, 500)"),
-                "street-count dialog size should be 320x500 to match house-number overview dialog");
-        assertTrue(streetCountDialogSource.contains("new Dimension(300, 440)"),
-                "street-count dialog minimum size should be 300x440 to match house-number overview dialog");
-
-        assertTrue(houseOverviewDialogSource.contains("new Dimension(320, 500)"),
-                "house-number overview dialog should keep 320x500 size for shared sizing baseline");
-        assertTrue(houseOverviewDialogSource.contains("new Dimension(300, 440)"),
-                "house-number overview dialog should keep 300x440 minimum size for shared sizing baseline");
+        assertTrue(countsToggleSource.contains("I18n.tr(\"Street Counts\")"),
+                "street counts sidebar dialog should expose the Street Counts title");
+        assertTrue(numbersToggleSource.contains("I18n.tr(\"Street Numbers\")"),
+                "street numbers sidebar dialog should expose the Street Numbers title");
+        assertTrue(countsPanelSource.contains("HouseNumberClick is closed. Open the main dialog to use this view."),
+                "street counts panel should render inactive hint text instead of blank content");
+        assertTrue(numbersPanelSource.contains("HouseNumberClick is closed. Open the main dialog to use this view."),
+                "street numbers panel should render inactive hint text instead of blank content");
+        assertTrue(numbersPanelSource.contains("No street selected."),
+                "street numbers panel should render no-street-selected hint text");
     }
 
     private static void testDialogBoundsPersistenceWiring() throws Exception {
         String preferencesSource = readPluginSource("HouseNumberClickPreferences.java");
         String mainDialogSource = readPluginSource("StreetSelectionDialog.java");
-        String overviewDialogSource = readPluginSource("HouseNumberOverviewDialog.java");
-        String streetCountDialogSource = readPluginSource("StreetHouseNumberCountDialog.java");
         String boundsManagerSource = readPluginSource("DialogWindowBoundsManager.java");
 
         assertTrue(preferencesSource.contains("DIALOG_BOUNDS_PREFIX"),
@@ -1472,16 +1472,6 @@ public final class HouseNumberClickRiskRegressionTests {
                 "main dialog should restore saved bounds with a default fallback path");
         assertTrue(mainDialogSource.contains("DialogWindowBoundsManager.saveDialogBounds"),
                 "main dialog should persist bounds when closing");
-
-        assertTrue(overviewDialogSource.contains("DialogWindowBoundsManager.applyStoredBoundsOrDefaults"),
-                "house-number overview dialog should restore saved bounds with a default fallback path");
-        assertTrue(overviewDialogSource.contains("DialogWindowBoundsManager.saveDialogBounds"),
-                "house-number overview dialog should persist bounds on close/hide");
-
-        assertTrue(streetCountDialogSource.contains("DialogWindowBoundsManager.applyStoredBoundsOrDefaults"),
-                "street-count dialog should restore saved bounds with a default fallback path");
-        assertTrue(streetCountDialogSource.contains("DialogWindowBoundsManager.saveDialogBounds"),
-                "street-count dialog should persist bounds on close/hide");
 
         assertTrue(boundsManagerSource.contains("isVisibleOnAnyScreen"),
                 "dialog bounds manager should validate restored bounds against currently available screens");
@@ -1531,30 +1521,32 @@ public final class HouseNumberClickRiskRegressionTests {
                 "zoom path should branch between full-street and numbered-only bounds");
     }
 
-    private static void testOverviewDialogCloseUpdatesMainDialogCheckboxes() throws Exception {
-        String dialogSource = readPluginSource("StreetSelectionDialog.java");
+    private static void testSidebarToggleDialogArchitectureWiring() throws Exception {
+        String pluginSource = readPluginSource("HouseNumberClickPlugin.java");
+        String actionSource = readPluginSource("HouseNumberClickAction.java");
         String controllerSource = readPluginSource("StreetModeController.java");
-        String houseOverviewDialogSource = readPluginSource("HouseNumberOverviewDialog.java");
-        String streetCountDialogSource = readPluginSource("StreetHouseNumberCountDialog.java");
+        String dialogSource = readPluginSource("StreetSelectionDialog.java");
 
-        assertTrue(dialogSource.contains("setHouseNumberOverviewVisibilityListener"),
-                "main dialog should register house-number overview visibility callback");
-        assertTrue(dialogSource.contains("setStreetHouseNumberCountsVisibilityListener"),
-                "main dialog should register street-count overview visibility callback");
-        assertTrue(dialogSource.contains("updateHouseNumberOverviewCheckboxFromController"),
-                "main dialog should expose checkbox sync hook for house-number overview close events");
-        assertTrue(dialogSource.contains("updateStreetHouseNumberCountsCheckboxFromController"),
-                "main dialog should expose checkbox sync hook for street-count close events");
+        assertTrue(pluginSource.contains("mapFrameInitialized"),
+                "plugin should react to map-frame lifecycle events to wire sidebar dialogs");
+        assertTrue(actionSource.contains("onMapFrameInitialized"),
+                "action should expose map-frame callback for sidebar registration");
+        assertTrue(actionSource.contains("new HouseNumberClickSidebarController()"),
+                "action should construct a dedicated sidebar controller");
 
-        assertTrue(controllerSource.contains("onHouseNumberOverviewDialogClosedByUser"),
-                "controller should disable house-number overview when the overview dialog is closed by user");
-        assertTrue(controllerSource.contains("onStreetHouseNumberCountsDialogClosedByUser"),
-                "controller should disable street-count overview when the counts dialog is closed by user");
+        assertTrue(controllerSource.contains("attachSidebarDialogs"),
+                "street controller should expose sidebar attachment hook");
+        assertTrue(controllerSource.contains("refreshSidebarDialogs"),
+                "street controller should refresh sidebar content from central state");
+        assertTrue(controllerSource.contains("sidebarController.showMainDialogClosed()"),
+                "closing the main dialog should keep sidebars and switch them to inactive hint state");
 
-        assertTrue(houseOverviewDialogSource.contains("windowClosing"),
-                "house-number overview dialog should react to window closing events");
-        assertTrue(streetCountDialogSource.contains("windowClosing"),
-                "street-count dialog should react to window closing events");
+        assertTrue(dialogSource.contains("streetModeController.onMainDialogOpened();"),
+                "main dialog show flow should notify controller that main dialog became active");
+        assertTrue(!dialogSource.contains("Show overview panel (selected street)"),
+                "main dialog should no longer contain selected-street overview visibility checkbox");
+        assertTrue(!dialogSource.contains("Show all street counts"),
+                "main dialog should no longer contain all-streets-count visibility checkbox");
     }
 
     private static void testStreetNavigationOrderMatchesStreetCountsSorting() {
@@ -1565,7 +1557,7 @@ public final class HouseNumberClickRiskRegressionTests {
                 new StreetHouseNumberCountRow("  Charlie Street  ", 7, false)
         );
 
-        List<StreetOption> ordered = StreetHouseNumberCountDialog.buildStreetNavigationOrder(rows);
+        List<StreetOption> ordered = StreetCountsPanel.buildStreetNavigationOrder(rows);
         assertEquals(4, ordered.size(), "all rows should be included in navigation order");
         assertEquals("alpha street", ordered.get(0).getDisplayStreetName(), "street list should start alphabetically");
         assertEquals("Bravo Street", ordered.get(1).getDisplayStreetName(), "street names should remain alphabetic regardless of count");

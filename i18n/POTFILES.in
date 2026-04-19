@@ -10,11 +10,14 @@ src/org/openstreetmap/josm/plugins/housenumberclick/OverlayManager.java
 src/org/openstreetmap/josm/plugins/housenumberclick/ReferenceStreetLayer.java
 src/org/openstreetmap/josm/plugins/housenumberclick/HouseNumberClickAction.java
 src/org/openstreetmap/josm/plugins/housenumberclick/HouseNumberClickPlugin.java
+src/org/openstreetmap/josm/plugins/housenumberclick/HouseNumberClickSidebarController.java
 src/org/openstreetmap/josm/plugins/housenumberclick/HouseNumberClickStreetMapMode.java
-src/org/openstreetmap/josm/plugins/housenumberclick/HouseNumberOverviewDialog.java
 src/org/openstreetmap/josm/plugins/housenumberclick/HouseNumberOverlayLayer.java
+src/org/openstreetmap/josm/plugins/housenumberclick/StreetCountsPanel.java
+src/org/openstreetmap/josm/plugins/housenumberclick/StreetCountsToggleDialog.java
 src/org/openstreetmap/josm/plugins/housenumberclick/StreetModeController.java
-src/org/openstreetmap/josm/plugins/housenumberclick/StreetHouseNumberCountDialog.java
+src/org/openstreetmap/josm/plugins/housenumberclick/StreetNumbersPanel.java
+src/org/openstreetmap/josm/plugins/housenumberclick/StreetNumbersToggleDialog.java
 src/org/openstreetmap/josm/plugins/housenumberclick/StreetNameCollector.java
 src/org/openstreetmap/josm/plugins/housenumberclick/StreetSelectionDialog.java
 
