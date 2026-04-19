@@ -97,6 +97,7 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Street grouping keeps parallel nearby roads separated", HouseNumberClickRiskRegressionTests::testStreetGroupingKeepsParallelNearbyRoadsSeparated);
             run("Street zoom fallback collects only usable named highway ways", HouseNumberClickRiskRegressionTests::testStreetZoomFallbackWayMatching);
             run("Street-table selection respects auto-zoom option", HouseNumberClickRiskRegressionTests::testStreetTableSelectionRespectsAutoZoomOption);
+            run("Street-count dialog title and dimensions match overview dialog", HouseNumberClickRiskRegressionTests::testStreetCountDialogTitleAndDimensions);
             run("Auto-zoom scope toggle wiring exists", HouseNumberClickRiskRegressionTests::testAutoZoomScopeToggleWiring);
             run("Street counts duplicate marker applies conditional city rule", HouseNumberClickRiskRegressionTests::testStreetHouseNumberCountCollectorConditionalCityRule);
             run("Building overview collector filters tiny buildings and keeps addressed state", HouseNumberClickRiskRegressionTests::testBuildingOverviewCollectorFilteringAndClassification);
@@ -1432,6 +1433,23 @@ public final class HouseNumberClickRiskRegressionTests {
                 "street-table selection should only zoom when AutoZoom option is enabled");
         assertTrue(controllerSource.contains("zoomToStreet(selectedStreetOption);"),
                 "street-table selection should still zoom to selected street when AutoZoom is enabled");
+    }
+
+    private static void testStreetCountDialogTitleAndDimensions() throws Exception {
+        String streetCountDialogSource = readPluginSource("StreetHouseNumberCountDialog.java");
+        String houseOverviewDialogSource = readPluginSource("HouseNumberOverviewDialog.java");
+
+        assertTrue(streetCountDialogSource.contains("I18n.tr(\"Number Counts\")"),
+                "street-count dialog title should be renamed to Number Counts");
+        assertTrue(streetCountDialogSource.contains("new Dimension(320, 500)"),
+                "street-count dialog size should be 320x500 to match house-number overview dialog");
+        assertTrue(streetCountDialogSource.contains("new Dimension(300, 440)"),
+                "street-count dialog minimum size should be 300x440 to match house-number overview dialog");
+
+        assertTrue(houseOverviewDialogSource.contains("new Dimension(320, 500)"),
+                "house-number overview dialog should keep 320x500 size for shared sizing baseline");
+        assertTrue(houseOverviewDialogSource.contains("new Dimension(300, 440)"),
+                "house-number overview dialog should keep 300x440 minimum size for shared sizing baseline");
     }
 
     private static void testAutoZoomScopeToggleWiring() throws Exception {

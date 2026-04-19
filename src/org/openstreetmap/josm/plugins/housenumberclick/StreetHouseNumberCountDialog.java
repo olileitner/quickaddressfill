@@ -38,6 +38,8 @@ final class StreetHouseNumberCountDialog {
 
     private static final int DIALOG_OFFSET_X = 66;
     private static final int DIALOG_OFFSET_Y = 80;
+    private static final Dimension DIALOG_MINIMUM_SIZE = new Dimension(300, 440);
+    private static final Dimension DIALOG_SIZE = new Dimension(320, 500);
 
     private final JDialog dialog;
     private final DefaultTableModel tableModel;
@@ -85,7 +87,7 @@ final class StreetHouseNumberCountDialog {
         this.closeListener = closeListener;
 
         Frame owner = MainApplication.getMainFrame();
-        this.dialog = new JDialog(owner, I18n.tr("Street house number counts"), false);
+        this.dialog = new JDialog(owner, I18n.tr("Number Counts"), false);
         this.dialog.setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);
         this.dialog.addWindowListener(new WindowAdapter() {
             @Override
@@ -160,8 +162,8 @@ final class StreetHouseNumberCountDialog {
         content.add(scrollPane, BorderLayout.CENTER);
 
         this.dialog.getContentPane().add(content, BorderLayout.CENTER);
-        this.dialog.setMinimumSize(new Dimension(320, 360));
-        this.dialog.setSize(new Dimension(360, 420));
+        this.dialog.setMinimumSize(DIALOG_MINIMUM_SIZE);
+        this.dialog.setSize(DIALOG_SIZE);
     }
 
     void updateData(List<StreetHouseNumberCountRow> rows) {
