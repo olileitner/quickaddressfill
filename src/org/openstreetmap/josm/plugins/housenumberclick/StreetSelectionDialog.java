@@ -47,8 +47,9 @@ import org.openstreetmap.josm.tools.I18n;
  * to explicit street-selection actions with configurable zoom scope, postcode overview is cycled through
  * off/buildings/schematic states, Street Counts/Street Numbers overviews are rendered as dedicated sidebar
  * ToggleDialogs, user-facing display/split options persist across JOSM sessions, advanced sections below Address
- * can be collapsed via a lightweight toggle with persisted state, and dialog window bounds are restored with
- * default fallback when saved geometry is no longer on-screen.
+ * can be collapsed via a lightweight toggle with persisted state, dialog interaction pauses visibly when no
+ * editable data layer is active, recovers safely after dataset switches while paused, and dialog window bounds
+ * are restored with default fallback when saved geometry is no longer on-screen.
  */
 final class StreetSelectionDialog {
 
@@ -91,6 +92,7 @@ final class StreetSelectionDialog {
     private final JCheckBox splitMakeRectangularCheckbox;
     private final JButton toggleAdvancedSectionsButton;
     private final JPanel collapsibleSectionsPanel;
+    private final JPanel sectionsPanel;
     private final JButton rowHousePartsMinusButton;
     private final JButton rowHousePartsPlusButton;
     private final JTextField rowHousePartsField;
@@ -118,6 +120,7 @@ final class StreetSelectionDialog {
     private boolean rememberedAdvancedSectionsExpanded = HouseNumberClickPreferences.ADVANCED_SECTIONS_EXPANDED.get();
     private boolean updatingInputs;
     private boolean streetSelectionChangedByNavigation;
+    private boolean pausedBecauseNoEditLayer;
     private DataSet rememberedDataSet;
     private boolean streetNavigationDispatcherRegistered;
     private Component lastFocusedDialogInput;
@@ -140,6 +143,9 @@ final class StreetSelectionDialog {
     private static final String SHOW_POSTCODE_BUTTON_TEXT = I18n.tr("Show All Postcodes");
     private static final String SHOW_POSTCODE_SCHEMATIC_BUTTON_TEXT = I18n.tr("Show Postcode Areas");
     private static final String HIDE_POSTCODE_BUTTON_TEXT = I18n.tr("Hide All Postcodes");
+    private static final String MODE_ACTIVE_TEXT = I18n.tr("Active");
+    private static final String MODE_PAUSED_TEXT = I18n.tr("Paused");
+    private static final String MODE_NO_EDIT_LAYER_TEXT = I18n.tr("No editable data layer");
     private static final List<String> COMMON_BUILDING_TYPES = Arrays.asList(
             "yes", "apartments", "residential", "house", "detached", "terrace", "garage", "garages",
             "retail", "commercial", "industrial", "warehouse", "office", "school", "hospital", "hotel",
@@ -408,7 +414,7 @@ final class StreetSelectionDialog {
         advancedSectionGbc.insets = new Insets(6, 0, 0, 0);
         collapsibleSectionsPanel.add(createHelpSection(), advancedSectionGbc);
 
-        JPanel sectionsPanel = new JPanel(new GridBagLayout());
+        this.sectionsPanel = new JPanel(new GridBagLayout());
         GridBagConstraints sectionGbc = new GridBagConstraints();
         sectionGbc.gridx = 0;
         sectionGbc.weightx = 1.0;
@@ -447,6 +453,7 @@ final class StreetSelectionDialog {
                 closeDialog();
             }
         });
+        updateDialogAvailabilityState();
     }
 
     static void showNoDataSetMessage() {
@@ -459,12 +466,38 @@ final class StreetSelectionDialog {
     }
 
     void onEditLayerUnavailable() {
+        pausedBecauseNoEditLayer = true;
         streetModeController.onNoActiveDataSet();
-        if (dialog.isVisible()) {
-            closeDialog();
+        streetModeController.deactivate();
+        updateDialogAvailabilityState();
+    }
+
+    void onEditLayerAvailable() {
+        if (!pausedBecauseNoEditLayer) {
             return;
         }
-        streetModeController.onMainDialogClosed();
+        DataSet activeDataSet = MainApplication.getLayerManager() != null
+                ? MainApplication.getLayerManager().getEditDataSet()
+                : null;
+        if (activeDataSet == null) {
+            return;
+        }
+        if (dialog.isVisible() && isDataSetChanged(activeDataSet)) {
+            CountryDetectionService countryDetectionService = new CountryDetectionService();
+            showDialog(
+                    activeDataSet,
+                    StreetNameCollector.collectStreetIndex(activeDataSet).getStreetOptions(),
+                    PostcodeCollector.collectVisiblePostcodes(activeDataSet),
+                    countryDetectionService.detectConfidentCountry(activeDataSet),
+                    countryDetectionService.collectLikelyCountryCodes(activeDataSet, 10)
+            );
+            return;
+        }
+        pausedBecauseNoEditLayer = false;
+        updateDialogAvailabilityState();
+        if (dialog.isVisible()) {
+            streetModeController.activate(buildCurrentSelection());
+        }
     }
 
     void showDialog(DataSet activeDataSet, List<StreetOption> streetOptions, List<String> detectedPostcodes,
@@ -484,6 +517,7 @@ final class StreetSelectionDialog {
         }
         rememberedDataSet = activeDataSet;
         streetModeController.onMainDialogOpened();
+        pausedBecauseNoEditLayer = false;
 
         String previousStreet = null;
         updatingInputs = true;
@@ -533,6 +567,7 @@ final class StreetSelectionDialog {
         notifyOverlaySettingsChanged();
         notifyZoomToSelectedStreetChanged();
         notifyZoomToNumberedBuildingsOnlyChanged();
+        updateDialogAvailabilityState();
         refreshModeStateUi(streetModeController.isActive());
         refreshOverviewButtonLabel();
         refreshDuplicateOverviewButtonLabel();
@@ -968,6 +1003,41 @@ final class StreetSelectionDialog {
         streetModeController.onMainDialogClosed();
     }
 
+    private void updateDialogAvailabilityState() {
+        boolean hasActiveEditLayer = MainApplication.getLayerManager() != null
+                && MainApplication.getLayerManager().getEditDataSet() != null;
+        boolean paused = pausedBecauseNoEditLayer || !hasActiveEditLayer;
+        if (sectionsPanel != null) {
+            sectionsPanel.setEnabled(!paused);
+            setComponentTreeEnabled(sectionsPanel, !paused);
+            if (!paused) {
+                updateZoomScopeOptionEnablement();
+                updateOverlayOptionsEnablement(
+                        showHouseNumberLayerCheckbox != null && showHouseNumberLayerCheckbox.isSelected(),
+                        showConnectionLinesCheckbox != null && showConnectionLinesCheckbox.isSelected()
+                );
+                updateStreetNavigationButtonState();
+            }
+        }
+        if (continueWorkingButton != null) {
+            continueWorkingButton.setEnabled(!paused);
+        }
+        refreshModeStateUi(streetModeController.isActive());
+    }
+
+    private void setComponentTreeEnabled(Component component, boolean enabled) {
+        if (component == null) {
+            return;
+        }
+        component.setEnabled(enabled);
+        if (!(component instanceof java.awt.Container)) {
+            return;
+        }
+        for (Component child : ((java.awt.Container) component).getComponents()) {
+            setComponentTreeEnabled(child, enabled);
+        }
+    }
+
     private void continueWorking() {
         streetModeController.activate(buildCurrentSelection());
         restoreLastDialogInputFocus();
@@ -977,12 +1047,18 @@ final class StreetSelectionDialog {
         if (modeStateLabel == null || continueWorkingButton == null) {
             return;
         }
+        if (pausedBecauseNoEditLayer) {
+            modeStateLabel.setText(MODE_NO_EDIT_LAYER_TEXT);
+            modeStateLabel.setForeground(new java.awt.Color(150, 60, 60));
+            continueWorkingButton.setVisible(false);
+            return;
+        }
         if (active) {
-            modeStateLabel.setText(I18n.tr("Active"));
+            modeStateLabel.setText(MODE_ACTIVE_TEXT);
             modeStateLabel.setForeground(new java.awt.Color(0, 140, 0));
             continueWorkingButton.setVisible(false);
         } else {
-            modeStateLabel.setText(I18n.tr("Paused"));
+            modeStateLabel.setText(MODE_PAUSED_TEXT);
             modeStateLabel.setForeground(new java.awt.Color(150, 60, 60));
             continueWorkingButton.setVisible(true);
         }

@@ -80,6 +80,8 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Street mode blocks apply when postcode is not selected", HouseNumberClickRiskRegressionTests::testPostcodeSelectionGuard);
             run("Postcode overview source exposes three-state cycle", HouseNumberClickRiskRegressionTests::testPostcodeOverviewThreeStateCycleWiring);
             run("Postcode overview cache and invalidation hooks exist", HouseNumberClickRiskRegressionTests::testPostcodeOverviewCacheInvalidationWiring);
+            run("Layer loss pauses dialog instead of closing it", HouseNumberClickRiskRegressionTests::testLayerLossPausesDialogInsteadOfClosing);
+            run("Layer recovery resumes paused dialog", HouseNumberClickRiskRegressionTests::testLayerRecoveryResumesPausedDialog);
             run("Layer-loss cleanup removes all plugin overlays", HouseNumberClickRiskRegressionTests::testLayerLossCleanupRemovesAllPluginOverlays);
             run("Postcode color mapping is deterministic", HouseNumberClickRiskRegressionTests::testPostcodeColorMappingIsDeterministic);
             run("Postcode legend uses top-5 deterministic ordering", HouseNumberClickRiskRegressionTests::testPostcodeLegendTopFiveOrdering);
@@ -1181,6 +1183,40 @@ public final class HouseNumberClickRiskRegressionTests {
                 "centralized cleanup should include postcode overview removal");
         assertTrue(overlayManagerSource.contains("removeDuplicateAddressOverviewLayer();"),
                 "centralized cleanup should include duplicate overview removal");
+    }
+
+    private static void testLayerLossPausesDialogInsteadOfClosing() throws Exception {
+        String actionSource = readPluginSource("HouseNumberClickAction.java");
+        String dialogSource = readPluginSource("StreetSelectionDialog.java");
+
+        assertTrue(actionSource.contains("streetSelectionDialog.onEditLayerUnavailable();"),
+                "layer-loss handling should still notify the dialog");
+        assertTrue(dialogSource.contains("pausedBecauseNoEditLayer = true;"),
+                "dialog should enter an explicit paused state when edit layer is unavailable");
+        assertTrue(dialogSource.contains("streetModeController.deactivate();"),
+                "dialog should pause interaction mode when edit layer is unavailable");
+        assertTrue(dialogSource.contains("MODE_NO_EDIT_LAYER_TEXT"),
+                "dialog should expose a dedicated no-edit-layer status text");
+        assertTrue(!dialogSource.contains("if (dialog.isVisible()) {\n            closeDialog();\n            return;\n        }"),
+                "layer-loss path must no longer hard-close a visible dialog");
+    }
+
+    private static void testLayerRecoveryResumesPausedDialog() throws Exception {
+        String actionSource = readPluginSource("HouseNumberClickAction.java");
+        String dialogSource = readPluginSource("StreetSelectionDialog.java");
+
+        assertTrue(actionSource.contains("streetSelectionDialog.onEditLayerAvailable();"),
+                "action should notify dialog when an edit layer becomes available again");
+        assertTrue(dialogSource.contains("void onEditLayerAvailable()"),
+                "dialog should expose an explicit resume hook for layer recovery");
+        assertTrue(dialogSource.contains("pausedBecauseNoEditLayer = false;"),
+                "dialog resume hook should clear paused no-layer state");
+        assertTrue(dialogSource.contains("if (dialog.isVisible() && isDataSetChanged(activeDataSet))"),
+                "resume hook should detect dataset switches that happened while paused");
+        assertTrue(dialogSource.contains("showDialog(\n                    activeDataSet,"),
+                "resume hook should rebuild dialog options from the recovered active dataset when needed");
+        assertTrue(dialogSource.contains("streetModeController.activate(buildCurrentSelection());"),
+                "dialog resume hook should reactivate street mode from current dialog selection");
     }
 
     private static void testRescanRefreshEntrypointIsSafe() {

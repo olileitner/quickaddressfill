@@ -12,8 +12,9 @@ import org.openstreetmap.josm.tools.I18n;
 /**
  * Main toolbar/menu action that follows JOSM tool availability (enabled only with an editable
  * dataset/layer), opens the street selection dialog (including optional country prefill and
- * constrained likely-country code options), initializes persistent sidebar overview dialogs,
- * and activates street mode.
+ * constrained likely-country code options), keeps dialog pause/resume state in sync with
+ * temporary edit-layer loss/recovery, initializes persistent sidebar overview dialogs, and
+ * activates street mode.
  */
 public class HouseNumberClickAction extends JosmAction {
 
@@ -49,8 +50,9 @@ public class HouseNumberClickAction extends JosmAction {
                 && MainApplication.getLayerManager().getEditDataSet() != null;
         setEnabled(hasEditDataSet);
         if (wasEnabled && !hasEditDataSet && streetSelectionDialog != null) {
-            // Edit-layer loss must always tear down active mode/dialog artifacts.
             streetSelectionDialog.onEditLayerUnavailable();
+        } else if (!wasEnabled && hasEditDataSet && streetSelectionDialog != null) {
+            streetSelectionDialog.onEditLayerAvailable();
         }
     }
 
