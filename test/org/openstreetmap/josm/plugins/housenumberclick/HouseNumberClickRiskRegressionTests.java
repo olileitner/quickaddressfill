@@ -82,6 +82,7 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Postcode overview cache and invalidation hooks exist", HouseNumberClickRiskRegressionTests::testPostcodeOverviewCacheInvalidationWiring);
             run("Layer loss pauses dialog instead of closing it", HouseNumberClickRiskRegressionTests::testLayerLossPausesDialogInsteadOfClosing);
             run("Layer recovery resumes paused dialog", HouseNumberClickRiskRegressionTests::testLayerRecoveryResumesPausedDialog);
+            run("Dataset replacement reloads visible dialog while enabled", HouseNumberClickRiskRegressionTests::testDatasetReplacementReloadsVisibleDialogWhileEnabled);
             run("Layer-loss cleanup removes all plugin overlays", HouseNumberClickRiskRegressionTests::testLayerLossCleanupRemovesAllPluginOverlays);
             run("Postcode color mapping is deterministic", HouseNumberClickRiskRegressionTests::testPostcodeColorMappingIsDeterministic);
             run("Postcode legend uses top-5 deterministic ordering", HouseNumberClickRiskRegressionTests::testPostcodeLegendTopFiveOrdering);
@@ -1214,10 +1215,27 @@ public final class HouseNumberClickRiskRegressionTests {
                 "dialog resume hook should clear paused no-layer state");
         assertTrue(dialogSource.contains("if (dialog.isVisible() && isDataSetChanged(activeDataSet))"),
                 "resume hook should detect dataset switches that happened while paused");
-        assertTrue(dialogSource.contains("showDialog(\n                    activeDataSet,"),
+        assertTrue(dialogSource.contains("reloadDialogForActiveDataSet(activeDataSet);"),
                 "resume hook should rebuild dialog options from the recovered active dataset when needed");
         assertTrue(dialogSource.contains("streetModeController.activate(buildCurrentSelection());"),
                 "dialog resume hook should reactivate street mode from current dialog selection");
+    }
+
+    private static void testDatasetReplacementReloadsVisibleDialogWhileEnabled() throws Exception {
+        String actionSource = readPluginSource("HouseNumberClickAction.java");
+        String dialogSource = readPluginSource("StreetSelectionDialog.java");
+
+        assertTrue(actionSource.contains("private DataSet lastKnownEditDataSet;"),
+                "action should track last known edit dataset identity across layer change callbacks");
+        assertTrue(actionSource.contains("activeDataSet != lastKnownEditDataSet"),
+                "action should detect edit-dataset replacement even when enabled state does not change");
+        assertTrue(actionSource.contains("streetSelectionDialog.onActiveEditDataSetChanged(activeDataSet);"),
+                "action should notify dialog about dataset replacement while staying enabled");
+
+        assertTrue(dialogSource.contains("void onActiveEditDataSetChanged(DataSet activeDataSet)"),
+                "dialog should expose a dedicated hook for active dataset replacement");
+        assertTrue(dialogSource.contains("reloadDialogForActiveDataSet(activeDataSet);"),
+                "dataset replacement hook should rebuild visible dialog content from the new dataset");
     }
 
     private static void testRescanRefreshEntrypointIsSafe() {

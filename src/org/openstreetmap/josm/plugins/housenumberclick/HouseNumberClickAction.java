@@ -13,7 +13,8 @@ import org.openstreetmap.josm.tools.I18n;
  * Main toolbar/menu action that follows JOSM tool availability (enabled only with an editable
  * dataset/layer), opens the street selection dialog (including optional country prefill and
  * constrained likely-country code options), keeps dialog pause/resume state in sync with
- * temporary edit-layer loss/recovery, initializes persistent sidebar overview dialogs, and
+ * temporary edit-layer loss/recovery, refreshes visible dialog data when the active dataset is
+ * replaced while remaining editable, initializes persistent sidebar overview dialogs, and
  * activates street mode.
  */
 public class HouseNumberClickAction extends JosmAction {
@@ -22,6 +23,7 @@ public class HouseNumberClickAction extends JosmAction {
     private final HouseNumberClickSidebarController sidebarController;
     private final StreetSelectionDialog streetSelectionDialog;
     private final CountryDetectionService countryDetectionService;
+    private DataSet lastKnownEditDataSet;
 
     public HouseNumberClickAction() {
         super(I18n.tr("HouseNumberClick"), "housenumberclick", I18n.tr("Open HouseNumberClick street dialog"), null, true);
@@ -29,6 +31,9 @@ public class HouseNumberClickAction extends JosmAction {
         this.streetModeController = new StreetModeController(sidebarController);
         this.streetSelectionDialog = new StreetSelectionDialog(streetModeController);
         this.countryDetectionService = new CountryDetectionService();
+        this.lastKnownEditDataSet = MainApplication.getLayerManager() != null
+                ? MainApplication.getLayerManager().getEditDataSet()
+                : null;
         updateEnabledState();
     }
 
@@ -46,14 +51,19 @@ public class HouseNumberClickAction extends JosmAction {
     @Override
     protected void updateEnabledState() {
         boolean wasEnabled = isEnabled();
-        boolean hasEditDataSet = MainApplication.getLayerManager() != null
-                && MainApplication.getLayerManager().getEditDataSet() != null;
+        DataSet activeDataSet = MainApplication.getLayerManager() != null
+                ? MainApplication.getLayerManager().getEditDataSet()
+                : null;
+        boolean hasEditDataSet = activeDataSet != null;
         setEnabled(hasEditDataSet);
         if (wasEnabled && !hasEditDataSet && streetSelectionDialog != null) {
             streetSelectionDialog.onEditLayerUnavailable();
         } else if (!wasEnabled && hasEditDataSet && streetSelectionDialog != null) {
             streetSelectionDialog.onEditLayerAvailable();
+        } else if (hasEditDataSet && activeDataSet != lastKnownEditDataSet && streetSelectionDialog != null) {
+            streetSelectionDialog.onActiveEditDataSetChanged(activeDataSet);
         }
+        lastKnownEditDataSet = activeDataSet;
     }
 
     @Override

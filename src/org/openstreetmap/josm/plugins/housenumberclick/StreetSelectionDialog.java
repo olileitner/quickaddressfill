@@ -49,8 +49,9 @@ import org.openstreetmap.josm.tools.I18n;
  * ToggleDialogs, user-facing display/split options persist across JOSM sessions, advanced sections below Address
  * can be collapsed via a lightweight toggle with persisted state, split controls are grouped side-by-side in one
  * row, street navigation arrows are available inline in the Address row, dialog interaction pauses visibly when no
- * editable data layer is active, recovers safely after dataset switches while paused, and dialog window bounds are
- * restored with default fallback when saved geometry is no longer on-screen.
+ * editable data layer is active, refreshes safely when the active dataset is replaced while the dialog stays open,
+ * recovers safely after dataset switches while paused, and dialog window bounds are restored with default fallback
+ * when saved geometry is no longer on-screen.
  */
 final class StreetSelectionDialog {
 
@@ -480,14 +481,7 @@ final class StreetSelectionDialog {
             return;
         }
         if (dialog.isVisible() && isDataSetChanged(activeDataSet)) {
-            CountryDetectionService countryDetectionService = new CountryDetectionService();
-            showDialog(
-                    activeDataSet,
-                    StreetNameCollector.collectStreetIndex(activeDataSet).getStreetOptions(),
-                    PostcodeCollector.collectVisiblePostcodes(activeDataSet),
-                    countryDetectionService.detectConfidentCountry(activeDataSet),
-                    countryDetectionService.collectLikelyCountryCodes(activeDataSet, 10)
-            );
+            reloadDialogForActiveDataSet(activeDataSet);
             return;
         }
         pausedBecauseNoEditLayer = false;
@@ -495,6 +489,27 @@ final class StreetSelectionDialog {
         if (dialog.isVisible()) {
             streetModeController.activate(buildCurrentSelection());
         }
+    }
+
+    void onActiveEditDataSetChanged(DataSet activeDataSet) {
+        if (activeDataSet == null || !isDataSetChanged(activeDataSet)) {
+            return;
+        }
+        if (!dialog.isVisible()) {
+            return;
+        }
+        reloadDialogForActiveDataSet(activeDataSet);
+    }
+
+    private void reloadDialogForActiveDataSet(DataSet activeDataSet) {
+        CountryDetectionService countryDetectionService = new CountryDetectionService();
+        showDialog(
+                activeDataSet,
+                StreetNameCollector.collectStreetIndex(activeDataSet).getStreetOptions(),
+                PostcodeCollector.collectVisiblePostcodes(activeDataSet),
+                countryDetectionService.detectConfidentCountry(activeDataSet),
+                countryDetectionService.collectLikelyCountryCodes(activeDataSet, 10)
+        );
     }
 
     void showDialog(DataSet activeDataSet, List<StreetOption> streetOptions, List<String> detectedPostcodes,
