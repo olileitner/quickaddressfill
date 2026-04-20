@@ -1258,6 +1258,17 @@ final class StreetSelectionDialog {
         gbc.weightx = 0.5;
         gbc.insets = new Insets(0, 4, 0, 0);
         panel.add(createRowHousesSection(), gbc);
+
+        JPanel lineSplitSection = (JPanel) panel.getComponent(0);
+        JPanel rowHousesSection = (JPanel) panel.getComponent(1);
+        int splitSectionHeight = Math.max(
+                lineSplitSection.getPreferredSize().height,
+                rowHousesSection.getPreferredSize().height
+        );
+        lineSplitSection.setPreferredSize(new Dimension(lineSplitSection.getPreferredSize().width, splitSectionHeight));
+        lineSplitSection.setMinimumSize(new Dimension(lineSplitSection.getMinimumSize().width, splitSectionHeight));
+        rowHousesSection.setPreferredSize(new Dimension(rowHousesSection.getPreferredSize().width, splitSectionHeight));
+        rowHousesSection.setMinimumSize(new Dimension(rowHousesSection.getMinimumSize().width, splitSectionHeight));
         return panel;
     }
 
