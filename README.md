@@ -6,13 +6,14 @@ HouseNumberClick is a JOSM plugin for fast, street-focused house-number tagging 
 
 - Class inventory (including core-class markers): `docs/class-inventory.md`
 
-## What's New in 1.1.7
+## What's New in 1.1.8
 
-- Street readback for same-name roads is now more robust: nearest-cluster resolution is prioritized and stale seed hints are avoided.
-- Auto-zoom behavior is more predictable: full selected-street framing, AutoZoom-respecting table interactions, and zoom limited to explicit street changes.
-- Analysis tooling expanded: duplicate overview layer, refined completeness/postcode analysis presentation, and clearer duplicate semantics by scope.
-- City-aware address handling is now fully integrated across apply, readback, and overwrite warnings.
-- House-number overlay reliability improved with canonicalization and active self-heal checks when labels are enabled.
+- Added persistent right-sidebar workflows with `Street Counts` and `House Numbers` dialogs (ToggleDialog-based, synchronized with plugin state).
+- Added safer dialog lifecycle handling for dataset/layer transitions (pause on layer loss, safe resume, and reload when active dataset is replaced).
+- Added persistent advanced dialog behavior (collapsible advanced sections + restored dialog bounds with off-screen fallback).
+- Expanded postcode analysis to a three-state cycle (off -> buildings -> schematic areas) with deterministic legend/color behavior.
+- Added country-aware address flow (`addr:country` detection/readback/apply with constrained country selection in the dialog).
+- Refined dialog and split UI ergonomics (inline street navigation arrows, side-by-side split sections, equal split panel heights, clarified sidebar titles).
 
 ## Who This Is For
 
@@ -114,13 +115,13 @@ This significantly reduces friction when mapping long streets or dense residenti
 - `Show connection lines`: connects mapped numbers in sorted order; `Separate even / odd` splits parity paths.
 - Overlay labels/lines are street-local and distance-limited: addressed buildings are considered when their computed label point is near the selected street chain (currently up to about 400 m).
 - Duplicate house numbers are highlighted in the selected-street overlay using `street+postcode+housenumber` (local check, city is intentionally ignored).
-- `Show overview panel (selected street)`: odd/even table with gap markers (`•` for missing base numbers); table click zooms to target object(s).
-- `Show all street counts`: list of all known streets and current counts; row click zooms to selected street. Duplicate marker `(dup)` follows the same conditional city rule as `Show duplicates`.
+- `House Numbers (Base Numbers only)` sidebar dialog: odd/even table with gap markers (`•` for missing base numbers); table click zooms to target object(s).
+- `Street Counts (House Numbers)` sidebar dialog: list of all known streets and current counts; row click zooms to selected street. Duplicate marker `(dup)` follows the same conditional city rule as `Show duplicates`.
 - `Show completeness` / `Hide completeness`: `Completeness overview` layer:
   - `... present` for the selected completeness focus (bright blue),
   - `... missing` for the selected completeness focus (bright orange),
   - `No Address Data` (gray, intentionally less prominent for buildings without street/postcode/housenumber).
-- Completeness focus can be switched between `Number`, `Street`, `Postcode`, `City`, and `Basic`.
+- Completeness focus can be switched between `Number`, `Street`, `Postcode`, `City`, and `All`.
 - `Show All Postcodes` / `Hide All Postcodes`: postcode overview layer:
   - bright pink = no postcode,
   - same color = same postcode,
@@ -134,7 +135,7 @@ This significantly reduces friction when mapping long streets or dense residenti
 2. Select street and set postcode (from list or manual input), then set house number and optional city/building type.
 3. Click buildings to apply addresses. House number increments automatically after each successful click.
 4. Optional: use split interactions (`Alt+Left click+Drag` split building, `Alt+Right click` split to row houses, `Alt+1..9` set number of parts) for geometry workflows.
-5. Use shortcuts and optional overview windows as needed.
+5. Use shortcuts plus optional sidebar dialogs and analysis layers as needed.
 
 ![HouseNumberClick dialog](docs/images/housenumberclick-dialog.png)
 
@@ -186,8 +187,8 @@ If `i18n/i18n.pl` is missing locally and you need `.lang` generation from `po/*.
 ant -Di18n.pl=/path/to/i18n.pl release-artifact
 ```
 
-3. Create Git tag `v<version>` and GitHub release.
-4. Upload `dist/HouseNumberClick-<version>.jar` as release asset.
+3. Commit release changes and create an annotated Git tag `v<version>`.
+4. Push `main` and push tag `v<version>`; GitHub Actions (`.github/workflows/release.yml`) publishes/updates the release automatically.
 5. For PluginsSource, use the direct GitHub release asset URL pattern:
    - `https://github.com/<owner>/<repo>/releases/download/v<version>/HouseNumberClick-<version>.jar`
 
