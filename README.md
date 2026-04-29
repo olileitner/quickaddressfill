@@ -25,6 +25,26 @@ HouseNumberClick is a JOSM plugin for fast, street-focused house-number tagging 
 - Java: **17+** (build uses `javac --release 17`).
 - JOSM minimum main version: `19481` (see `Plugin-Mainversion` in `build.xml`).
 
+## Development prerequisites
+
+- This plugin is built with **JDK 17**.
+- `JAVA_HOME` should point to a JDK 17 installation.
+- `java -version`, `javac -version`, and `ant -diagnostics` should consistently report Java 17.
+
+Example shell setup:
+
+```bash
+export JAVA_HOME=/usr/lib/jvm/temurin-17-jdk-amd64
+export PATH="$JAVA_HOME/bin:$PATH"
+```
+
+Then run:
+
+```bash
+ant clean test
+ant dist
+```
+
 ## Demo
 
 ![HouseNumberClick demo](docs/images/housenumberclick-demo.gif)
