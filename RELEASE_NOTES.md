@@ -31,3 +31,32 @@ HouseNumberClick is a JOSM plugin for fast address tagging on buildings with str
 
 - Release artifact: `dist/HouseNumberClick-1.1.8.jar`
 
+
+## Draft (Next Release)
+
+### Added
+
+- Read-only Unterstuetzung fuer zusaetzliche OSM-Adress-Traeger eingefuehrt (`ADDRESS_NODE`, `ENTRANCE_NODE`, weitere `addr:*`-Objekte neben `building=*`).
+- Neues neutrales Adressmodell hinzugefuegt: `AddressEntry`.
+- Zentralen Collector fuer Adressquellen eingefuehrt: `AddressEntryCollector`.
+- Zentrale Duplicate-Auswertung ergaenzt: `AddressDuplicateAnalyzer`.
+- Regressionstests fuer neue read-only Adressquellen und Co-located-Duplikatfaelle ergaenzt.
+
+### Changed
+
+- Street Counts beruecksichtigen jetzt alle read-only Address-Carrier statt nur Gebaeude.
+- Building-Overview beruecksichtigt indirekte Adressierung ueber zugeordnete Address-/Entrance-Nodes.
+- Building-Overview-Rendering unterscheidet indirekt adressierte Gebaeude visuell (zusaetzliche gestrichelte Kontur).
+- House-Number-Overlay verarbeitet Labels/Duplikatlogik ueber das neue Carrier-Modell.
+- Duplicate-Overview-Layer bewertet Duplikate ueber alle Carrier-Typen.
+- Co-located Faelle (z. B. Gebaeude + interner Adressnode mit identischer Adresse) werden als nicht-harter Duplicate behandelt.
+- Build-/Testausfuehrung auf reproduzierbare JDK-17-Toolchain ausgerichtet.
+
+### Fixed
+
+- ant-Buildproblem `release version 17 not supported` durch konsistente JDK-17-Nutzung behoben.
+- Headless/Test-Kontext stabilisiert (projektion-sichere Fallbacks bei Label-/Geometriepfaden).
+- `ant clean test` und `ant dist` wieder erfolgreich.
+- Plugin-JAR erfolgreich nach `~/.josm/plugins/HouseNumberClick.jar` deployed.
+
+
