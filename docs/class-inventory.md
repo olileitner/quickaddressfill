@@ -9,13 +9,18 @@ Core classes as defined in `AGENTS.md` are marked: `HouseNumberClickPlugin`, `Ho
 | `AddressConflictService` | `AddressConflictService.java` | No | Detects address/tag conflicts between existing building tags and the values selected for apply, including city/country-aware overwrite detection. |
 | `AddressConflictService.ConflictAnalysis` | `AddressConflictService.java` | No | Structured outcome of conflict detection used by overwrite-warning UI. |
 | `AddressConflictService.ConflictField` | `AddressConflictService.java` | No | One differing tag field between existing and proposed address/building values. |
+| `AddressDuplicateAnalyzer` | `AddressDuplicateAnalyzer.java` | No | Shared duplicate-address grouping with conditional city matching and co-located carrier suppression. |
+| `AddressDuplicateAnalyzer.DuplicateAddressGroupStats` | `AddressDuplicateAnalyzer.java` | No | Aggregated duplicate-match statistics for one street+postcode+housenumber group. |
+| `AddressEntry` | `AddressEntry.java` | No | Read-only normalized address carrier entry used by collectors/layers for counts, overlays, and duplicate checks. |
+| `AddressEntry.CarrierType` | `AddressEntry.java` | No | Address carrier type classification (building, entrance/address node, other object). |
+| `AddressEntryCollector` | `AddressEntryCollector.java` | No | Collects read-only address carriers across building and non-building objects and links address nodes to buildings. |
+| `AddressEntryCollector.BuildingSpatialIndex` | `AddressEntryCollector.java` | No | Lightweight EastNorth grid index to avoid full node x building scans for building association. |
 | `AddressedBuildingMatcher` | `AddressedBuildingMatcher.java` | No | Shared predicate helper for identifying addressable buildings, optionally filtered by street. |
 | `AddressReadbackService` | `AddressReadbackService.java` | No | Reads street, postcode, city, country, house number, and building type from clicked buildings or fallback street ways. |
 | `AddressReadbackService.AddressReadbackResult` | `AddressReadbackService.java` | No | Readback payload containing street/address values and the source category. |
-| `BuildingOverviewCollector` | `BuildingOverviewCollector.java` | No | Collects building diagnostics used by completeness and postcode overview layers, canonicalizing relation/outer-way representations of the same real building. |
+| `BuildingOverviewCollector` | `BuildingOverviewCollector.java` | No | Collects building diagnostics used by completeness and postcode overview layers, canonicalizing relation/outer-way representations and considering linked read-only address carriers. |
 | `BuildingOverviewCollector.BuildingOverviewEntry` | `BuildingOverviewCollector.java` | No | Public entry used by overview layers to render completeness and diagnostics for one building. |
 | `BuildingOverviewCollector.CandidateEntry` | `BuildingOverviewCollector.java` | No | Internal collection-stage representation before duplicate-address evaluation is finalized. |
-| `BuildingOverviewCollector.DuplicateAddressGroupStats` | `BuildingOverviewCollector.java` | No | Aggregated duplicate-match statistics for one street+postcode+housenumber group. |
 | `BuildingOverviewLayer` | `BuildingOverviewLayer.java` | No | Map layer that visualizes building-level address status to support completeness inspection. |
 | `BuildingOverviewLayer.MissingField` | `BuildingOverviewLayer.java` | No | Selected required address field used to focus completeness-missing highlighting, including an all-required-fields mode (street, postcode, house number, city, country). |
 | `BuildingResolver` | `BuildingResolver.java` | No | Resolves the clicked building primitive with relation-first logic and bounded candidate scanning. |
@@ -36,17 +41,17 @@ Core classes as defined in `AGENTS.md` are marked: `HouseNumberClickPlugin`, `Ho
 | `DialogController` | `DialogController.java` | No | Keeps dialog-side configuration state normalized and synchronized with controller callbacks. |
 | `DialogState` | `DialogState.java` | No | Immutable snapshot of the dialog input values used to compare and restore UI state. |
 | `DialogWindowBoundsManager` | `DialogWindowBoundsManager.java` | No | Restores and persists dialog bounds with on-screen validation and default fallback behavior. |
-| `DuplicateAddressOverviewLayer` | `DuplicateAddressOverviewLayer.java` | No | Map layer that highlights buildings with duplicate exact address keys. |
+| `DuplicateAddressOverviewLayer` | `DuplicateAddressOverviewLayer.java` | No | Map layer that highlights hard duplicates across all read-only address carriers. |
 | `HouseNumberClickAction` | `HouseNumberClickAction.java` | Yes | Main toolbar/menu action that follows JOSM tool availability (enabled only with an editable dataset/layer), opens the street selection dialog (including optional country prefill and constrained likely-country code options), keeps dialog pause/resume state in sync with temporary edit-layer loss/recovery, refreshes visible dialog data when the active dataset is replaced while remaining editable, initializes persistent sidebar overview dialogs, and activates street mode. |
 | `HouseNumberClickPlugin` | `HouseNumberClickPlugin.java` | Yes | Plugin entry point that wires the main action, registers sidebar dialogs on map-frame creation, and performs one-time toolbar migration. |
 | `HouseNumberClickSidebarController` | `HouseNumberClickSidebarController.java` | No | Coordinates persistent right-sidebar overview dialogs and switches their content between active and hint states. |
 | `HouseNumberClickStreetMapMode` | `HouseNumberClickStreetMapMode.java` | Yes | Single active map mode that handles address apply/readback (including city/country-aware apply values), address-removal confirmation gestures, temporary split gestures, and interaction-time overlay self-healing checks. |
 | `HouseNumberClickStreetMapMode.ClickResolutionStats` | `HouseNumberClickStreetMapMode.java` | Yes | Captures per-click outcome metadata for interaction flow handling. |
 | `HouseNumberClickPreferences` | `HouseNumberClickPreferences.java` | No | Centralized plugin preference access using the shared housenumberclick.* namespace, including dialog-bounds and advanced-sections-state persistence helpers. |
-| `HouseNumberOverlayCollector` | `HouseNumberOverlayCollector.java` | No | Collects and normalizes addressed buildings near the locally resolved selected street segment, canonicalizing relation/outer-way representations of the same real building within a tolerant selected-street distance window. |
+| `HouseNumberOverlayCollector` | `HouseNumberOverlayCollector.java` | No | Collects and normalizes read-only address carriers near the locally resolved selected street segment, including building, entrance-node, address-node, and other address-bearing objects. |
 | `HouseNumberOverlayCollector.CollectionStats` | `HouseNumberOverlayCollector.java` | No | Aggregated rejection counters used for overlay collection diagnostics. |
 | `HouseNumberOverlayCollector.ParsedHouseNumber` | `HouseNumberOverlayCollector.java` | No | Parsed representation of a house number split into sortable numeric and suffix parts. |
-| `HouseNumberOverlayEntry` | `HouseNumberOverlayEntry.java` | No | Value object describing one rendered house-number label entry in the overlay layer. |
+| `HouseNumberOverlayEntry` | `HouseNumberOverlayEntry.java` | No | Value object describing one rendered house-number label entry with carrier metadata. |
 | `HouseNumberOverlayLayer` | `HouseNumberOverlayLayer.java` | No | Renders street-specific house-number highlights with optional directly connected driveway context and optional connection lines in a dedicated layer. |
 | `HouseNumberOverviewCollector` | `HouseNumberOverviewCollector.java` | No | Aggregates and orders house numbers for the selected disambiguated street cluster. |
 | `HouseNumberOverviewCollector.BaseNumberGroup` | `HouseNumberOverviewCollector.java` | No | Groups occurrences of one base number and tracks both grouped primitives and exact-duplicate primitives for duplicate zoom. |
@@ -72,8 +77,7 @@ Core classes as defined in `AGENTS.md` are marked: `HouseNumberClickPlugin`, `Ho
 | `StreetCompletenessHeuristic` | `StreetCompletenessHeuristic.java` | No | Estimates whether a street is likely incomplete to decide when reference street loading is useful. |
 | `StreetCountsPanel` | `StreetCountsPanel.java` | No | Sidebar panel for per-street house-number counts with state cards for inactive and no-data cases. |
 | `StreetCountsToggleDialog` | `StreetCountsToggleDialog.java` | No | Dockable JOSM sidebar dialog showing street-level house-number counts. |
-| `StreetHouseNumberCountCollector` | `StreetHouseNumberCountCollector.java` | No | Collects per-street address counts and completeness indicators across the current dataset, using conditional city-aware duplicate detection for street-count duplicate markers. |
-| `StreetHouseNumberCountCollector.DuplicateAddressGroupStats` | `StreetHouseNumberCountCollector.java` | No | Aggregated duplicate-match statistics for one street+postcode+housenumber group in one street cluster. |
+| `StreetHouseNumberCountCollector` | `StreetHouseNumberCountCollector.java` | No | Collects per-street address counts from all read-only address carriers with conditional city-aware duplicates. |
 | `StreetHouseNumberCountRow` | `StreetHouseNumberCountRow.java` | No | Row model for per-street house-number counts, including duplicate marker information. |
 | `StreetModeController` | `StreetModeController.java` | Yes | Orchestrates Street Mode state, dialog synchronization, persistent sidebar overview updates, seed-aware street highlighting/overlays (including self-healing overlay presence checks while active and full teardown cleanup), explicit street-selection zoom behavior with full selected-street framing, spatially disambiguated street readback selection, configurable zoom scope for numbered-building-only vs full-street framing, split/address operations including city/country-aware address propagation, and the three-state postcode overview cycle. |
 | `StreetModeController.AddressSelection` | `StreetModeController.java` | Yes | Immutable current address selection transferred from dialog to map mode, including optional city/country. |

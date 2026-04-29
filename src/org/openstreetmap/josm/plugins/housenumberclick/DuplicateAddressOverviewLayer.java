@@ -5,6 +5,7 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.RenderingHints;
 import java.awt.geom.Path2D;
+import java.util.Map;
 import java.util.List;
 
 import javax.swing.Action;
@@ -25,7 +26,7 @@ import org.openstreetmap.josm.tools.I18n;
 import org.openstreetmap.josm.tools.ImageProvider;
 
 /**
- * Map layer that highlights buildings with duplicate exact address keys.
+ * Map layer that highlights hard duplicates across all read-only address carriers.
  */
 final class DuplicateAddressOverviewLayer extends Layer {
 
@@ -36,12 +37,12 @@ final class DuplicateAddressOverviewLayer extends Layer {
     private static final int LEGEND_SWATCH_SIZE = 11;
 
     private final DataSet dataSet;
-    private final BuildingOverviewCollector collector;
+    private final AddressEntryCollector collector;
 
     DuplicateAddressOverviewLayer(DataSet dataSet) {
         super(I18n.tr("Duplicate overview"));
         this.dataSet = dataSet;
-        this.collector = new BuildingOverviewCollector();
+        this.collector = new AddressEntryCollector();
     }
 
     @Override
@@ -50,16 +51,18 @@ final class DuplicateAddressOverviewLayer extends Layer {
             return;
         }
 
-        List<BuildingOverviewCollector.BuildingOverviewEntry> entries = collector.collect(dataSet);
+        List<AddressEntry> entries = collector.collect(dataSet);
         if (entries.isEmpty()) {
             return;
         }
+        Map<String, AddressDuplicateAnalyzer.DuplicateAddressGroupStats> groups =
+                AddressDuplicateAnalyzer.buildDuplicateGroups(entries);
 
         Graphics2D g = (Graphics2D) graphics.create();
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        for (BuildingOverviewCollector.BuildingOverviewEntry entry : entries) {
-            if (!entry.hasDuplicateExactAddress()) {
+        for (AddressEntry entry : entries) {
+            if (!AddressDuplicateAnalyzer.isHardDuplicate(entry, groups)) {
                 continue;
             }
             drawPrimitive(g, mapView, entry.getPrimitive());
@@ -108,6 +111,10 @@ final class DuplicateAddressOverviewLayer extends Layer {
     }
 
     private void drawPrimitive(Graphics2D g, MapView mapView, OsmPrimitive primitive) {
+        if (primitive instanceof Node) {
+            drawNode(g, mapView, (Node) primitive);
+            return;
+        }
         if (primitive instanceof Way) {
             drawWay(g, mapView, (Way) primitive);
             return;
@@ -115,6 +122,18 @@ final class DuplicateAddressOverviewLayer extends Layer {
         if (primitive instanceof Relation) {
             drawRelation(g, mapView, (Relation) primitive);
         }
+    }
+
+    private void drawNode(Graphics2D g, MapView mapView, Node node) {
+        if (node == null || !node.isUsable()) {
+            return;
+        }
+        Point point = mapView.getPoint(node);
+        if (point == null) {
+            return;
+        }
+        g.setColor(DUPLICATE_FILL_COLOR);
+        g.fillOval(point.x - 5, point.y - 5, 10, 10);
     }
 
     private void drawRelation(Graphics2D g, MapView mapView, Relation relation) {
@@ -207,7 +226,7 @@ final class DuplicateAddressOverviewLayer extends Layer {
 
     @Override
     public Object getInfoComponent() {
-        return I18n.tr("Duplicate-address diagnostics (street+postcode+housenumber; city only when present on both)");
+        return I18n.tr("Duplicate-address diagnostics (all carriers; street+postcode+housenumber; city only when present on both)");
     }
 
     @Override

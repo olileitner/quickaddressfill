@@ -9,6 +9,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.swing.JCheckBox;
@@ -116,6 +117,12 @@ public final class HouseNumberClickRiskRegressionTests {
             run("Building overview collector filters tiny buildings and keeps addressed state", HouseNumberClickRiskRegressionTests::testBuildingOverviewCollectorFilteringAndClassification);
             run("Building overview duplicate detection applies conditional city rule", HouseNumberClickRiskRegressionTests::testBuildingOverviewCollectorConditionalCityRule);
             run("Building overview duplicate detection ignores relation/outer self-duplicates", HouseNumberClickRiskRegressionTests::testBuildingOverviewCollectorIgnoresRelationOuterSelfDuplicate);
+            run("Standalone address nodes are included in street counts", HouseNumberClickRiskRegressionTests::testStreetCountsIncludeStandaloneAddressNode);
+            run("Entrance address nodes are included in overlay", HouseNumberClickRiskRegressionTests::testOverlayIncludesEntranceAddressNode);
+            run("Address node inside building marks building as indirectly addressed", HouseNumberClickRiskRegressionTests::testBuildingOverviewMarksIndirectBuildingAddress);
+            run("Co-located building and internal node are not treated as hard duplicates", HouseNumberClickRiskRegressionTests::testCoLocatedBuildingAndNodeAreNotHardDuplicates);
+            run("Distinct address carriers with same key remain hard duplicates", HouseNumberClickRiskRegressionTests::testDistinctAddressCarriersRemainHardDuplicates);
+            run("Address entry collector uses spatial index for node-building association", HouseNumberClickRiskRegressionTests::testAddressEntryCollectorSpatialIndexWiring);
             System.out.println("All HouseNumberClick risk regression tests passed.");
         } catch (Throwable t) {
             exitCode = 1;
@@ -2185,14 +2192,12 @@ public final class HouseNumberClickRiskRegressionTests {
     private static void testHouseNumberOverlayCollectorIgnoresRelationOuterSelfDuplicate() throws Exception {
         String source = readPluginSource("HouseNumberOverlayCollector.java");
 
-        assertTrue(source.contains("resolveCanonicalPrimitive"),
-                "overlay collector should resolve canonical primitives before building entries");
-        assertTrue(source.contains("findBuildingOuterMultipolygonRelation"),
-                "overlay canonicalization should look up building multipolygon relations for outer ways");
-        assertTrue(source.contains("isBuildingOuterMultipolygonRelationForWay"),
-                "overlay canonicalization should require an outer-member relation match for the way");
-        assertTrue(source.contains("buildEntry(canonicalPrimitive, primitive"),
-                "overlay entry creation should operate on canonical primitive identity");
+        assertTrue(source.contains("AddressEntryCollector"),
+                "overlay collector should source carriers via AddressEntryCollector");
+        assertTrue(source.contains("Map<Long, HouseNumberOverlayEntry> entriesByCanonicalPrimitiveId"),
+                "overlay collector should keep one overlay entry per primitive id to avoid self-duplicates");
+        assertTrue(source.contains("entriesByCanonicalPrimitiveId.containsKey(canonicalId)"),
+                "overlay collector should skip already collected primitive ids");
     }
 
     private static void testHouseNumberOverlayCollectorKeepsDistinctBuildingDuplicates() throws Exception {
@@ -2203,10 +2208,12 @@ public final class HouseNumberClickRiskRegressionTests {
                 "overlay collector should track one entry per canonical primitive id");
         assertTrue(source.contains("entriesByCanonicalPrimitiveId.containsKey(canonicalId)"),
                 "overlay collector should skip already processed canonical primitives");
-        assertTrue(source.contains("entriesByCanonicalPrimitiveId.put(canonicalId, entry)"),
+        assertTrue(source.contains("entriesByCanonicalPrimitiveId.put(canonicalId, overlayEntry)"),
                 "overlay collector should add exactly one entry for each canonical primitive");
         assertTrue(layerSource.contains("collectDuplicateAddressKeys"),
                 "duplicate detection should remain in the overlay layer and use the collected entries unchanged");
+        assertTrue(layerSource.contains("resolveRealWorldAnchorId"),
+                "overlay duplicate detection should compare real-world anchors to suppress co-located duplicates");
     }
 
     private static void testHouseNumberOverlayDuplicateKeyRemainsCityAgnostic() throws Exception {
@@ -2215,6 +2222,138 @@ public final class HouseNumberClickRiskRegressionTests {
                 "local selected-street duplicate key should remain based on street, postcode and house number only");
         assertFalse(source.contains("addr:city"),
                 "local selected-street duplicate detection must not include addr:city in its key");
+    }
+
+    private static void testStreetCountsIncludeStandaloneAddressNode() {
+        DataSet dataSet = new DataSet();
+        dataSet.addPrimitiveRecursive(createOpenStreetWay("Example Street", true));
+
+        Node addressNode = new Node(new LatLon(0.00005, 0.00005));
+        addressNode.put("addr:street", "Example Street");
+        addressNode.put("addr:postcode", "12345");
+        addressNode.put("addr:housenumber", "7");
+        dataSet.addPrimitive(addressNode);
+
+        StreetNameCollector.StreetIndex streetIndex = StreetNameCollector.collectStreetIndex(dataSet);
+        List<StreetHouseNumberCountRow> rows = new StreetHouseNumberCountCollector().collectRows(dataSet, streetIndex);
+        StreetHouseNumberCountRow row = findStreetCountRowByDisplayName(rows, "Example Street");
+        assertTrue(row != null, "street count row should exist for standalone address node street");
+        assertEquals(1, row.getCount(), "standalone address node should be counted as one address carrier");
+    }
+
+    private static void testOverlayIncludesEntranceAddressNode() {
+        DataSet dataSet = new DataSet();
+        dataSet.addPrimitiveRecursive(createOpenStreetWay("Example Street", true));
+
+        Node entranceNode = new Node(new LatLon(0.00005, 0.00005));
+        entranceNode.put("entrance", "main");
+        entranceNode.put("addr:street", "Example Street");
+        entranceNode.put("addr:postcode", "12345");
+        entranceNode.put("addr:housenumber", "9");
+        dataSet.addPrimitive(entranceNode);
+
+        StreetNameCollector.StreetIndex streetIndex = StreetNameCollector.collectStreetIndex(dataSet);
+        StreetOption selectedStreet = resolveStreetOptionForBaseName(streetIndex, "Example Street");
+        List<HouseNumberOverlayEntry> entries = new HouseNumberOverlayCollector().collect(dataSet, selectedStreet, streetIndex, null);
+
+        boolean containsEntrance = false;
+        for (HouseNumberOverlayEntry entry : entries) {
+            if (entry.getPrimitive() == entranceNode && entry.getCarrierType() == AddressEntry.CarrierType.ENTRANCE_NODE) {
+                containsEntrance = true;
+            }
+        }
+        assertTrue(containsEntrance, "overlay should include entrance nodes as read-only address carriers");
+    }
+
+    private static void testBuildingOverviewMarksIndirectBuildingAddress() {
+        DataSet dataSet = new DataSet();
+        Way building = createClosedBuildingWithSize(null, null, 0.0002);
+        dataSet.addPrimitiveRecursive(building);
+
+        Node addressNode = building.firstNode();
+        addressNode.put("addr:street", "Example Street");
+        addressNode.put("addr:postcode", "12345");
+        addressNode.put("addr:housenumber", "4");
+
+        List<BuildingOverviewCollector.BuildingOverviewEntry> entries = new BuildingOverviewCollector().collect(dataSet);
+        BuildingOverviewCollector.BuildingOverviewEntry buildingEntry = null;
+        for (BuildingOverviewCollector.BuildingOverviewEntry entry : entries) {
+            if (entry.getPrimitive() == building) {
+                buildingEntry = entry;
+                break;
+            }
+        }
+        assertTrue(buildingEntry != null, "building should appear in overview");
+        assertTrue(buildingEntry.hasHouseNumber(), "indirect node address should make building count as addressed");
+        assertTrue(buildingEntry.hasIndirectAddress(), "overview should mark building as indirectly addressed via node");
+        assertEquals(null, building.get("addr:housenumber"), "indirect addressing must not modify building tags");
+    }
+
+    private static void testCoLocatedBuildingAndNodeAreNotHardDuplicates() {
+        DataSet dataSet = new DataSet();
+        Way building = createClosedBuildingWithSize("Example Street", "11", 0.0002);
+        building.put("addr:postcode", "12345");
+        dataSet.addPrimitiveRecursive(building);
+
+        Node addressNode = building.firstNode();
+        addressNode.put("addr:street", "Example Street");
+        addressNode.put("addr:postcode", "12345");
+        addressNode.put("addr:housenumber", "11");
+
+        List<AddressEntry> entries = new AddressEntryCollector().collect(dataSet);
+        Map<String, AddressDuplicateAnalyzer.DuplicateAddressGroupStats> groups = AddressDuplicateAnalyzer.buildDuplicateGroups(entries);
+
+        boolean buildingDuplicate = false;
+        boolean nodeDuplicate = false;
+        for (AddressEntry entry : entries) {
+            if (entry.getPrimitive() == building) {
+                buildingDuplicate = AddressDuplicateAnalyzer.isHardDuplicate(entry, groups);
+            }
+            if (entry.getPrimitive() == addressNode) {
+                nodeDuplicate = AddressDuplicateAnalyzer.isHardDuplicate(entry, groups);
+            }
+        }
+        assertFalse(buildingDuplicate, "building + internal node representation should not count as hard duplicate");
+        assertFalse(nodeDuplicate, "internal node + building representation should not count as hard duplicate");
+    }
+
+    private static void testDistinctAddressCarriersRemainHardDuplicates() {
+        DataSet dataSet = new DataSet();
+        Way building = createClosedBuildingWithSize("Example Street", "11", 0.0002);
+        building.put("addr:postcode", "12345");
+        dataSet.addPrimitiveRecursive(building);
+
+        Node standalone = new Node(new LatLon(0.01, 0.01));
+        standalone.put("addr:street", "Example Street");
+        standalone.put("addr:postcode", "12345");
+        standalone.put("addr:housenumber", "11");
+        dataSet.addPrimitive(standalone);
+
+        List<AddressEntry> entries = new AddressEntryCollector().collect(dataSet);
+        Map<String, AddressDuplicateAnalyzer.DuplicateAddressGroupStats> groups = AddressDuplicateAnalyzer.buildDuplicateGroups(entries);
+
+        boolean buildingDuplicate = false;
+        boolean nodeDuplicate = false;
+        for (AddressEntry entry : entries) {
+            if (entry.getPrimitive() == building) {
+                buildingDuplicate = AddressDuplicateAnalyzer.isHardDuplicate(entry, groups);
+            }
+            if (entry.getPrimitive() == standalone) {
+                nodeDuplicate = AddressDuplicateAnalyzer.isHardDuplicate(entry, groups);
+            }
+        }
+        assertTrue(buildingDuplicate, "distinct building and standalone node with same address key must remain hard duplicate");
+        assertTrue(nodeDuplicate, "standalone node should participate in hard duplicate detection");
+    }
+
+    private static void testAddressEntryCollectorSpatialIndexWiring() throws Exception {
+        String source = readPluginSource("AddressEntryCollector.java");
+        assertTrue(source.contains("BuildingSpatialIndex"),
+                "address entry collector should use a spatial index helper for node-to-building association");
+        assertTrue(source.contains("SPATIAL_CELL_SIZE_METERS"),
+                "spatial index should use an explicit cell-size configuration");
+        assertTrue(source.contains("spatialIndex.query"),
+                "node association should query nearby spatial buckets instead of scanning all buildings");
     }
 
     private static Way createOpenStreetWay(String streetName, boolean withHighwayTag) {

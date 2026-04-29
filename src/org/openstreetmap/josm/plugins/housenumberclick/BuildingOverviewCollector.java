@@ -3,7 +3,6 @@ package org.openstreetmap.josm.plugins.housenumberclick;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import org.openstreetmap.josm.data.coor.LatLon;
@@ -16,13 +15,14 @@ import org.openstreetmap.josm.data.osm.Way;
 
 /**
  * Collects building diagnostics used by completeness and postcode overview layers,
- * canonicalizing relation/outer-way representations of the same real building.
+ * canonicalizing relation/outer-way representations and considering linked read-only address carriers.
  */
 final class BuildingOverviewCollector {
 
     static final double MIN_BUILDING_AREA = 25.0;
     private static final double METERS_PER_DEGREE_LAT = 111_132.0;
     private static final double METERS_PER_DEGREE_LON_AT_EQUATOR = 111_320.0;
+    private final AddressEntryCollector addressEntryCollector = new AddressEntryCollector();
 
     List<BuildingOverviewEntry> collect(DataSet dataSet) {
         if (dataSet == null) {
@@ -42,34 +42,54 @@ final class BuildingOverviewCollector {
         }
         candidates.addAll(canonicalCandidatesByPrimitiveId.values());
 
-        Map<String, Integer> duplicateAddressCounts = new HashMap<>();
-        Map<String, DuplicateAddressGroupStats> duplicateAddressGroups = new HashMap<>();
-        for (CandidateEntry candidate : candidates) {
-            String duplicateBaseKey = candidate.duplicateAddressBaseKey;
-            if (!duplicateBaseKey.isEmpty()) {
-                duplicateAddressCounts.merge(duplicateBaseKey, 1, Integer::sum);
-                duplicateAddressGroups
-                        .computeIfAbsent(duplicateBaseKey, ignored -> new DuplicateAddressGroupStats())
-                        .addCandidate(candidate.duplicateAddressCityKey);
+        List<AddressEntry> addressEntries = addressEntryCollector.collect(dataSet);
+        Map<String, AddressDuplicateAnalyzer.DuplicateAddressGroupStats> duplicateAddressGroups =
+                AddressDuplicateAnalyzer.buildDuplicateGroups(addressEntries);
+        Map<Long, List<AddressEntry>> indirectEntriesByBuildingId = new HashMap<>();
+        for (AddressEntry entry : addressEntries) {
+            if (entry == null || !entry.isIndirectBuildingAddress() || entry.getAssociatedBuilding() == null) {
+                continue;
             }
+            long buildingId = entry.getAssociatedBuilding().getUniqueId();
+            indirectEntriesByBuildingId.computeIfAbsent(buildingId, ignored -> new ArrayList<>()).add(entry);
         }
+
         List<BuildingOverviewEntry> entries = new ArrayList<>(candidates.size());
         for (CandidateEntry candidate : candidates) {
-            DuplicateAddressGroupStats duplicateGroup = duplicateAddressGroups.get(candidate.duplicateAddressBaseKey);
-            boolean hasDuplicateExactAddress = duplicateGroup != null
-                    && duplicateGroup.hasDuplicateFor(candidate.duplicateAddressCityKey);
+            List<AddressEntry> indirectEntries = indirectEntriesByBuildingId.getOrDefault(
+                    candidate.primitive.getUniqueId(),
+                    List.of()
+            );
+            EffectiveAddress effectiveAddress = buildEffectiveAddress(candidate, indirectEntries);
+            AddressEntry syntheticBuildingEntry = new AddressEntry(
+                    candidate.primitive,
+                    candidate.primitive,
+                    AddressEntry.CarrierType.BUILDING,
+                    candidate.primitive,
+                    effectiveAddress.houseNumber,
+                    effectiveAddress.street,
+                    effectiveAddress.postcode,
+                    effectiveAddress.city,
+                    effectiveAddress.country,
+                    null
+            );
+            boolean hasDuplicateExactAddress = AddressDuplicateAnalyzer.isHardDuplicate(
+                    syntheticBuildingEntry,
+                    duplicateAddressGroups
+            );
             entries.add(new BuildingOverviewEntry(
                     candidate.primitive,
-                    candidate.hasHouseNumber,
-                    candidate.hasNoAddressData,
-                    candidate.hasMissingRequiredAddressFields,
-                    candidate.hasMissingStreet,
-                    candidate.hasMissingPostcode,
-                    candidate.hasMissingHouseNumber,
-                    candidate.hasMissingCity,
-                    candidate.hasMissingCountry,
-                    candidate.hasOnlyCountryMissing,
+                    effectiveAddress.hasHouseNumber,
+                    effectiveAddress.hasNoAddressData,
+                    effectiveAddress.hasMissingRequiredAddressFields,
+                    effectiveAddress.hasMissingStreet,
+                    effectiveAddress.hasMissingPostcode,
+                    effectiveAddress.hasMissingHouseNumber,
+                    effectiveAddress.hasMissingCity,
+                    effectiveAddress.hasMissingCountry,
+                    effectiveAddress.hasOnlyCountryMissing,
                     candidate.hasMisplacedHouseNumber,
+                    effectiveAddress.hasIndirectAddress,
                     hasDuplicateExactAddress
             ));
         }
@@ -95,43 +115,12 @@ final class BuildingOverviewCollector {
             return;
         }
 
-        String street = normalize(canonicalPrimitive.get("addr:street"));
-        String postcode = normalize(canonicalPrimitive.get("addr:postcode"));
         String houseNumber = normalize(canonicalPrimitive.get("addr:housenumber"));
-        String city = normalize(canonicalPrimitive.get("addr:city"));
-        String country = normalize(canonicalPrimitive.get("addr:country"));
-
-        boolean hasStreet = !street.isEmpty();
-        boolean hasPostcode = !postcode.isEmpty();
         boolean hasHouseNumber = !houseNumber.isEmpty();
-        boolean hasCity = !city.isEmpty();
-        boolean hasCountry = !country.isEmpty();
-        boolean hasNoAddressData = !hasStreet && !hasPostcode && !hasHouseNumber;
-        boolean hasCompleteAddressData = hasStreet && hasPostcode && hasHouseNumber;
-        boolean hasMissingRequiredAddressFields = !hasNoAddressData && !hasCompleteAddressData;
-        boolean hasMissingStreet = hasMissingRequiredAddressFields && !hasStreet;
-        boolean hasMissingPostcode = hasMissingRequiredAddressFields && !hasPostcode;
-        boolean hasMissingHouseNumber = hasMissingRequiredAddressFields && !hasHouseNumber;
-        boolean hasMissingCity = !hasNoAddressData && !hasCity;
-        boolean hasMissingCountry = !hasNoAddressData && !hasCountry;
-        boolean hasOnlyCountryMissing = hasStreet && hasPostcode && hasHouseNumber && hasCity && !hasCountry;
         boolean hasMisplacedHouseNumber = !hasHouseNumber && hasMisplacedHouseNumber(canonicalPrimitive);
-        String duplicateAddressBaseKey = hasHouseNumber ? buildDuplicateAddressBaseKey(canonicalPrimitive) : "";
-        String duplicateAddressCityKey = hasHouseNumber ? buildDuplicateAddressCityKey(canonicalPrimitive) : "";
         canonicalCandidatesByPrimitiveId.put(canonicalId, new CandidateEntry(
                 canonicalPrimitive,
-                hasHouseNumber,
-                hasNoAddressData,
-                hasMissingRequiredAddressFields,
-                hasMissingStreet,
-                hasMissingPostcode,
-                hasMissingHouseNumber,
-                hasMissingCity,
-                hasMissingCountry,
-                hasOnlyCountryMissing,
-                hasMisplacedHouseNumber,
-                duplicateAddressBaseKey,
-                duplicateAddressCityKey
+                hasMisplacedHouseNumber
         ));
     }
 
@@ -183,21 +172,100 @@ final class BuildingOverviewCollector {
         return false;
     }
 
-    private String buildDuplicateAddressBaseKey(OsmPrimitive primitive) {
-        String street = normalize(primitive.get("addr:street"));
-        String postcode = normalize(primitive.get("addr:postcode"));
-        String houseNumber = normalize(primitive.get("addr:housenumber"));
-        if (street.isEmpty() || postcode.isEmpty() || houseNumber.isEmpty()) {
-            return "";
-        }
+    private EffectiveAddress buildEffectiveAddress(CandidateEntry candidate, List<AddressEntry> indirectEntries) {
+        String directStreet = normalize(candidate.primitive.get("addr:street"));
+        String directPostcode = normalize(candidate.primitive.get("addr:postcode"));
+        String directHouseNumber = normalize(candidate.primitive.get("addr:housenumber"));
+        String directCity = normalize(candidate.primitive.get("addr:city"));
+        String directCountry = normalize(candidate.primitive.get("addr:country"));
 
-        return street.toLowerCase(Locale.ROOT)
-                + "|" + postcode.toLowerCase(Locale.ROOT)
-                + "|" + houseNumber.toLowerCase(Locale.ROOT);
+        AddressEntry fallback = findBestIndirectEntry(indirectEntries);
+        String street = firstNonEmpty(directStreet, fallback == null ? "" : fallback.getStreet());
+        String postcode = firstNonEmpty(directPostcode, fallback == null ? "" : fallback.getPostcode());
+        String houseNumber = firstNonEmpty(directHouseNumber, fallback == null ? "" : fallback.getHouseNumber());
+        String city = firstNonEmpty(directCity, fallback == null ? "" : fallback.getCity());
+        String country = firstNonEmpty(directCountry, fallback == null ? "" : fallback.getCountry());
+
+        boolean hasStreet = !street.isEmpty();
+        boolean hasPostcode = !postcode.isEmpty();
+        boolean hasHouseNumber = !houseNumber.isEmpty();
+        boolean hasCity = !city.isEmpty();
+        boolean hasCountry = !country.isEmpty();
+        boolean hasNoAddressData = !hasStreet && !hasPostcode && !hasHouseNumber;
+        boolean hasCompleteAddressData = hasStreet && hasPostcode && hasHouseNumber;
+        boolean hasMissingRequiredAddressFields = !hasNoAddressData && !hasCompleteAddressData;
+        boolean hasMissingStreet = hasMissingRequiredAddressFields && !hasStreet;
+        boolean hasMissingPostcode = hasMissingRequiredAddressFields && !hasPostcode;
+        boolean hasMissingHouseNumber = hasMissingRequiredAddressFields && !hasHouseNumber;
+        boolean hasMissingCity = !hasNoAddressData && !hasCity;
+        boolean hasMissingCountry = !hasNoAddressData && !hasCountry;
+        boolean hasOnlyCountryMissing = hasStreet && hasPostcode && hasHouseNumber && hasCity && !hasCountry;
+        boolean hasIndirectAddress = !directHouseNumber.isEmpty() ? false : hasHouseNumber && fallback != null;
+        return new EffectiveAddress(
+                street,
+                postcode,
+                houseNumber,
+                city,
+                country,
+                hasHouseNumber,
+                hasNoAddressData,
+                hasMissingRequiredAddressFields,
+                hasMissingStreet,
+                hasMissingPostcode,
+                hasMissingHouseNumber,
+                hasMissingCity,
+                hasMissingCountry,
+                hasOnlyCountryMissing,
+                hasIndirectAddress
+        );
     }
 
-    private String buildDuplicateAddressCityKey(OsmPrimitive primitive) {
-        return normalize(primitive.get("addr:city")).toLowerCase(Locale.ROOT);
+    private AddressEntry findBestIndirectEntry(List<AddressEntry> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return null;
+        }
+        AddressEntry best = null;
+        for (AddressEntry entry : entries) {
+            if (entry == null) {
+                continue;
+            }
+            if (best == null) {
+                best = entry;
+                continue;
+            }
+            if (scoreEntry(entry) > scoreEntry(best)) {
+                best = entry;
+            }
+        }
+        return best;
+    }
+
+    private int scoreEntry(AddressEntry entry) {
+        int score = 0;
+        if (!normalize(entry.getStreet()).isEmpty()) {
+            score++;
+        }
+        if (!normalize(entry.getPostcode()).isEmpty()) {
+            score++;
+        }
+        if (!normalize(entry.getHouseNumber()).isEmpty()) {
+            score++;
+        }
+        if (!normalize(entry.getCity()).isEmpty()) {
+            score++;
+        }
+        if (!normalize(entry.getCountry()).isEmpty()) {
+            score++;
+        }
+        return score;
+    }
+
+    private String firstNonEmpty(String primary, String fallback) {
+        String normalizedPrimary = normalize(primary);
+        if (!normalizedPrimary.isEmpty()) {
+            return normalizedPrimary;
+        }
+        return normalize(fallback);
     }
 
     private boolean hasMisplacedHouseNumber(OsmPrimitive primitive) {
@@ -333,6 +401,7 @@ final class BuildingOverviewCollector {
         private final boolean hasMissingCountry;
         private final boolean hasOnlyCountryMissing;
         private final boolean hasMisplacedHouseNumber;
+        private final boolean hasIndirectAddress;
         private final boolean hasDuplicateExactAddress;
 
         BuildingOverviewEntry(
@@ -347,6 +416,7 @@ final class BuildingOverviewCollector {
                 boolean hasMissingCountry,
                 boolean hasOnlyCountryMissing,
                 boolean hasMisplacedHouseNumber,
+                boolean hasIndirectAddress,
                 boolean hasDuplicateExactAddress
         ) {
             this.primitive = primitive;
@@ -360,6 +430,7 @@ final class BuildingOverviewCollector {
             this.hasMissingCountry = hasMissingCountry;
             this.hasOnlyCountryMissing = hasOnlyCountryMissing;
             this.hasMisplacedHouseNumber = hasMisplacedHouseNumber;
+            this.hasIndirectAddress = hasIndirectAddress;
             this.hasDuplicateExactAddress = hasDuplicateExactAddress;
         }
 
@@ -407,6 +478,10 @@ final class BuildingOverviewCollector {
             return hasMisplacedHouseNumber;
         }
 
+        boolean hasIndirectAddress() {
+            return hasIndirectAddress;
+        }
+
         boolean hasDuplicateExactAddress() {
             return hasDuplicateExactAddress;
         }
@@ -417,6 +492,23 @@ final class BuildingOverviewCollector {
      */
     private static final class CandidateEntry {
         private final OsmPrimitive primitive;
+        private final boolean hasMisplacedHouseNumber;
+
+        CandidateEntry(
+                OsmPrimitive primitive,
+                boolean hasMisplacedHouseNumber
+        ) {
+            this.primitive = primitive;
+            this.hasMisplacedHouseNumber = hasMisplacedHouseNumber;
+        }
+    }
+
+    private static final class EffectiveAddress {
+        private final String street;
+        private final String postcode;
+        private final String houseNumber;
+        private final String city;
+        private final String country;
         private final boolean hasHouseNumber;
         private final boolean hasNoAddressData;
         private final boolean hasMissingRequiredAddressFields;
@@ -426,26 +518,18 @@ final class BuildingOverviewCollector {
         private final boolean hasMissingCity;
         private final boolean hasMissingCountry;
         private final boolean hasOnlyCountryMissing;
-        private final boolean hasMisplacedHouseNumber;
-        private final String duplicateAddressBaseKey;
-        private final String duplicateAddressCityKey;
+        private final boolean hasIndirectAddress;
 
-        CandidateEntry(
-                OsmPrimitive primitive,
-                boolean hasHouseNumber,
-                boolean hasNoAddressData,
-                boolean hasMissingRequiredAddressFields,
-                boolean hasMissingStreet,
-                boolean hasMissingPostcode,
-                boolean hasMissingHouseNumber,
-                boolean hasMissingCity,
-                boolean hasMissingCountry,
-                boolean hasOnlyCountryMissing,
-                boolean hasMisplacedHouseNumber,
-                String duplicateAddressBaseKey,
-                String duplicateAddressCityKey
-        ) {
-            this.primitive = primitive;
+        private EffectiveAddress(String street, String postcode, String houseNumber, String city, String country,
+                boolean hasHouseNumber, boolean hasNoAddressData, boolean hasMissingRequiredAddressFields,
+                boolean hasMissingStreet, boolean hasMissingPostcode, boolean hasMissingHouseNumber,
+                boolean hasMissingCity, boolean hasMissingCountry, boolean hasOnlyCountryMissing,
+                boolean hasIndirectAddress) {
+            this.street = street;
+            this.postcode = postcode;
+            this.houseNumber = houseNumber;
+            this.city = city;
+            this.country = country;
             this.hasHouseNumber = hasHouseNumber;
             this.hasNoAddressData = hasNoAddressData;
             this.hasMissingRequiredAddressFields = hasMissingRequiredAddressFields;
@@ -455,40 +539,7 @@ final class BuildingOverviewCollector {
             this.hasMissingCity = hasMissingCity;
             this.hasMissingCountry = hasMissingCountry;
             this.hasOnlyCountryMissing = hasOnlyCountryMissing;
-            this.hasMisplacedHouseNumber = hasMisplacedHouseNumber;
-            this.duplicateAddressBaseKey = duplicateAddressBaseKey;
-            this.duplicateAddressCityKey = duplicateAddressCityKey;
-        }
-    }
-
-    /**
-     * Aggregated duplicate-match statistics for one street+postcode+housenumber group.
-     */
-    private static final class DuplicateAddressGroupStats {
-        private int totalCount;
-        private int missingCityCount;
-        private final Map<String, Integer> cityCounts = new HashMap<>();
-
-        private void addCandidate(String cityKey) {
-            totalCount++;
-            if (cityKey == null || cityKey.isEmpty()) {
-                missingCityCount++;
-                return;
-            }
-            cityCounts.merge(cityKey, 1, Integer::sum);
-        }
-
-        private boolean hasDuplicateFor(String cityKey) {
-            if (totalCount <= 1) {
-                return false;
-            }
-            if (cityKey == null || cityKey.isEmpty()) {
-                return true;
-            }
-            if (missingCityCount > 0) {
-                return true;
-            }
-            return cityCounts.getOrDefault(cityKey, 0) > 1;
+            this.hasIndirectAddress = hasIndirectAddress;
         }
     }
 }

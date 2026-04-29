@@ -1,7 +1,5 @@
 package org.openstreetmap.josm.plugins.housenumberclick;
 
-import java.awt.geom.Area;
-import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -12,27 +10,20 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.openstreetmap.josm.data.coor.EastNorth;
-import org.openstreetmap.josm.data.coor.LatLon;
-import org.openstreetmap.josm.data.osm.BBox;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
-import org.openstreetmap.josm.data.osm.Relation;
-import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Way;
-import org.openstreetmap.josm.data.projection.Projection;
-import org.openstreetmap.josm.data.projection.ProjectionRegistry;
-import org.openstreetmap.josm.tools.Geometry;
 
 /**
- * Collects and normalizes addressed buildings near the locally resolved selected street segment,
- * canonicalizing relation/outer-way representations of the same real building within a
- * tolerant selected-street distance window.
+ * Collects and normalizes read-only address carriers near the locally resolved selected street segment,
+ * including building, entrance-node, address-node, and other address-bearing objects.
  */
 final class HouseNumberOverlayCollector {
 
     private static final Pattern HOUSE_NUMBER_PATTERN = Pattern.compile("^\\s*(\\d+)\\s*([^\\d].*)?$");
     private static final double MAX_BUILDING_DISTANCE_TO_SELECTED_STREET_METERS = 400.0;
+    private final AddressEntryCollector addressEntryCollector = new AddressEntryCollector();
 
     List<HouseNumberOverlayEntry> collect(DataSet dataSet, StreetOption selectedStreet,
             StreetNameCollector.StreetIndex streetIndex, Way seedWayHint) {
@@ -49,12 +40,8 @@ final class HouseNumberOverlayCollector {
         CollectionStats stats = new CollectionStats();
         stats.selectedStreetWays = selectedStreetWays.size();
 
-        for (Way way : dataSet.getWays()) {
-            collectPrimitive(entriesByCanonicalPrimitiveId, way, selectedStreet, selectedStreetWays, stats);
-        }
-
-        for (Relation relation : dataSet.getRelations()) {
-            collectPrimitive(entriesByCanonicalPrimitiveId, relation, selectedStreet, selectedStreetWays, stats);
+        for (AddressEntry entry : addressEntryCollector.collect(dataSet)) {
+            collectAddressEntry(entriesByCanonicalPrimitiveId, entry, selectedStreet, effectiveStreetIndex, selectedStreetWays, stats);
         }
 
         List<HouseNumberOverlayEntry> entries = new ArrayList<>(entriesByCanonicalPrimitiveId.values());
@@ -63,31 +50,44 @@ final class HouseNumberOverlayCollector {
         return entries;
     }
 
-    private void collectPrimitive(Map<Long, HouseNumberOverlayEntry> entriesByCanonicalPrimitiveId, OsmPrimitive primitive,
-            StreetOption selectedStreet, List<Way> selectedStreetWays, CollectionStats stats) {
+    private void collectAddressEntry(Map<Long, HouseNumberOverlayEntry> entriesByCanonicalPrimitiveId, AddressEntry entry,
+            StreetOption selectedStreet, StreetNameCollector.StreetIndex streetIndex,
+            List<Way> selectedStreetWays, CollectionStats stats) {
         stats.scannedPrimitives++;
 
-        if (!AddressedBuildingMatcher.isBuildingGeometry(primitive)) {
+        if (entry == null || normalize(entry.getHouseNumber()).isEmpty()) {
             stats.rejectedNotAddressedForStreet++;
             return;
         }
 
-        OsmPrimitive canonicalPrimitive = resolveCanonicalPrimitive(primitive);
-        if (canonicalPrimitive == null || !AddressedBuildingMatcher.isBuildingGeometry(canonicalPrimitive)) {
+        String entryStreet = normalize(entry.getStreet());
+        if (entryStreet.isEmpty() || !entryStreet.equalsIgnoreCase(normalize(selectedStreet.getBaseStreetName()))) {
             stats.rejectedNotAddressedForStreet++;
             return;
         }
 
-        long canonicalId = canonicalPrimitive.getUniqueId();
+        OsmPrimitive primitive = entry.getPrimitive();
+        if (primitive == null || !primitive.isUsable()) {
+            stats.rejectedNotAddressedForStreet++;
+            return;
+        }
+        long canonicalId = primitive.getUniqueId();
         if (entriesByCanonicalPrimitiveId.containsKey(canonicalId)) {
             stats.rejectedCanonicalDuplicate++;
             return;
         }
 
-        HouseNumberOverlayEntry entry = buildEntry(canonicalPrimitive, primitive, selectedStreet, selectedStreetWays,
+        StreetOption primitiveStreet = streetIndex
+                .resolveForBaseStreetAndPrimitive(entryStreet, primitive);
+        if (primitiveStreet == null || !selectedStreet.getClusterId().equals(primitiveStreet.getClusterId())) {
+            stats.rejectedNotAddressedForStreet++;
+            return;
+        }
+
+        HouseNumberOverlayEntry overlayEntry = buildEntry(entry, selectedStreetWays,
                 entriesByCanonicalPrimitiveId.size(), stats);
-        if (entry != null) {
-            entriesByCanonicalPrimitiveId.put(canonicalId, entry);
+        if (overlayEntry != null) {
+            entriesByCanonicalPrimitiveId.put(canonicalId, overlayEntry);
             stats.canonicalizedPrimitives = entriesByCanonicalPrimitiveId.size();
         }
     }
@@ -100,16 +100,9 @@ final class HouseNumberOverlayCollector {
                 .thenComparingInt(HouseNumberOverlayEntry::getStableIndex);
     }
 
-    private HouseNumberOverlayEntry buildEntry(OsmPrimitive canonicalPrimitive, OsmPrimitive sourcePrimitive,
-            StreetOption selectedStreet,
+    private HouseNumberOverlayEntry buildEntry(AddressEntry addressEntry,
             List<Way> selectedStreetWays, int stableIndex, CollectionStats stats) {
-        OsmPrimitive addressedPrimitive = resolveAddressedPrimitive(canonicalPrimitive, sourcePrimitive);
-        if (!AddressedBuildingMatcher.isAddressedBuildingForStreet(addressedPrimitive, selectedStreet.getBaseStreetName())) {
-            stats.rejectedNotAddressedForStreet++;
-            return null;
-        }
-
-        EastNorth labelPoint = resolveLabelPoint(canonicalPrimitive);
+        EastNorth labelPoint = addressEntry.getLabelPoint();
         if (labelPoint == null) {
             stats.rejectedMissingLabelPoint++;
             return null;
@@ -119,81 +112,26 @@ final class HouseNumberOverlayCollector {
             return null;
         }
 
-        String street = normalize(addressedPrimitive.get("addr:street"));
-        String postcode = normalize(addressedPrimitive.get("addr:postcode"));
+        String street = normalize(addressEntry.getStreet());
+        String postcode = normalize(addressEntry.getPostcode());
         if (postcode.isEmpty()) {
             stats.acceptedMissingPostcode++;
         }
-        String houseNumber = normalize(addressedPrimitive.get("addr:housenumber"));
+        String houseNumber = normalize(addressEntry.getHouseNumber());
         ParsedHouseNumber parsedHouseNumber = parseHouseNumber(houseNumber);
         return new HouseNumberOverlayEntry(
-                canonicalPrimitive,
+                addressEntry.getPrimitive(),
                 street,
                 postcode,
                 houseNumber,
                 parsedHouseNumber.numberPart,
                 parsedHouseNumber.suffixPart,
                 labelPoint,
-                stableIndex
+                stableIndex,
+                addressEntry.getCarrierType(),
+                addressEntry.getAssociatedBuilding(),
+                addressEntry.isIndirectBuildingAddress()
         );
-    }
-
-    private OsmPrimitive resolveAddressedPrimitive(OsmPrimitive canonicalPrimitive, OsmPrimitive sourcePrimitive) {
-        if (AddressedBuildingMatcher.isAddressedBuilding(canonicalPrimitive)) {
-            return canonicalPrimitive;
-        }
-        if (AddressedBuildingMatcher.isAddressedBuilding(sourcePrimitive)) {
-            return sourcePrimitive;
-        }
-        return canonicalPrimitive;
-    }
-
-    private OsmPrimitive resolveCanonicalPrimitive(OsmPrimitive primitive) {
-        if (!(primitive instanceof Way) || !primitive.isUsable()) {
-            return primitive;
-        }
-        Way way = (Way) primitive;
-        Relation canonicalRelation = findBuildingOuterMultipolygonRelation(way);
-        return canonicalRelation != null ? canonicalRelation : primitive;
-    }
-
-    private Relation findBuildingOuterMultipolygonRelation(Way way) {
-        if (way == null || !way.isUsable()) {
-            return null;
-        }
-        Relation best = null;
-        for (OsmPrimitive referrer : way.getReferrers()) {
-            if (!(referrer instanceof Relation)) {
-                continue;
-            }
-            Relation relation = (Relation) referrer;
-            if (!isBuildingOuterMultipolygonRelationForWay(relation, way)) {
-                continue;
-            }
-            if (best == null || relation.getUniqueId() < best.getUniqueId()) {
-                best = relation;
-            }
-        }
-        return best;
-    }
-
-    private boolean isBuildingOuterMultipolygonRelationForWay(Relation relation, Way way) {
-        if (relation == null || way == null || !relation.isUsable()) {
-            return false;
-        }
-        if (!relation.hasTag("type", "multipolygon") || !relation.hasTag("building")) {
-            return false;
-        }
-        for (RelationMember member : relation.getMembers()) {
-            if (member == null || !member.isWay() || member.getWay() != way) {
-                continue;
-            }
-            String role = normalize(member.getRole());
-            if (role.isEmpty() || "outer".equals(role)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private boolean isNearSelectedStreet(EastNorth labelPoint, List<Way> streetWays) {
@@ -210,10 +148,12 @@ final class HouseNumberOverlayCollector {
             for (int i = 1; i < nodes.size(); i++) {
                 Node first = nodes.get(i - 1);
                 Node second = nodes.get(i);
-                if (first == null || second == null || first.getEastNorth() == null || second.getEastNorth() == null) {
+                EastNorth firstPoint = resolveNodeEastNorth(first);
+                EastNorth secondPoint = resolveNodeEastNorth(second);
+                if (first == null || second == null || firstPoint == null || secondPoint == null) {
                     continue;
                 }
-                double distanceSquared = distanceSquaredToSegment(labelPoint, first.getEastNorth(), second.getEastNorth());
+                double distanceSquared = distanceSquaredToSegment(labelPoint, firstPoint, secondPoint);
                 if (distanceSquared < bestSquared) {
                     bestSquared = distanceSquared;
                     if (bestSquared <= limitSquared) {
@@ -254,114 +194,6 @@ final class HouseNumberOverlayCollector {
     }
 
 
-    private EastNorth resolveLabelPoint(OsmPrimitive primitive) {
-        Area area = Geometry.getAreaEastNorth(primitive);
-        if (area == null || area.isEmpty()) {
-            return null;
-        }
-
-        Rectangle2D bounds = area.getBounds2D();
-        if (bounds == null || bounds.isEmpty()) {
-            return null;
-        }
-
-        List<EastNorth> candidates = new ArrayList<>();
-        addBoundingBoxCandidates(candidates, primitive, bounds);
-        addGeometryCandidates(candidates, primitive);
-
-        EastNorth bestInside = null;
-        double bestScore = Double.NEGATIVE_INFINITY;
-        for (EastNorth candidate : candidates) {
-            if (candidate == null || !area.contains(candidate.east(), candidate.north())) {
-                continue;
-            }
-            double score = interiorScore(candidate, bounds);
-            if (score > bestScore) {
-                bestScore = score;
-                bestInside = candidate;
-            }
-        }
-
-        return bestInside;
-    }
-
-    private void addBoundingBoxCandidates(List<EastNorth> candidates, OsmPrimitive primitive, Rectangle2D areaBounds) {
-        BBox primitiveBox = primitive.getBBox();
-        Projection projection = ProjectionRegistry.getProjection();
-        if (primitiveBox != null && primitiveBox.isValid() && projection != null) {
-            LatLon centerLatLon = primitiveBox.getCenter();
-            candidates.add(projection.latlon2eastNorth(centerLatLon));
-        }
-
-        double cx = areaBounds.getCenterX();
-        double cy = areaBounds.getCenterY();
-        double dx = areaBounds.getWidth() * 0.25;
-        double dy = areaBounds.getHeight() * 0.25;
-
-        candidates.add(new EastNorth(cx, cy));
-        candidates.add(new EastNorth(cx + dx, cy));
-        candidates.add(new EastNorth(cx - dx, cy));
-        candidates.add(new EastNorth(cx, cy + dy));
-        candidates.add(new EastNorth(cx, cy - dy));
-        candidates.add(new EastNorth(cx + dx, cy + dy));
-        candidates.add(new EastNorth(cx + dx, cy - dy));
-        candidates.add(new EastNorth(cx - dx, cy + dy));
-        candidates.add(new EastNorth(cx - dx, cy - dy));
-    }
-
-    private void addGeometryCandidates(List<EastNorth> candidates, OsmPrimitive primitive) {
-        if (primitive instanceof Way) {
-            addWayGeometryCandidates(candidates, (Way) primitive);
-            return;
-        }
-
-        if (!(primitive instanceof Relation)) {
-            return;
-        }
-
-        Relation relation = (Relation) primitive;
-        for (RelationMember member : relation.getMembers()) {
-            String role = member.getRole();
-            boolean isOuter = role == null || role.isEmpty() || "outer".equals(role);
-            if (!isOuter || !member.isWay()) {
-                continue;
-            }
-            Way way = member.getWay();
-            if (way == null || !way.isUsable()) {
-                continue;
-            }
-            addWayGeometryCandidates(candidates, way);
-        }
-    }
-
-    private void addWayGeometryCandidates(List<EastNorth> candidates, Way way) {
-        if (way == null || !way.isClosed()) {
-            return;
-        }
-
-        List<Node> nodes = way.getNodes();
-        if (nodes.size() < 3) {
-            return;
-        }
-
-        EastNorth centroid = Geometry.getCentroid(nodes);
-        if (centroid != null) {
-            candidates.add(centroid);
-        }
-
-        EastNorth center = Geometry.getCenter(nodes);
-        if (center != null) {
-            candidates.add(center);
-        }
-    }
-
-    private double interiorScore(EastNorth point, Rectangle2D bounds) {
-        double left = point.east() - bounds.getMinX();
-        double right = bounds.getMaxX() - point.east();
-        double top = bounds.getMaxY() - point.north();
-        double bottom = point.north() - bounds.getMinY();
-        return Math.min(Math.min(left, right), Math.min(top, bottom));
-    }
 
     private ParsedHouseNumber parseHouseNumber(String houseNumber) {
         String normalized = normalize(houseNumber);
@@ -383,6 +215,20 @@ final class HouseNumberOverlayCollector {
 
     private String normalize(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private EastNorth resolveNodeEastNorth(Node node) {
+        if (node == null || !node.isUsable()) {
+            return null;
+        }
+        if (org.openstreetmap.josm.data.projection.ProjectionRegistry.getProjection() != null) {
+            return node.getEastNorth();
+        }
+        org.openstreetmap.josm.data.coor.LatLon coor = node.getCoor();
+        if (coor == null) {
+            return null;
+        }
+        return new EastNorth(coor.lon(), coor.lat());
     }
 
     /**

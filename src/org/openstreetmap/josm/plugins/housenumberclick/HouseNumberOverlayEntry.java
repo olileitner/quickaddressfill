@@ -4,7 +4,7 @@ import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 
 /**
- * Value object describing one rendered house-number label entry in the overlay layer.
+ * Value object describing one rendered house-number label entry with carrier metadata.
  */
 final class HouseNumberOverlayEntry {
 
@@ -16,9 +16,13 @@ final class HouseNumberOverlayEntry {
     private final String suffixPart;
     private final EastNorth labelPoint;
     private final int stableIndex;
+    private final AddressEntry.CarrierType carrierType;
+    private final OsmPrimitive associatedBuilding;
+    private final boolean indirectBuildingAddress;
 
     HouseNumberOverlayEntry(OsmPrimitive primitive, String street, String postcode, String houseNumber, int numberPart, String suffixPart,
-            EastNorth labelPoint, int stableIndex) {
+            EastNorth labelPoint, int stableIndex, AddressEntry.CarrierType carrierType,
+            OsmPrimitive associatedBuilding, boolean indirectBuildingAddress) {
         this.primitive = primitive;
         this.street = street;
         this.postcode = postcode;
@@ -27,6 +31,9 @@ final class HouseNumberOverlayEntry {
         this.suffixPart = suffixPart;
         this.labelPoint = labelPoint;
         this.stableIndex = stableIndex;
+        this.carrierType = carrierType != null ? carrierType : AddressEntry.CarrierType.OTHER_OBJECT;
+        this.associatedBuilding = associatedBuilding;
+        this.indirectBuildingAddress = indirectBuildingAddress;
     }
 
     OsmPrimitive getPrimitive() {
@@ -59,5 +66,17 @@ final class HouseNumberOverlayEntry {
 
     int getStableIndex() {
         return stableIndex;
+    }
+
+    AddressEntry.CarrierType getCarrierType() {
+        return carrierType;
+    }
+
+    OsmPrimitive getAssociatedBuilding() {
+        return associatedBuilding;
+    }
+
+    boolean isIndirectBuildingAddress() {
+        return indirectBuildingAddress;
     }
 }

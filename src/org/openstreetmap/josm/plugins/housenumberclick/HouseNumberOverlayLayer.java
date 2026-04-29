@@ -375,22 +375,36 @@ final class HouseNumberOverlayLayer extends Layer {
     }
 
     private Set<String> collectDuplicateAddressKeys(List<HouseNumberOverlayEntry> entries) {
-        Map<String, Integer> addressCounts = new HashMap<>();
+        Map<String, Set<Long>> anchorsByAddress = new HashMap<>();
         for (HouseNumberOverlayEntry entry : entries) {
             String key = normalizeAddressKey(entry.getStreet(), entry.getPostcode(), entry.getHouseNumber());
             if (key.isEmpty()) {
                 continue;
             }
-            addressCounts.put(key, addressCounts.getOrDefault(key, 0) + 1);
+            anchorsByAddress
+                    .computeIfAbsent(key, ignored -> new HashSet<>())
+                    .add(resolveRealWorldAnchorId(entry));
         }
 
         Set<String> duplicateAddresses = new HashSet<>();
-        for (Map.Entry<String, Integer> countEntry : addressCounts.entrySet()) {
-            if (countEntry.getValue() > 1) {
+        for (Map.Entry<String, Set<Long>> countEntry : anchorsByAddress.entrySet()) {
+            if (countEntry.getValue().size() > 1) {
                 duplicateAddresses.add(countEntry.getKey());
             }
         }
         return duplicateAddresses;
+    }
+
+    private long resolveRealWorldAnchorId(HouseNumberOverlayEntry entry) {
+        if (entry == null) {
+            return 0L;
+        }
+        OsmPrimitive associatedBuilding = entry.getAssociatedBuilding();
+        if (associatedBuilding != null && associatedBuilding.isUsable()) {
+            return associatedBuilding.getUniqueId();
+        }
+        OsmPrimitive primitive = entry.getPrimitive();
+        return primitive == null ? 0L : primitive.getUniqueId();
     }
 
     private Color resolveBubbleFillColor(boolean duplicateHouseNumber, int numberPart, boolean missingPostcode) {

@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.RenderingHints;
+import java.awt.BasicStroke;
 import java.awt.geom.Path2D;
 import java.util.List;
 
@@ -46,6 +47,7 @@ final class BuildingOverviewLayer extends Layer {
     private static final Color ONLY_COUNTRY_MISSING_FILL_COLOR = new Color(230, 210, 80, 200);
     static final Color NO_ADDRESS_DATA_COLOR = new Color(135, 135, 135, 130);
     private static final Color LEGEND_BACKGROUND_COLOR = new Color(248, 248, 248, 215);
+    private static final Color INDIRECT_ADDRESS_OUTLINE_COLOR = new Color(35, 118, 168, 220);
     private static final int LEGEND_PADDING = 8;
     private static final int LEGEND_ROW_HEIGHT = 16;
     private static final int LEGEND_SWATCH_SIZE = 11;
@@ -150,7 +152,8 @@ final class BuildingOverviewLayer extends Layer {
                     entry.hasMissingCity(),
                     entry.hasMissingCountry(),
                     entry.hasOnlyCountryMissing(),
-                    entry.hasMissingRequiredAddressFields()
+                    entry.hasMissingRequiredAddressFields(),
+                    entry.hasIndirectAddress()
             );
             return;
         }
@@ -166,7 +169,8 @@ final class BuildingOverviewLayer extends Layer {
                     entry.hasMissingCity(),
                     entry.hasMissingCountry(),
                     entry.hasOnlyCountryMissing(),
-                    entry.hasMissingRequiredAddressFields()
+                    entry.hasMissingRequiredAddressFields(),
+                    entry.hasIndirectAddress()
             );
         }
     }
@@ -179,7 +183,8 @@ final class BuildingOverviewLayer extends Layer {
             boolean hasMissingCity,
             boolean hasMissingCountry,
             boolean hasOnlyCountryMissing,
-            boolean hasMissingRequiredAddressFields) {
+            boolean hasMissingRequiredAddressFields,
+            boolean hasIndirectAddress) {
         if (relation == null || !relation.isUsable()) {
             return;
         }
@@ -203,7 +208,8 @@ final class BuildingOverviewLayer extends Layer {
                     hasMissingCity,
                     hasMissingCountry,
                     hasOnlyCountryMissing,
-                    hasMissingRequiredAddressFields
+                    hasMissingRequiredAddressFields,
+                    hasIndirectAddress
             );
         }
     }
@@ -216,7 +222,8 @@ final class BuildingOverviewLayer extends Layer {
             boolean hasMissingCity,
             boolean hasMissingCountry,
             boolean hasOnlyCountryMissing,
-            boolean hasMissingRequiredAddressFields) {
+            boolean hasMissingRequiredAddressFields,
+            boolean hasIndirectAddress) {
         Path2D polygon = buildScreenPolygon(mapView, way);
         if (polygon == null) {
             return;
@@ -237,6 +244,11 @@ final class BuildingOverviewLayer extends Layer {
         }
         g.setColor(fillColor);
         g.fill(polygon);
+        if (hasIndirectAddress) {
+            g.setColor(INDIRECT_ADDRESS_OUTLINE_COLOR);
+            g.setStroke(new BasicStroke(2.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 10.0f, new float[] {5.0f, 4.0f}, 0.0f));
+            g.draw(polygon);
+        }
     }
 
     private Color resolveFillColor(
